@@ -1,4 +1,6 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Loading } from "../components/Feedback";
 import { AppShell } from "../components/layout/AppShell";
 import { PanelLayout } from "../components/layout/PanelLayout";
 import { RequireAuth } from "../components/layout/RequireAuth";
@@ -34,7 +36,6 @@ import { ArtworkPage } from "../pages/public/ArtworkPage";
 import { AuctionPage } from "../pages/public/AuctionPage";
 import { AuctionsPage } from "../pages/public/AuctionsPage";
 import { ForgotPasswordPage, LoginPage, RegisterPage } from "../pages/public/AuthPages";
-import { GalleryPage } from "../pages/public/GalleryPage";
 import { HomePage } from "../pages/public/HomePage";
 import { NotFoundPage } from "../pages/public/NotFoundPage";
 import { StorePage } from "../pages/public/StorePage";
@@ -47,6 +48,9 @@ import { LocaleProvider, useLocale } from "../state/LocaleContext";
 import { SessionProvider } from "../state/SessionContext";
 import { ToastProvider } from "../state/ToastContext";
 
+/** The 3D gallery loads Babylon.js only when the visitor opens it. */
+const WorldPage = lazy(() => import("../pages/public/world/WorldPage").then((module) => ({ default: module.WorldPage })));
+
 function Routing() {
   const { i18n } = useLocale();
   const buyer = ["CUSTOMER", "ARTISAN"] as const;
@@ -55,7 +59,14 @@ function Routing() {
       <Route element={<AppShell />}>
         <Route index element={<HomePage />} />
         <Route path="welcome" element={<WelcomePage />} />
-        <Route path="gallery" element={<GalleryPage />} />
+        <Route
+          path="gallery"
+          element={
+            <Suspense fallback={<Loading />}>
+              <WorldPage />
+            </Suspense>
+          }
+        />
         <Route path="artworks/:slug" element={<ArtworkPage />} />
         <Route path="stores" element={<StoresPage />} />
         <Route path="stores/:slug" element={<StorePage />} />
