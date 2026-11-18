@@ -1,16 +1,13 @@
-export type Listener<T> = (value: T) => void;
-
-/** Minimal typed event channel (Observer pattern). */
+/** Minimal Observer: listeners subscribe and receive every emitted value. */
 export class Signal<T = void> {
-  private readonly listeners = new Set<Listener<T>>();
+  private readonly listeners = new Set<(value: T) => void>();
 
-  /** Registers a listener and returns a function that removes it. */
-  subscribe(listener: Listener<T>): () => void {
+  subscribe(listener: (value: T) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
-  emit(value?: T): void {
-    this.listeners.forEach((listener) => listener(value as T));
+  emit(value: T): void {
+    this.listeners.forEach((listener) => listener(value));
   }
 }

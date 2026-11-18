@@ -1,0 +1,22 @@
+/** Countries offered in forms (ISO 3166-1 alpha-2). The list shows the most frequent buyers first. */
+export const COUNTRIES: { code: string; es: string; en: string }[] = [
+  { code: "CO", es: "Colombia", en: "Colombia" },
+  { code: "US", es: "Estados Unidos", en: "United States" },
+  { code: "ES", es: "España", en: "Spain" },
+  { code: "MX", es: "México", en: "Mexico" },
+  { code: "EC", es: "Ecuador", en: "Ecuador" },
+  { code: "PE", es: "Perú", en: "Peru" },
+  { code: "CL", es: "Chile", en: "Chile" },
+  { code: "AR", es: "Argentina", en: "Argentina" },
+  { code: "BR", es: "Brasil", en: "Brazil" },
+  { code: "CA", es: "Canadá", en: "Canada" },
+  { code: "GB", es: "Reino Unido", en: "United Kingdom" },
+  { code: "FR", es: "Francia", en: "France" },
+  { code: "DE", es: "Alemania", en: "Germany" },
+  { code: "IT", es: "Italia", en: "Italy" },
+  { code: "NL", es: "Países Bajos", en: "Netherlands" },
+  { code: "JP", es: "Japón", en: "Japan" },
+  { code: "KR", es: "Corea del Sur", en: "South Korea" },
+  { code: "CN", es: "China", en: "China" },
+  { code: "AU", es: "Australia", en: "Australia" },
+];
