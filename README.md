@@ -1,6 +1,6 @@
 # MUSEO v2 — Frontend (React + TypeScript + Vite)
 
-Galería de fotos y tienda del Barniz de Pasto Mopa-Mopa con tres interfaces: **cliente**, **artesano** y **administrador**.
+Galería 3D y tienda del Barniz de Pasto Mopa-Mopa con tres interfaces: **cliente**, **artesano** y **administrador**.
 Implementa solo lo modelado en la v2 (base de datos `V2__marketplace.sql` y lista de correcciones para backend); no agrega funciones nuevas.
 
 ## Cómo correrlo
@@ -49,11 +49,24 @@ Contraseña de todas: `museo123`
 ## Qué incluye
 
 - **Bienvenida**: idioma, avatar, cuestionario de gustos (colores, formas, figuras, estilo, presupuesto) y recomendaciones.
-- **Galería de fotos** con filtros por catálogo (en la URL), ficha de obra con varias fotos y zoom, talleres armados con plantillas.
+- **Galería 3D** (`/gallery`): plaza con una sala por maestro; cada pieza es una foto 2D dentro de una vitrina. Ficha de obra con varias fotos y zoom, talleres armados con plantillas.
 - **Cliente**: carrito, pago, pasarela, pedidos, favoritos, encargos con diseños de IA y ofertas de artesanos, mensajes, notificaciones, perfil (gustos y direcciones).
 - **Artesano**: verificación por pasos, editor de tienda (secciones, plantilla, colores, vista previa), obras, subastas, encargos (ofertar), pedidos por enviar (anticipo y saldo), liquidaciones.
 - **Administrador**: verificaciones, usuarios, tiendas, catálogos, configuración (`app_settings`), pujas sospechosas, reportes, ventas y liquidaciones, auditoría.
 - Español e inglés (`src/i18n`).
+
+### Galería 3D
+
+Hecha con Babylon.js. Es la plaza de la versión anterior (fuente, quiosco, faroles, vegetación) con las salas abiertas:
+
+- Cada taller publicado es una sala (hasta 6 salas en la plaza, hasta 9 vitrinas por sala).
+- Cada pieza se muestra como su **foto principal en 2D** sobre una base 3D: pedestal de madera, vitrina de vidrio y placa con título y precio.
+- Clic en una vitrina (o tecla **E** frente a ella) abre un panel con las fotos, el precio y los botones de comprar, subasta y guardar, sin salir del 3D.
+- El quiosco (tecla **E**) lleva al cuestionario de gustos; las 2 salas que más coinciden con los gustos se marcan con una columna de luz.
+- Controles: **W A S D** caminar, **Shift** correr, mouse mirar (clic para capturarlo, **Esc** para soltarlo), **V** cambiar cámara.
+- En celulares y tabletas sin mouse muestra un aviso y lleva a los talleres.
+- Parámetros de URL: `?quality=low|medium|high` (calidad gráfica; baja sola si los FPS caen) y `?debug` (expone `window.museo`).
+- Babylon.js pesa ~6 MB y se descarga solo al abrir la galería (carga diferida).
 
 ### Pasarela de pagos
 
@@ -81,6 +94,7 @@ src/
   pages/        public, customer, shared, artisan, admin
   components/   Componentes reutilizables y layout
   art/          Generador de las imágenes de demo
+  world/        Mundo 3D (Babylon.js): plaza, salas, vitrinas, jugador, cámara
   i18n/         Textos en español e inglés
   styles/       CSS
 ```
@@ -94,6 +108,10 @@ Patrones usados:
 | Singleton | `HttpClient`, `MockDatabase`, `ServiceRegistry` |
 | Observer | `Signal` / `AppEvents` (carrito, notificaciones, mensajes) y subastas en vivo |
 | Composition root | `App.tsx` arma proveedores y rutas |
+| Facade | `World` es la única puerta del 3D hacia React |
+| Template Method | `SceneComponent` y sus partes (`SalaBuilding`, `Kiosk`, `Fountain`...) |
+| Factory | `MaterialLibrary`, `TextureFactory`, `MeshFactory` |
+| Adapter | `WorldRoomsLoader` convierte talleres y obras en salas y vitrinas |
 
 Convenciones: código en inglés, textos al usuario en español (e inglés). Los enums viajan en mayúsculas en inglés (`PAID`, `ARTISAN`); el backend los convierte a los valores de la base de datos.
 
