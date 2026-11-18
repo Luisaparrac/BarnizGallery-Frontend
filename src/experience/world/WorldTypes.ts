@@ -1,4 +1,4 @@
-import type { Id } from "../domain/common";
+import type { Id } from "../../domain/common";
 
 export type CameraMode = "FIRST_PERSON" | "THIRD_PERSON";
 

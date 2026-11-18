@@ -1,5 +1,5 @@
 import type { Vector3 } from "@babylonjs/core";
-import { Signal } from "../core/Signal";
+import { Signal } from "../../core/Signal";
 import type { Interactable } from "./Interactable";
 
 /** Finds the interactable closest to the player and raises it when the visitor presses E. */

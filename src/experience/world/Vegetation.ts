@@ -1,5 +1,5 @@
 import { Color3, Mesh, MeshBuilder, VertexBuffer, VertexData, type InstancedMesh } from "@babylonjs/core";
-import { SeededRandom } from "../art/SeededRandom";
+import { SeededRandom } from "../../art/SeededRandom";
 import { ValueNoise } from "./core/ValueNoise";
 import { SceneComponent } from "./SceneComponent";
 import type { SceneContext } from "./SceneContext";

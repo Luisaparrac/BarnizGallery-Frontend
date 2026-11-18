@@ -1,13 +1,13 @@
-import { ArtworkImageFactory } from "../../../art/ArtworkImageFactory";
-import { VisitorSetupStore } from "../../../core/VisitorSetupStore";
-import type { Id } from "../../../domain/common";
-import type { Artwork, ArtworkSummary, StoreSummary } from "../../../domain/gallery";
-import type { Recommendation } from "../../../domain/taste";
-import type { User } from "../../../domain/user";
-import type { Localizer } from "../../../i18n/Localizer";
-import { services } from "../../../services/ServiceRegistry";
-import type { Formatter } from "../../../utils/Formatter";
-import type { WorldPiece, WorldRoom } from "../../../world/WorldTypes";
+import { ArtworkImageFactory } from "../../art/ArtworkImageFactory";
+import { VisitorSetupStore } from "../../core/VisitorSetupStore";
+import type { Id } from "../../domain/common";
+import type { Artwork, ArtworkSummary, StoreSummary } from "../../domain/gallery";
+import type { Recommendation } from "../../domain/taste";
+import type { User } from "../../domain/user";
+import type { Localizer } from "../../i18n/Localizer";
+import { services } from "../../services/ServiceRegistry";
+import type { Formatter } from "../../utils/Formatter";
+import type { WorldPiece, WorldRoom } from "./WorldTypes";
 
 /** What the 3D page needs: one room per published store, with its pieces, already translated. */
 export interface WorldData {

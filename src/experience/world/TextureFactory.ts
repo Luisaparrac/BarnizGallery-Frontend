@@ -1,5 +1,5 @@
 import { DynamicTexture, Scene, Texture } from "@babylonjs/core";
-import { SeededRandom } from "../art/SeededRandom";
+import { SeededRandom } from "../../art/SeededRandom";
 import { ValueNoise } from "./core/ValueNoise";
 import { NormalMapBuilder } from "./NormalMapBuilder";
 

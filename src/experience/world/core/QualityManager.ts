@@ -1,4 +1,4 @@
-import { Signal } from "../../core/Signal";
+import { Signal } from "../../../core/Signal";
 
 export type QualityLevel = "low" | "medium" | "high";
 

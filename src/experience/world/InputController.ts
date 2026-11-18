@@ -1,4 +1,4 @@
-import { Signal } from "../core/Signal";
+import { Signal } from "../../core/Signal";
 
 /** Keyboard, mouse and pointer-lock input, exposed as simple polled values and signals. */
 export class InputController {

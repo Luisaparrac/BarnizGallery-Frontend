@@ -1,5 +1,5 @@
 import { MeshBuilder, Vector3, type Mesh, type Scene } from "@babylonjs/core";
-import { Signal } from "../core/Signal";
+import { Signal } from "../../core/Signal";
 import type { CameraMode } from "./WorldTypes";
 import type { ArtisanAvatar } from "./ArtisanAvatar";
 import type { CameraRig } from "./CameraRig";

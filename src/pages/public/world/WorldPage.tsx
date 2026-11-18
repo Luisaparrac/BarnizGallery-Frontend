@@ -5,11 +5,11 @@ import { Icon } from "../../../components/Icon";
 import { useAsync } from "../../../hooks/useAsync";
 import { useLocale } from "../../../state/LocaleContext";
 import { useSession } from "../../../state/SessionContext";
-import { DoorInteractable, KioskInteractable, PieceInteractable, type Interactable } from "../../../world/Interactable";
-import { World } from "../../../world/World";
-import type { CameraMode } from "../../../world/WorldTypes";
+import { DoorInteractable, KioskInteractable, PieceInteractable, type Interactable } from "../../../experience/world/Interactable";
+import { World } from "../../../experience/world/World";
+import type { CameraMode } from "../../../experience/world/WorldTypes";
 import { PiecePanel } from "./PiecePanel";
-import { WorldRoomsLoader, type WorldData } from "./WorldRoomsLoader";
+import { WorldRoomsLoader, type WorldData } from "../../../experience/world/WorldRoomsLoader";
 
 /** The gallery: a 3D plaza with one sala per master, where every piece is a photo inside a glass case. */
 export function WorldPage() {

@@ -1,5 +1,5 @@
 import { Color3, Engine, Scene, Vector3 } from "@babylonjs/core";
-import { Signal } from "../core/Signal";
+import { Signal } from "../../core/Signal";
 import { ArtisanAvatar } from "./ArtisanAvatar";
 import { CameraRig } from "./CameraRig";
 import { QualityManager } from "./core/QualityManager";
