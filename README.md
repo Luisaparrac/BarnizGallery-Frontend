@@ -10,7 +10,7 @@ Requisitos: Node 20 o superior.
 ```bash
 npm install
 cp .env.example .env      # en Windows: copy .env.example .env
-npm run dev               # http://localhost:5173
+npm run dev               # http://localhost:5173 (3D) y http://localhost:5173/panel.html (panel)
 ```
 
 Otros comandos:
@@ -49,7 +49,8 @@ Contraseña de todas: `museo123`
 ## Qué incluye
 
 - **Bienvenida**: idioma, avatar, cuestionario de gustos (colores, formas, figuras, estilo, presupuesto) y recomendaciones.
-- **Galería 3D** (`/gallery`): plaza con una sala por maestro; cada pieza es una foto 2D dentro de una vitrina. Ficha de obra con varias fotos y zoom, talleres armados con plantillas.
+- **Experiencia 3D** (`index.html`): plaza con una sala por maestro; cada pieza es una foto 2D dentro de una vitrina.
+- **Panel** (`panel.html`): artesanos y administradores, con su propio inicio de sesión y registro de artesanos.
 - **Cliente**: carrito, pago, pasarela, pedidos, favoritos, encargos con diseños de IA y ofertas de artesanos, mensajes, notificaciones, perfil (gustos y direcciones).
 - **Artesano**: verificación por pasos, editor de tienda (secciones, plantilla, colores, vista previa), obras, subastas, encargos (ofertar), pedidos por enviar (anticipo y saldo), liquidaciones.
 - **Administrador**: verificaciones, usuarios, tiendas, catálogos, configuración (`app_settings`), pujas sospechosas, reportes, ventas y liquidaciones, auditoría.
@@ -61,12 +62,12 @@ Hecha con Babylon.js. Es la plaza de la versión anterior (fuente, quiosco, faro
 
 - Cada taller publicado es una sala (hasta 6 salas en la plaza, hasta 9 vitrinas por sala).
 - Cada pieza se muestra como su **foto principal en 2D** sobre una base 3D: pedestal de madera, vitrina de vidrio y placa con título y precio.
-- Clic en una vitrina (o tecla **E** frente a ella) abre un panel con las fotos, el precio y los botones de comprar, subasta y guardar, sin salir del 3D.
-- El quiosco (tecla **E**) lleva al cuestionario de gustos; las 2 salas que más coinciden con los gustos se marcan con una columna de luz.
+- Las 2 salas que más coinciden con los gustos del visitante se marcan con una columna de luz.
+- Los paneles de pieza, compra, encargos y gustos se están pasando a 3D (`@babylonjs/gui`).
 - Controles: **W A S D** caminar, **Shift** correr, mouse mirar (clic para capturarlo, **Esc** para soltarlo), **V** cambiar cámara.
-- En celulares y tabletas sin mouse muestra un aviso y lleva a los talleres.
+- En celulares y tabletas sin mouse muestra un aviso.
 - Parámetros de URL: `?quality=low|medium|high` (calidad gráfica; baja sola si los FPS caen) y `?debug` (expone `window.museo`).
-- Babylon.js pesa ~6 MB y se descarga solo al abrir la galería (carga diferida).
+- Babylon.js pesa ~6 MB y solo lo descarga `index.html`; el panel no lo carga.
 
 ### Pasarela de pagos
 
@@ -82,7 +83,9 @@ Los diseños de IA de los encargos también son simulados hasta que el backend c
 
 ```
 src/
-  app/          App.tsx: proveedores y rutas
+  experience/   Experiencia 3D sin React (entrada de index.html)
+    world/      Mundo 3D (Babylon.js): plaza, salas, vitrinas, jugador, cámara
+  panel/        Panel React con HashRouter (entrada de panel.html)
   config/       AppConfig: lee las variables .env
   domain/       Tipos del modelo (usuario, galería, comercio, subasta, encargo...)
   services/
@@ -91,10 +94,9 @@ src/
     mock/       Implementación simulada (MockDatabase, reglas, semilla)
     ServiceRegistry.ts  Elige api o mock por servicio
   state/        Contextos: sesión, idioma, catálogos, avisos
-  pages/        public, customer, shared, artisan, admin
+  pages/        artisan, admin y shared (usadas por el panel)
   components/   Componentes reutilizables y layout
   art/          Generador de las imágenes de demo
-  world/        Mundo 3D (Babylon.js): plaza, salas, vitrinas, jugador, cámara
   i18n/         Textos en español e inglés
   styles/       CSS
 ```
@@ -107,8 +109,8 @@ Patrones usados:
 | Adapter | `Api*Service` y `Mock*Service` implementan la misma interfaz |
 | Singleton | `HttpClient`, `MockDatabase`, `ServiceRegistry` |
 | Observer | `Signal` / `AppEvents` (carrito, notificaciones, mensajes) y subastas en vivo |
-| Composition root | `App.tsx` arma proveedores y rutas |
-| Facade | `World` es la única puerta del 3D hacia React |
+| Composition root | `PanelApp.tsx` arma proveedores y rutas del panel; `Experience` arma la experiencia 3D |
+| Facade | `World` es la única puerta al mundo 3D |
 | Template Method | `SceneComponent` y sus partes (`SalaBuilding`, `Kiosk`, `Fountain`...) |
 | Factory | `MaterialLibrary`, `TextureFactory`, `MeshFactory` |
 | Adapter | `WorldRoomsLoader` convierte talleres y obras en salas y vitrinas |
