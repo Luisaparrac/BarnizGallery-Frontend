@@ -23,6 +23,11 @@ export interface Session {
   accessToken: string;
 }
 
+export interface PasswordChange {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;

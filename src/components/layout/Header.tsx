@@ -87,6 +87,9 @@ export function Header() {
               {accountOpen && (
                 <div className="account-menu" role="menu">
                   <p className="account-role">{i18n.tx(`role.${user.role}`)}</p>
+                  <Link to="/profile" role="menuitem">
+                    {i18n.t("nav.profile")}
+                  </Link>
                   <a href="/" role="menuitem">
                     {i18n.t("nav.museum")}
                   </a>

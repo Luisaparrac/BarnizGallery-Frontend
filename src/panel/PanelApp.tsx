@@ -23,6 +23,7 @@ import { VerificationPage } from "../pages/artisan/VerificationPage";
 import { ForgotPasswordPage, LoginPage, RegisterPage } from "../pages/shared/AuthPages";
 import { MessagesPage } from "../pages/shared/MessagesPage";
 import { NotificationsPage } from "../pages/shared/NotificationsPage";
+import { ProfilePage } from "../pages/shared/ProfilePage";
 import { CatalogProvider } from "../state/CatalogContext";
 import { LocaleProvider, useLocale } from "../state/LocaleContext";
 import { SessionProvider } from "../state/SessionContext";
@@ -41,6 +42,7 @@ function Routing() {
 
         <Route path="messages" element={<RequireAuth roles={["ARTISAN", "ADMIN"]}><MessagesPage /></RequireAuth>} />
         <Route path="messages/:id" element={<RequireAuth roles={["ARTISAN", "ADMIN"]}><MessagesPage /></RequireAuth>} />
+        <Route path="profile" element={<RequireAuth roles={["ARTISAN", "ADMIN"]}><ProfilePage /></RequireAuth>} />
         <Route path="notifications" element={<RequireAuth roles={["ARTISAN", "ADMIN"]}><NotificationsPage /></RequireAuth>} />
 
         <Route

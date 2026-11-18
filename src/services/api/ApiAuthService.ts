@@ -1,4 +1,4 @@
-import type { LoginRequest, RegisterRequest, Session } from "../../domain/user";
+import type { LoginRequest, PasswordChange, RegisterRequest, Session } from "../../domain/user";
 import type { AuthService } from "../contracts/AuthService";
 import { HttpClient } from "./HttpClient";
 import { TokenStore } from "./TokenStore";
@@ -39,6 +39,10 @@ export class ApiAuthService implements AuthService {
 
   requestPasswordReset(email: string): Promise<void> {
     return this.http.post("/api/auth/forgot-password", { email });
+  }
+
+  changePassword(change: PasswordChange): Promise<void> {
+    return this.http.post("/api/auth/change-password", change);
   }
 
   verifyEmail(token: string): Promise<void> {

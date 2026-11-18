@@ -1,6 +1,6 @@
 import { AppError } from "../../domain/errors";
 import type { VerificationStep } from "../../domain/gallery";
-import type { LoginRequest, RegisterRequest, Session } from "../../domain/user";
+import type { LoginRequest, PasswordChange, RegisterRequest, Session } from "../../domain/user";
 import { TokenStore } from "../api/TokenStore";
 import type { AuthService } from "../contracts/AuthService";
 import { MockDatabase } from "./MockDatabase";
@@ -95,6 +95,16 @@ export class MockAuthService implements AuthService {
 
   async requestPasswordReset(_email: string): Promise<void> {
     await latency();
+  }
+
+  async changePassword(change: PasswordChange): Promise<void> {
+    await latency();
+    const user = MockSession.requireUser();
+    if (user.passwordHash !== (await PasswordHasher.hash(change.currentPassword))) throw new AppError("wrongPassword", "The current password is wrong", 422);
+    if (change.newPassword.length < 8) throw new AppError("weakPassword", "The password needs at least 8 characters", 422);
+    user.passwordHash = await PasswordHasher.hash(change.newPassword);
+    this.db.audit("users", user.id, "U", user.id, `Cambio de contraseña de ${user.fullName}`);
+    this.db.save();
   }
 
   /** Demo: there is no mail, so the current user's email is confirmed directly. */
