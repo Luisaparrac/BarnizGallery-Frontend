@@ -1,5 +1,4 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { Link } from "react-router-dom";
 import type { Auction } from "../domain/auction";
 import type { StoreTemplate } from "../domain/catalog";
 import type { Id } from "../domain/common";
@@ -91,10 +90,10 @@ function SectionView({ section, summary, artworks, auctions, onContact }: Props 
             {featured.map((summaryItem) => {
               const cover = summaryItem.artwork.photos.find((photo) => photo.isPrimary) ?? summaryItem.artwork.photos[0];
               return (
-                <Link key={summaryItem.artwork.id} to={`/artworks/${summaryItem.artwork.slug}`}>
+                <div key={summaryItem.artwork.id}>
                   <ArtImage src={cover?.url} alt={i18n.pick(summaryItem.artwork.titleEs, summaryItem.artwork.titleEn)} />
                   <span>{i18n.pick(summaryItem.artwork.titleEs, summaryItem.artwork.titleEn)}</span>
-                </Link>
+                </div>
               );
             })}
           </div>
@@ -112,7 +111,7 @@ function SectionView({ section, summary, artworks, auctions, onContact }: Props 
             <ul className="store-auctions">
               {open.map((auction) => (
                 <li key={auction.id}>
-                  <Link to={`/auctions/${auction.id}`}>{i18n.pick(auction.artworkTitleEs, auction.artworkTitleEn)}</Link>
+                  <strong>{i18n.pick(auction.artworkTitleEs, auction.artworkTitleEn)}</strong>
                   <span>{auction.status === "ACTIVE" ? <>{i18n.t("auction.endsIn")} <Countdown until={auction.endDate} /></> : i18n.t("status.auction.SCHEDULED")}</span>
                 </li>
               ))}
@@ -129,9 +128,7 @@ function SectionView({ section, summary, artworks, auctions, onContact }: Props 
         <section className="store-section store-callout">
           <h2>{title || i18n.t("section.CUSTOM_ORDERS")}</h2>
           {content && <p>{content}</p>}
-          <Link className="btn btn-store" to={`/account/custom/new?master=${master.id}`}>
-            {i18n.t("store.askCustom")}
-          </Link>
+          <span className="btn btn-store">{i18n.t("store.askCustom")}</span>
         </section>
       );
     case "CONTACT":

@@ -4,7 +4,6 @@ import { AvatarPicker } from "../../components/AvatarPicker";
 import { ErrorNote, Note } from "../../components/Feedback";
 import { Field } from "../../components/Field";
 import { AppConfig } from "../../config/AppConfig";
-import { VisitorSetupStore } from "../../core/VisitorSetupStore";
 import type { Id } from "../../domain/common";
 import type { User } from "../../domain/user";
 import { services } from "../../services/ServiceRegistry";
@@ -12,8 +11,8 @@ import { useLocale } from "../../state/LocaleContext";
 import { useSession } from "../../state/SessionContext";
 import { COUNTRIES } from "../../utils/countries";
 
+/** Demo accounts of the panel (the customer account is used in the 3D museum). */
 const DEMO_ACCOUNTS = [
-  { email: "ana@example.com", role: "CUSTOMER" },
   { email: "valderrama@museo.co", role: "ARTISAN" },
   { email: "nueva@museo.co", role: "ARTISAN_PENDING" },
   { email: "admin@museo.co", role: "ADMIN" },
@@ -22,7 +21,7 @@ const DEMO_ACCOUNTS = [
 function homeFor(user: User): string {
   if (user.role === "ADMIN") return "/admin";
   if (user.role === "ARTISAN") return "/artisan";
-  return "/gallery";
+  return "/";
 }
 
 export function LoginPage() {
@@ -51,7 +50,7 @@ export function LoginPage() {
 
   return (
     <div className="container narrow auth">
-      <h1>{i18n.t("auth.loginTitle")}</h1>
+      <h1>{i18n.t("panel.loginTitle")}</h1>
       <form className="form-grid" onSubmit={(event) => void submit(event)}>
         <Field label={i18n.t("auth.email")}>
           <input type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
@@ -65,7 +64,7 @@ export function LoginPage() {
         </button>
       </form>
       <p className="auth-links">
-        <Link to="/forgot-password">{i18n.t("auth.forgot")}</Link> · <Link to="/register">{i18n.t("auth.noAccount")}</Link>
+        <Link to="/forgot-password">{i18n.t("auth.forgot")}</Link> · <Link to="/register">{i18n.t("panel.registerTitle")}</Link>
       </p>
       {AppConfig.anyMock && (
         <Note>
@@ -97,10 +96,8 @@ export function RegisterPage() {
   const { i18n, language } = useLocale();
   const { register } = useSession();
   const navigate = useNavigate();
-  const setup = VisitorSetupStore.load();
-  const [role, setRole] = useState<"CUSTOMER" | "ARTISAN">("CUSTOMER");
   const [form, setForm] = useState({ fullName: "", email: "", password: "", countryCode: language === "es" ? "CO" : "US", workshop: "", city: "Pasto" });
-  const [avatarId, setAvatarId] = useState<Id | null>(setup.avatarId);
+  const [avatarId, setAvatarId] = useState<Id | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<typeof form>) => setForm((current) => ({ ...current, ...patch }));
@@ -110,8 +107,9 @@ export function RegisterPage() {
     setBusy(true);
     setError(null);
     try {
-      const user = await register({ ...form, role, preferredLanguage: language, avatarId });
-      navigate(user.role === "ARTISAN" ? "/artisan/verification" : setup.completed ? "/gallery" : "/welcome", { replace: true });
+      // Customers create their account in the 3D museum; the panel only signs up artisans.
+      await register({ ...form, role: "ARTISAN", preferredLanguage: language, avatarId });
+      navigate("/artisan/verification", { replace: true });
     } catch (caught) {
       setError(caught);
     } finally {
@@ -121,15 +119,7 @@ export function RegisterPage() {
 
   return (
     <div className="container narrow auth">
-      <h1>{i18n.t("auth.registerTitle")}</h1>
-      <div className="role-choice" role="radiogroup" aria-label={i18n.t("auth.roleQuestion")}>
-        {(["CUSTOMER", "ARTISAN"] as const).map((option) => (
-          <button key={option} type="button" role="radio" aria-checked={role === option} className={role === option ? "is-on" : ""} onClick={() => setRole(option)}>
-            <strong>{i18n.tx(`auth.roleOption.${option}`)}</strong>
-            <span>{i18n.tx(`auth.roleOptionText.${option}`)}</span>
-          </button>
-        ))}
-      </div>
+      <h1>{i18n.t("panel.registerTitle")}</h1>
       <form className="form-grid two" onSubmit={(event) => void submit(event)}>
         <Field label={i18n.t("auth.fullName")}>
           <input required autoComplete="name" value={form.fullName} onChange={(event) => set({ fullName: event.target.value })} />
@@ -149,17 +139,13 @@ export function RegisterPage() {
         <Field label={i18n.t("auth.password")} hint={i18n.t("auth.passwordHint")}>
           <input type="password" required minLength={8} autoComplete="new-password" value={form.password} onChange={(event) => set({ password: event.target.value })} />
         </Field>
-        {role === "ARTISAN" && (
-          <>
-            <Field label={i18n.t("auth.workshop")}>
-              <input required value={form.workshop} onChange={(event) => set({ workshop: event.target.value })} />
-            </Field>
-            <Field label={i18n.t("address.city")}>
-              <input required value={form.city} onChange={(event) => set({ city: event.target.value })} />
-            </Field>
-            <Note tone="info">{i18n.t("auth.artisanSteps")}</Note>
-          </>
-        )}
+        <Field label={i18n.t("auth.workshop")}>
+          <input required value={form.workshop} onChange={(event) => set({ workshop: event.target.value })} />
+        </Field>
+        <Field label={i18n.t("address.city")}>
+          <input required value={form.city} onChange={(event) => set({ city: event.target.value })} />
+        </Field>
+        <Note tone="info">{i18n.t("auth.artisanSteps")}</Note>
         <div className="field field-wide">
           <span className="field-label">{i18n.t("welcome.avatarTitle")}</span>
           <AvatarPicker value={avatarId} onChange={setAvatarId} />

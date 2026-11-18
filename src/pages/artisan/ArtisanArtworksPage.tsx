@@ -69,11 +69,6 @@ export function ArtisanArtworksPage() {
                     <StatusBadge kind="artwork" value={artwork.status} />
                   </td>
                   <td className="row-actions">
-                    {artwork.status !== "DRAFT" && (
-                      <Link to={`/artworks/${artwork.slug}`} className="icon-btn" aria-label={i18n.t("artworks.view")}>
-                        <Icon name="eye" />
-                      </Link>
-                    )}
                     <button type="button" className="icon-btn" aria-label={i18n.t("common.delete")} onClick={() => void remove(artwork.id, title)}>
                       <Icon name="trash" />
                     </button>

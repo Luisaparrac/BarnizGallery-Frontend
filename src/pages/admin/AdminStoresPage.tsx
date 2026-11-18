@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { ErrorNote, Loading } from "../../components/Feedback";
 import { PageHeader } from "../../components/PageHeader";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -47,7 +46,7 @@ export function AdminStoresPage() {
             {stores.data.map(({ store, master, artworkCount }) => (
               <tr key={store.id}>
                 <td>
-                  <Link to={`/stores/${store.slug}`}>{store.nameEs}</Link>
+                  {store.nameEs}
                 </td>
                 <td>
                   {master.name} <StatusBadge kind="verification" value={master.verificationStatus} />

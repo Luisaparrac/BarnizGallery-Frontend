@@ -8,26 +8,21 @@ import { AvatarImage } from "../AvatarImage";
 import { Icon } from "../Icon";
 import { ResinBand } from "../ResinBand";
 
-/** Top navigation: sections of the gallery, language, notifications, cart and the account menu. */
+/** Top bar of the panel: the area of the role, language, messages, notifications and the account menu. */
 export function Header() {
   const { i18n, language, setLanguage } = useLocale();
   const { user, logout } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [unread, setUnread] = useState(0);
-  const [cartCount, setCartCount] = useState(0);
   const accountRef = useRef<HTMLDivElement>(null);
-  const buyer = user && user.role !== "ADMIN";
+  const staff = user?.role === "ARTISAN" || user?.role === "ADMIN";
+
+  useEffect(() => setAccountOpen(false), [location.pathname]);
 
   useEffect(() => {
-    setMenuOpen(false);
-    setAccountOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    if (!user) return setUnread(0);
+    if (!staff) return setUnread(0);
     const refresh = () => void services.notification.unreadCount().then(setUnread).catch(() => undefined);
     refresh();
     const timer = window.setInterval(refresh, 15000);
@@ -36,14 +31,7 @@ export function Header() {
       window.clearInterval(timer);
       off();
     };
-  }, [user]);
-
-  useEffect(() => {
-    if (!buyer) return setCartCount(0);
-    const refresh = () => void services.commerce.getCart().then((cart) => setCartCount(cart.items.length)).catch(() => undefined);
-    refresh();
-    return AppEvents.cartChanged.subscribe(refresh);
-  }, [buyer]);
+  }, [staff]);
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -55,7 +43,7 @@ export function Header() {
 
   const signOut = async () => {
     await logout();
-    navigate("/");
+    navigate("/login");
   };
 
   return (
@@ -66,13 +54,10 @@ export function Header() {
           <span className="logo-word">MUSEO</span>
           <span className="logo-sub">{i18n.t("brand.sub")}</span>
         </Link>
-        <nav className={`main-nav${menuOpen ? " is-open" : ""}`} aria-label={i18n.t("nav.main")}>
-          <NavLink to="/gallery">{i18n.t("nav.gallery")}</NavLink>
-          <NavLink to="/stores">{i18n.t("nav.stores")}</NavLink>
-          <NavLink to="/auctions">{i18n.t("nav.auctions")}</NavLink>
-          <NavLink to="/account/custom">{i18n.t("nav.custom")}</NavLink>
+        <nav className="main-nav" aria-label={i18n.t("nav.main")}>
           {user?.role === "ARTISAN" && <NavLink to="/artisan">{i18n.t("nav.artisanPanel")}</NavLink>}
           {user?.role === "ADMIN" && <NavLink to="/admin">{i18n.t("nav.adminPanel")}</NavLink>}
+          <a href="/">{i18n.t("nav.museum")}</a>
         </nav>
         <div className="header-tools">
           <div className="lang-switch" role="group" aria-label={i18n.t("nav.language")}>
@@ -82,7 +67,7 @@ export function Header() {
               </button>
             ))}
           </div>
-          {user && (
+          {staff && (
             <>
               <Link to="/messages" className="icon-btn" aria-label={i18n.t("nav.messages")}>
                 <Icon name="chat" />
@@ -93,12 +78,6 @@ export function Header() {
               </Link>
             </>
           )}
-          {buyer && (
-            <Link to="/cart" className="icon-btn" aria-label={i18n.t("nav.cartCount", { count: cartCount })}>
-              <Icon name="cart" />
-              {cartCount > 0 && <span className="counter">{cartCount}</span>}
-            </Link>
-          )}
           {user ? (
             <div className="account" ref={accountRef}>
               <button type="button" className="account-btn" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)}>
@@ -108,14 +87,9 @@ export function Header() {
               {accountOpen && (
                 <div className="account-menu" role="menu">
                   <p className="account-role">{i18n.tx(`role.${user.role}`)}</p>
-                  {user.role !== "ADMIN" && (
-                    <>
-                      <Link to="/account/orders" role="menuitem">{i18n.t("nav.orders")}</Link>
-                      <Link to="/account/favorites" role="menuitem">{i18n.t("nav.favorites")}</Link>
-                      <Link to="/account/custom" role="menuitem">{i18n.t("nav.myCustom")}</Link>
-                    </>
-                  )}
-                  <Link to="/account/profile" role="menuitem">{i18n.t("nav.profile")}</Link>
+                  <a href="/" role="menuitem">
+                    {i18n.t("nav.museum")}
+                  </a>
                   <button type="button" role="menuitem" onClick={() => void signOut()}>
                     <Icon name="logout" size={16} /> {i18n.t("nav.logout")}
                   </button>
@@ -127,9 +101,6 @@ export function Header() {
               {i18n.t("nav.login")}
             </Link>
           )}
-          <button type="button" className="icon-btn menu-toggle" aria-label={i18n.t("nav.menu")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
-            <Icon name={menuOpen ? "close" : "menu"} />
-          </button>
         </div>
       </div>
     </header>

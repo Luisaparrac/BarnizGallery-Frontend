@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { EmptyState, ErrorNote, Loading } from "../../components/Feedback";
 import { PageHeader } from "../../components/PageHeader";
 import { useAsync } from "../../hooks/useAsync";
@@ -42,7 +41,7 @@ export function AdminBidsPage() {
             {bids.data.map((bid) => (
               <tr key={bid.bidId}>
                 <td>
-                  <Link to={`/auctions/${bid.auctionId}`}>{bid.artworkTitle}</Link>
+                  {bid.artworkTitle}
                 </td>
                 <td>{bid.userName}</td>
                 <td>{format.money(bid.amount, bid.currency)}</td>

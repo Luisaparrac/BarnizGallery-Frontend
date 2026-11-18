@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
 import { Countdown } from "../../components/Countdown";
 import { EmptyState, ErrorNote, Loading } from "../../components/Feedback";
 import { Field } from "../../components/Field";
@@ -98,7 +97,7 @@ export function ArtisanAuctionsPage() {
             {data.data.auctions.map((auction) => (
               <tr key={auction.id}>
                 <td>
-                  <Link to={`/auctions/${auction.id}`}>{i18n.pick(auction.artworkTitleEs, auction.artworkTitleEn)}</Link>
+                  {i18n.pick(auction.artworkTitleEs, auction.artworkTitleEn)}
                 </td>
                 <td>{format.money(auction.basePrice, auction.currency)}</td>
                 <td>{auction.highestBid ? format.money(auction.highestBid, auction.currency) : "—"}</td>

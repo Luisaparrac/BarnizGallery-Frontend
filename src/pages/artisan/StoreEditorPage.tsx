@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { ArtImage } from "../../components/ArtImage";
 import { ErrorNote, Loading, Note } from "../../components/Feedback";
 import { Field } from "../../components/Field";
@@ -119,7 +118,7 @@ export function StoreEditorPage() {
         title={i18n.t("storeEditor.title")}
         lead={
           <>
-            <StatusBadge kind="store" value={store.status} /> {store.status === "PUBLISHED" && <Link to={`/stores/${store.slug}`}>{i18n.t("storeEditor.view")}</Link>}
+            <StatusBadge kind="store" value={store.status} />
           </>
         }
         actions={

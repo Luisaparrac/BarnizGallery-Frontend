@@ -1,18 +1,16 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { AppConfig } from "../../config/AppConfig";
 import { MockDatabase } from "../../services/mock/MockDatabase";
 import { useLocale } from "../../state/LocaleContext";
 import { Header } from "./Header";
 
-/** Frame of every page: header, content and footer (with the demo notice when data is simulated). */
+/** Frame of every panel page: header, content and footer (with the demo notice when data is simulated). */
 export function AppShell() {
   const { i18n } = useLocale();
-  // The 3D gallery fills the window, so it has no footer.
-  const immersive = useLocation().pathname === "/gallery";
   const reset = () => {
     if (!window.confirm(i18n.t("demo.resetConfirm"))) return;
     MockDatabase.reset();
-    window.location.href = "/";
+    window.location.href = "/panel.html";
   };
   return (
     <div className="app">
@@ -23,7 +21,6 @@ export function AppShell() {
       <main id="main" className="app-main">
         <Outlet />
       </main>
-      {!immersive && (
       <footer className="site-footer">
         <div className="container footer-row">
           <p>{i18n.t("footer.about")}</p>
@@ -37,7 +34,6 @@ export function AppShell() {
           )}
         </div>
       </footer>
-      )}
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import type { ArtworkSummary } from "../domain/gallery";
 import { useCatalogs } from "../state/CatalogContext";
 import { useLocale } from "../state/LocaleContext";
@@ -22,13 +21,13 @@ export function ArtworkCard({ summary }: { summary: ArtworkSummary }) {
           : format.money(artwork.price, artwork.currency);
   return (
     <article className="art-card">
-      <Link to={`/artworks/${artwork.slug}`} className="art-card-link">
+      <div className="art-card-link">
         <div className="art-card-img">
           <ArtImage src={cover?.url} alt={cover ? i18n.pick(cover.altEs, cover.altEn) : title} />
           {artwork.status === "RESERVED" && <span className="art-flag">{i18n.t("artwork.reserved")}</span>}
         </div>
         <h3>{title}</h3>
-      </Link>
+      </div>
       <p className="art-card-meta">
         {summary.masterName}
         {artwork.shapeId && <> — {i18n.name(shape(artwork.shapeId))}</>}
