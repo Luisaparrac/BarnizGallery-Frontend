@@ -1,33 +1,192 @@
-# MUSEO – Frontend 3D (Babylon.js + TypeScript)
+# MUSEO v2 — Frontend (React + TypeScript + Vite)
 
-Galería virtual inmersiva del Barniz de Pasto Mopa-Mopa. Plaza abierta con fuente, quiosco de bienvenida y seis salas de maestros. Se conecta al backend BarnizGallery (REST).
+Galería de fotos y tienda del Barniz de Pasto Mopa-Mopa con tres interfaces: **cliente**, **artesano** y **administrador**.
+Implementa solo lo modelado en la v2 (base de datos `V2__marketplace.sql` y lista de correcciones para backend); no agrega funciones nuevas.
 
-## Ejecutar
+## Cómo correrlo
+
+Requisitos: Node 20 o superior.
+
 ```bash
 npm install
-cp .env.example .env      # VITE_API_URL=https://tu-backend (o http://localhost:8080)
+cp .env.example .env      # en Windows: copy .env.example .env
 npm run dev               # http://localhost:5173
-npm run build             # typecheck + producción
 ```
-URL params: `?quality=low|medium|high`, `?lang=es|en`, `?debug` (expone `window.museo`).
-El render calidad "high" baja solo de nivel si los FPS son bajos.
 
-## Arquitectura (POO, una clase por archivo, código en inglés)
-| Carpeta | Contenido | Patrones |
-|---|---|---|
-| `core/` | `Signal`, `QualityManager`, `AppConfig`, `ValueNoise`, `SeededRandom` | Observer |
-| `model/` | DTOs del backend | |
-| `data/` | `RoomDefinition`, `RoomCatalog` (6 salas) | |
-| `i18n/` | `LocaleService` (ES/EN), traducciones, opciones del quiosco | Singleton |
-| `api/` | `ApiClient`, `BackendConnection`, `GalleryRepository`, `RecommendationService`, estrategias `Remote`/`Demo`, `VisitorSession` | Strategy |
-| `world/` | `World` (fachada), `SceneComponent` y sus subclases (`Terrain`, `Plaza`, `Fountain`, `Kiosk`, `SalaBuilding`, …), `MaterialLibrary`, `TextureFactory`, `ShadowRig`, `PostProcessing`, `PlayerController`, `CameraRig`, `InputController`, `InteractionSystem` | Facade, Factory, Template Method |
-| `ui/` | `Hud` + componentes (`TopBar`, `IntroScreen`, `KioskModal`, …) | Composite |
-| `app/` | `Application` (composition root) | |
+Otros comandos:
 
-## Gráficos
-Materiales PBR (barniz con clear-coat), sombras en cascada, SSAO, rayos de luz, bloom, tone-mapping ACES, cielo en degradé, terreno con volcán Galeras, texturas procedurales con normal maps, mallas fusionadas por material.
+| Comando | Qué hace |
+|---|---|
+| `npm run build` | Revisa tipos (`tsc`) y genera `dist/` |
+| `npm run preview` | Sirve la versión compilada en http://localhost:4173 |
 
-## Notas
-- El backend no trae datos semilla: sin datos o sin conexión el HUD muestra "Modo demo" y el quiosco usa recomendaciones de demostración (marcadas).
-- El plan gratuito de Render duerme; la primera conexión puede tardar ~1 min.
-- Pendiente: interior de las salas (GLB), interacciones, subastas por STOMP, móvil.
+## Datos simulados o backend real
+
+El frontend funciona **sin backend**: cada servicio tiene una versión real (`api/`) y una simulada (`mock/`) que guarda los datos en el navegador (`localStorage`).
+
+| Variable | Uso |
+|---|---|
+| `VITE_API_URL` | URL del backend (por defecto `http://localhost:8080`) |
+| `VITE_USE_MOCKS` | `true` = todo simulado. `false` = todo contra el backend |
+| `VITE_REAL_SERVICES` | Servicios que ya existen en el backend y se usan reales aunque `VITE_USE_MOCKS=true`. Ejemplo: `auth,catalog,gallery` |
+
+Servicios: `auth, catalog, profile, gallery, commerce, auction, customOrder, messaging, notification, artisan, admin`.
+
+Así el equipo puede ir pasando servicio por servicio al backend a medida que la encargada termina cada endpoint.
+El enlace **«Restablecer datos de demo»** del pie de página borra los datos simulados.
+
+## Cuentas de prueba (modo simulado)
+
+Contraseña de todas: `museo123`
+
+| Correo | Rol |
+|---|---|
+| `ana@example.com` | Cliente (idioma preferido inglés) |
+| `valderrama@museo.co` | Artesano aprobado (Taller Valderrama) |
+| `nueva@museo.co` | Artesana en verificación |
+| `admin@museo.co` | Administrador |
+
+## Qué incluye
+
+- **Bienvenida**: idioma, avatar, cuestionario de gustos (colores, formas, figuras, estilo, presupuesto) y recomendaciones.
+- **Galería de fotos** con filtros por catálogo (en la URL), ficha de obra con varias fotos y zoom, talleres armados con plantillas.
+- **Cliente**: carrito, pago, pasarela, pedidos, favoritos, encargos con diseños de IA y ofertas de artesanos, mensajes, notificaciones, perfil (gustos y direcciones).
+- **Artesano**: verificación por pasos, editor de tienda (secciones, plantilla, colores, vista previa), obras, subastas, encargos (ofertar), pedidos por enviar (anticipo y saldo), liquidaciones.
+- **Administrador**: verificaciones, usuarios, tiendas, catálogos, configuración (`app_settings`), pujas sospechosas, reportes, ventas y liquidaciones, auditoría.
+- Español e inglés (`src/i18n`).
+
+### Pasarela de pagos
+
+En modo simulado la pasarela es **de prueba**: no pide datos de tarjeta ni cobra dinero; solo deja elegir «Aprobar» o «Rechazar» y hace lo que haría el webhook.
+Con backend real, `POST /api/orders/:orderId/payments` debe devolver `checkoutUrl` (URL externa de la pasarela) y el frontend redirige allí.
+
+### Diseños de IA y fotos
+
+Las «fotos» de demo son ilustraciones SVG generadas en código (`src/art/`), con URLs `art:...`. Con backend real se usan las URLs de imágenes que devuelva la API.
+Los diseños de IA de los encargos también son simulados hasta que el backend conecte el proveedor (`ai.image_provider`).
+
+## Arquitectura
+
+```
+src/
+  app/          App.tsx: proveedores y rutas
+  config/       AppConfig: lee las variables .env
+  domain/       Tipos del modelo (usuario, galería, comercio, subasta, encargo...)
+  services/
+    contracts/  Interfaces de cada servicio
+    api/        Implementación real (HttpClient + endpoints)
+    mock/       Implementación simulada (MockDatabase, reglas, semilla)
+    ServiceRegistry.ts  Elige api o mock por servicio
+  state/        Contextos: sesión, idioma, catálogos, avisos
+  pages/        public, customer, shared, artisan, admin
+  components/   Componentes reutilizables y layout
+  art/          Generador de las imágenes de demo
+  i18n/         Textos en español e inglés
+  styles/       CSS
+```
+
+Patrones usados:
+
+| Patrón | Dónde |
+|---|---|
+| Strategy + Factory | `ServiceRegistry` elige la implementación real o simulada de cada contrato |
+| Adapter | `Api*Service` y `Mock*Service` implementan la misma interfaz |
+| Singleton | `HttpClient`, `MockDatabase`, `ServiceRegistry` |
+| Observer | `Signal` / `AppEvents` (carrito, notificaciones, mensajes) y subastas en vivo |
+| Composition root | `App.tsx` arma proveedores y rutas |
+
+Convenciones: código en inglés, textos al usuario en español (e inglés). Los enums viajan en mayúsculas en inglés (`PAID`, `ARTISAN`); el backend los convierte a los valores de la base de datos.
+
+## Endpoints que espera el frontend
+
+Propuestos para el backend (todos con `Authorization: Bearer <token>` salvo los públicos).
+
+**Auth y perfil**
+```
+POST   /api/auth/login | /api/auth/register | /api/auth/logout
+POST   /api/auth/forgot-password | /api/auth/verify-email
+GET    /api/users/me            PATCH /api/users/me
+GET    /api/users/me/taste-profile     PUT /api/users/me/taste-profile
+POST   /api/users/me/recommendations?strategy=...
+POST   /api/recommendations/preview    POST /api/interactions
+GET    /api/users/me/addresses   POST /api/users/me/addresses
+PUT    /api/users/me/addresses/:id     DELETE /api/users/me/addresses/:id
+POST   /api/uploads/images       (multipart, campo "file")
+```
+
+**Catálogos y galería**
+```
+GET    /api/catalogs
+POST   /api/admin/catalogs/:kind       PUT /api/admin/catalogs/:kind/:id
+GET    /api/artworks             GET /api/artworks/:slug
+GET    /api/stores               GET /api/stores/:slug
+GET    /api/favorites            POST /api/favorites/:artworkId/toggle
+POST   /api/reports
+```
+
+**Carrito, pedidos y pagos**
+```
+GET    /api/cart                 POST /api/cart/items
+PUT    /api/cart/items/:artworkId      DELETE /api/cart/items/:artworkId
+POST   /api/orders/checkout      GET /api/orders      GET /api/orders/:orderId
+POST   /api/orders/:orderId/cancel
+POST   /api/orders/:orderId/payments   GET /api/payments/:paymentId
+```
+
+**Subastas**
+```
+GET    /api/auctions             GET /api/auctions/:id
+GET    /api/auctions/:id/bids    POST /api/auctions/:id/bids
+POST   /api/auctions             POST /api/auctions/:id/cancel
+GET    /api/artisan/auctions
+```
+
+**Encargos con IA**
+```
+GET    /api/custom-requests      POST /api/custom-requests
+GET    /api/custom-requests/:id  PUT /api/custom-requests/:id
+POST   /api/custom-requests/:id/designs
+POST   /api/custom-requests/:id/designs/:designId/select
+POST   /api/custom-requests/:id/publish | /cancel
+POST   /api/custom-requests/:id/offers
+POST   /api/custom-requests/:id/offers/:offerId/accept | /reject | /withdraw
+GET    /api/artisan/custom-requests/open | /accepted
+```
+
+**Mensajes y notificaciones**
+```
+GET    /api/conversations        POST /api/conversations
+GET    /api/conversations/:id/messages  POST /api/conversations/:id/messages
+GET    /api/notifications        GET /api/notifications/unread-count
+POST   /api/notifications/:id/read      POST /api/notifications/read-all
+```
+
+**Artesano**
+```
+GET    /api/artisan/master       PATCH /api/artisan/master
+GET    /api/artisan/verification POST /api/artisan/verification/:step
+GET    /api/artisan/store        PUT /api/artisan/store
+POST   /api/artisan/store/template/:templateId
+POST   /api/artisan/store/publish | /unpublish
+GET    /api/artisan/artworks     POST /api/artisan/artworks
+GET    /api/artisan/artworks/:id PUT /api/artisan/artworks/:id   DELETE /api/artisan/artworks/:id
+GET    /api/artisan/sales        GET /api/artisan/payouts
+GET    /api/artisan/order-items
+POST   /api/artisan/order-items/:itemId/preparing | /shipped | /delivered | /balance
+```
+
+**Administración**
+```
+GET    /api/admin/dashboard
+GET    /api/admin/verifications  POST /api/admin/verifications/steps/:stepId
+GET    /api/admin/users          PATCH /api/admin/users/:id
+GET    /api/admin/stores         PATCH /api/admin/stores/:storeId
+GET    /api/admin/settings       PUT /api/admin/settings/:key
+GET    /api/admin/bids/suspicious      POST /api/admin/bids/:bidId/valid
+GET    /api/admin/reports        PATCH /api/admin/reports/:id
+GET    /api/admin/sales
+GET    /api/admin/payouts        POST /api/admin/payouts     POST /api/admin/payouts/:id/paid
+GET    /api/admin/audit
+```
+
+Errores: el backend debe responder `{ "code": "...", "message": "..." }`. El frontend traduce el `code` (ver `error.*` en `src/i18n/messages/common.ts`).
