@@ -3,17 +3,19 @@ import type { Language } from "../domain/common";
 import { Localizer } from "../i18n/Localizer";
 import { services } from "../services/ServiceRegistry";
 import { Formatter } from "../utils/Formatter";
+import { ExperienceUi, type UiSampleData } from "./ui/ExperienceUi";
 import { World } from "./world/World";
 import { WorldRoomsLoader } from "./world/WorldRoomsLoader";
 
 /**
  * Entry point of the immersive 3D experience (index.html), without React.
- * For now it opens the plaza directly; the lobby and the 3D panels come in the next steps.
+ * For now it opens the plaza directly with the controls board; the lobby comes in a later step.
  */
 export class Experience {
   private readonly i18n: Localizer;
   private readonly format: Formatter;
   private world: World | null = null;
+  private ui: ExperienceUi | null = null;
 
   constructor(private readonly root: HTMLElement) {
     const language = Experience.initialLanguage();
@@ -49,23 +51,13 @@ export class Experience {
       this.showNotice(this.i18n.t("world.noWebgl"));
       return;
     }
-    if (new URLSearchParams(window.location.search).has("debug")) (window as unknown as { museo?: World }).museo = this.world;
-    this.showEnterOverlay();
-  }
-
-  /** Temporary start screen until the lobby exists: one click locks the pointer and starts the walk. */
-  private showEnterOverlay(): void {
-    const overlay = this.notice(this.i18n.t("world.introTitle"), this.i18n.t("world.introText"));
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = this.i18n.t("world.enter");
-    button.addEventListener("click", () => {
-      overlay.remove();
-      this.world?.setPlaying(true);
-      this.world?.input.requestPointerLock();
-    });
-    overlay.querySelector(".experience-card")!.append(button);
-    this.root.append(overlay);
+    const debug = new URLSearchParams(window.location.search).has("debug");
+    if (debug) (window as unknown as { museo?: World }).museo = this.world;
+    const sample: UiSampleData | null = debug
+      ? { catalogs: await services.catalog.getCatalogs().catch(() => null), photoUrl: data.rooms[0]?.pieces[0]?.photoUrl ?? null }
+      : null;
+    this.ui = new ExperienceUi(this.world, this.i18n, session?.user ?? null, sample);
+    this.ui.start();
   }
 
   private showNotice(title: string, text?: string): void {

@@ -1,4 +1,4 @@
-import { Color3, Engine, Scene, Vector3 } from "@babylonjs/core";
+import { Color3, Engine, Scene, Vector3, type FreeCamera } from "@babylonjs/core";
 import { Signal } from "../../core/Signal";
 import { ArtisanAvatar } from "./ArtisanAvatar";
 import { CameraRig } from "./CameraRig";
@@ -30,11 +30,13 @@ import type { CameraMode, WorldPiece, WorldRoom } from "./WorldTypes";
 
 /**
  * Facade over the whole 3D scene: the plaza, one sala per master with the pieces in display cases,
- * the visitor and the render loop. The React page only talks to this class.
+ * the visitor and the render loop. The experience only talks to this class.
  */
 export class World {
   readonly engine: Engine;
   readonly scene: Scene;
+  /** The world camera (the UI has its own camera on top). */
+  readonly camera: FreeCamera;
   readonly player: PlayerController;
   readonly input: InputController;
   readonly interactions = new InteractionSystem();
@@ -43,6 +45,8 @@ export class World {
   readonly pieceSelected = new Signal<WorldPiece>();
   /** The visitor used the welcome kiosk. */
   readonly kioskUsed = new Signal<void>();
+  /** Returns true while a click belongs to the UI (a HUD button), so the world ignores it. */
+  pointerBlocked: () => boolean = () => false;
 
   private readonly components: SceneComponent[] = [];
   private readonly pieces = new Map<number, WorldPiece>();
@@ -59,6 +63,7 @@ export class World {
 
     // The camera must exist before the cascaded shadows are created.
     const cameraRig = new CameraRig(this.scene);
+    this.camera = cameraRig.camera;
     const lighting = new Lighting(this.scene);
     const sky = new SkyDome(this.scene, lighting);
     this.configureAtmosphere(sky.horizonColor);
@@ -133,7 +138,8 @@ export class World {
 
   /** A click on a display case opens the piece; any other click captures the mouse to look around. */
   private onCanvasClick(x: number, y: number): void {
-    const hit = this.scene.pick(x, y, (mesh) => mesh.isPickable && mesh.isEnabled());
+    if (this.pointerBlocked()) return;
+    const hit = this.scene.pick(x, y, (mesh) => mesh.isPickable && mesh.isEnabled(), false, this.camera);
     const metadata = hit?.pickedMesh?.metadata as PieceMetadata | null | undefined;
     const piece = metadata ? this.pieces.get(metadata.pieceId) : undefined;
     if (piece && hit && hit.distance < 7) {
