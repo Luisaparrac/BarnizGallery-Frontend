@@ -1,15 +1,31 @@
-import { Control } from "@babylonjs/gui";
+import type { Language } from "../../../domain/common";
 import type { Address, AddressInput } from "../../../domain/user";
 import type { Localizer } from "../../../i18n/Localizer";
-import type { PanelContext } from "../PanelView";
-import type { Field } from "../UiKit";
-import { UiTheme } from "../UiTheme";
-import { FormView } from "./FormView";
+import { COUNTRIES } from "../../../utils/countries";
+import { BoardFormView } from "../board/BoardFormView";
+import type { BoardContext } from "../board/BoardView";
+import type { UiField, UiNode } from "../kit/UiKit";
 
-/** A shipping address in two columns: a new one (the first becomes the main one) or one being edited. */
-export class AddressFormView extends FormView {
+type TextKey = Exclude<keyof AddressInput, "isDefault" | "countryCode">;
+
+/**
+ * A shipping address: a new one (the first becomes the main one) or one being edited. The
+ * fields carry the browser's address autocomplete hints.
+ */
+export class AddressFormView extends BoardFormView {
+  private static readonly FIELDS: [TextKey, string, string][] = [
+    ["recipientName", "address.recipient", "name"],
+    ["phone", "address.phone", "tel"],
+    ["line1", "address.line1", "address-line1"],
+    ["line2", "address.line2", "address-line2"],
+    ["city", "address.city", "address-level2"],
+    ["region", "address.region", "address-level1"],
+    ["postalCode", "address.postalCode", "postal-code"],
+  ];
+
   readonly title: string;
-  private readonly inputs = new Map<keyof AddressInput, Field>();
+  private readonly inputs = new Map<TextKey, UiField>();
+  private country: UiField | null = null;
 
   constructor(
     i18n: Localizer,
@@ -23,39 +39,19 @@ export class AddressFormView extends FormView {
     this.title = initial ? i18n.t("shop.editAddress") : i18n.t("checkout.newAddress");
   }
 
-  protected fields({ kit }: PanelContext, width: number): Control {
-    const half = (width - UiTheme.panel.gap * 2) / 2;
-    const start = (key: keyof AddressInput, fallback: string) => String(this.initial?.[key] ?? fallback);
-    const layout: [keyof AddressInput, string, string][][] = [
-      [
-        ["recipientName", this.i18n.t("address.recipient"), start("recipientName", this.recipient)],
-        ["phone", this.i18n.t("address.phone"), start("phone", "")],
-      ],
-      [
-        ["line1", this.i18n.t("address.line1"), start("line1", "")],
-        ["line2", this.i18n.t("address.line2"), start("line2", "")],
-      ],
-      [
-        ["city", this.i18n.t("address.city"), start("city", "")],
-        ["region", this.i18n.t("address.region"), start("region", "")],
-      ],
-      [
-        ["postalCode", this.i18n.t("address.postalCode"), start("postalCode", "")],
-        ["countryCode", this.i18n.t("address.country"), start("countryCode", "CO")],
-      ],
-    ];
-    const column = kit.column(10);
-    for (const pair of layout) {
-      const row = kit.row(UiTheme.panel.gap * 2);
-      row.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-      for (const [key, label, value] of pair) {
-        const field = kit.field(label, { width: half, value });
-        this.inputs.set(key, field);
-        row.addControl(field.control);
-      }
-      column.addControl(row);
+  protected fields({ kit }: BoardContext): UiNode {
+    const column = kit.column("medium");
+    for (const [key, label, autocomplete] of AddressFormView.FIELDS) {
+      const start = this.initial?.[key] ?? (key === "recipientName" ? this.recipient : "");
+      const field = kit.field(this.i18n.tx(label), { value: start ?? "", autocomplete, type: key === "phone" ? "tel" : "text" });
+      this.inputs.set(key, field);
+      column.add(field);
     }
-    this.submitOnEnter(...[...this.inputs.values()].map((field) => field.input));
+    const language = this.i18n.language as Language;
+    const countries = [...COUNTRIES].sort((a, b) => a[language].localeCompare(b[language])).map((country) => ({ value: country.code, label: country[language] }));
+    this.country = kit.select(this.i18n.t("address.country"), countries, this.initial?.countryCode ?? "CO");
+    column.add(this.country);
+    this.submitOnEnter(...this.inputs.values());
     return column;
   }
 
@@ -64,12 +60,12 @@ export class AddressFormView extends FormView {
   }
 
   protected override validate(): string | null {
-    const required: (keyof AddressInput)[] = ["recipientName", "line1", "city", "countryCode"];
-    return required.every((key) => this.value(key)) ? null : this.i18n.t("shop.missingAddress");
+    const required: TextKey[] = ["recipientName", "line1", "city"];
+    return required.every((key) => this.value(key)) && this.country?.value ? null : this.i18n.t("shop.missingAddress");
   }
 
-  protected submit(): Promise<void> {
-    const optional = (key: keyof AddressInput) => this.value(key) || null;
+  protected send(): Promise<void> {
+    const optional = (key: TextKey) => this.value(key) || null;
     return this.save({
       recipientName: this.value("recipientName"),
       phone: optional("phone"),
@@ -78,12 +74,12 @@ export class AddressFormView extends FormView {
       city: this.value("city"),
       region: optional("region"),
       postalCode: optional("postalCode"),
-      countryCode: this.value("countryCode").toUpperCase(),
+      countryCode: this.country!.value,
       isDefault: this.initial?.isDefault ?? this.makeDefault,
     });
   }
 
-  private value(key: keyof AddressInput): string {
-    return this.inputs.get(key)?.input.text.trim() ?? "";
+  private value(key: TextKey): string {
+    return this.inputs.get(key)?.value.trim() ?? "";
   }
 }

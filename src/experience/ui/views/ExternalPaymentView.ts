@@ -1,10 +1,10 @@
-import type { Button, Control, TextBlock } from "@babylonjs/gui";
 import type { Payment } from "../../../domain/commerce";
 import type { Localizer } from "../../../i18n/Localizer";
 import type { Formatter } from "../../../utils/Formatter";
+import { BoardView, type BoardContext } from "../board/BoardView";
 import { ErrorText } from "../ErrorText";
-import { PanelView, type PanelContext } from "../PanelView";
-import { UiTheme } from "../UiTheme";
+import type { UiButton, UiNode, UiText } from "../kit/UiKit";
+import { CheckoutView } from "./CheckoutView";
 
 export interface ExternalPaymentActions {
   /** Opens the gateway's page in a new tab (again). */
@@ -14,14 +14,15 @@ export interface ExternalPaymentActions {
 }
 
 /**
- * A real gateway pays in its own page: it opens in a new tab and this board waits for the
- * visitor to come back and press "I already paid".
+ * Step 2 with a real gateway: it pays in its own page, opened in a new tab, and this board waits
+ * for the visitor to come back and press "I already paid".
  */
-export class ExternalPaymentView extends PanelView {
+export class ExternalPaymentView extends BoardView {
   override readonly closable = false;
+  readonly size = "content" as const;
   readonly title: string;
-  private status: TextBlock | null = null;
-  private paidButton: Button | null = null;
+  private status: UiText | null = null;
+  private paidButton: UiButton | null = null;
   private busy = false;
 
   constructor(
@@ -34,40 +35,45 @@ export class ExternalPaymentView extends PanelView {
     this.title = i18n.t("shop.externalTitle");
   }
 
-  protected content({ kit }: PanelContext, width: number): Control {
-    const column = kit.column();
-    const wide = <T extends TextBlock>(block: T) => {
-      block.widthInPixels = width;
-      return block;
-    };
-    column.addControl(wide(kit.subtitle(this.format.money(this.payment.amount, this.payment.currency))));
-    column.addControl(wide(kit.text(this.i18n.t("gateway.reference", { reference: this.payment.reference }), { muted: true })));
-    column.addControl(wide(kit.text(this.i18n.t("shop.externalText"))));
-    this.status = wide(kit.text("", { small: true }));
-    this.status.fontWeight = "600";
-    this.status.color = UiTheme.color.accent;
-    column.addControl(this.status);
+  override header({ kit }: BoardContext): UiNode {
+    return CheckoutView.steps(this.i18n, kit, 1);
+  }
+
+  content({ kit }: BoardContext): UiNode {
+    const column = kit.column("medium");
+    column.add(kit.amount(this.i18n.t("order.total"), this.format.money(this.payment.amount, this.payment.currency), true));
+    column.add(kit.note(this.i18n.t("gateway.reference", { reference: this.payment.reference })));
+    column.add(kit.text(this.i18n.t("shop.externalText")));
+    column.add(kit.iconNote("lock", this.i18n.t("shop.reservedNote")));
+    this.status = kit.note("", "error");
+    this.status.setVisible(false);
+    column.add(this.status);
     return column;
   }
 
-  protected override actions({ kit }: PanelContext): Control[] {
-    this.paidButton = kit.button(this.i18n.t("shop.paid"), () => void this.check(), "primary", 340);
-    return [kit.button(this.i18n.t("shop.reopen"), () => this.act.open(), "quiet", 440), this.paidButton];
+  override actions({ kit }: BoardContext): UiButton[] {
+    this.paidButton = kit.button(this.i18n.t("shop.paid"), () => void this.check());
+    return [kit.button(this.i18n.t("shop.reopen"), () => this.act.open(), "secondary"), this.paidButton];
+  }
+
+  private say(text: string, tone: "muted" | "error"): void {
+    this.status?.setText(text);
+    this.status?.setTone(tone);
+    this.status?.setVisible(text !== "");
   }
 
   private async check(): Promise<void> {
-    if (this.busy || !this.paidButton) return;
+    if (this.busy) return;
     this.busy = true;
-    this.paidButton.isEnabled = false;
-    if (this.status) this.status.text = this.i18n.t("gateway.processing");
+    this.paidButton?.setEnabled(false);
+    this.say(this.i18n.t("gateway.processing"), "muted");
     try {
-      const done = await this.act.checkPaid();
-      if (!done && this.status) this.status.text = this.i18n.t("shop.notPaidYet");
+      if (!(await this.act.checkPaid())) this.say(this.i18n.t("shop.notPaidYet"), "error");
     } catch (error) {
-      if (this.status) this.status.text = ErrorText.of(this.i18n, error);
+      this.say(ErrorText.of(this.i18n, error), "error");
     } finally {
       this.busy = false;
-      this.paidButton.isEnabled = true;
+      this.paidButton?.setEnabled(true);
     }
   }
 }

@@ -77,9 +77,9 @@ export class PurchaseFlow {
       return;
     }
     await this.load(async () => {
-      const cart = await services.commerce.getCart();
+      const [cart, stores] = await Promise.all([services.commerce.getCart(), this.stores()]);
       this.host.show(
-        new CartView(this.i18n, this.format, cart, {
+        new CartView(this.i18n, this.format, cart, stores, {
           remove: async (artworkId) => {
             await services.commerce.removeFromCart(artworkId);
             AppEvents.cartChanged.emit();
@@ -144,18 +144,24 @@ export class PurchaseFlow {
     return !AppConfig.usesApi("commerce");
   }
 
-  /** The order summary: each piece with its photo and workshop, subtotal, shipping and total. */
-  private async summarize(cart: Cart, shipping: number): Promise<OrderSummary> {
+  /** Names of the workshops by store id, loaded once. */
+  private async stores(): Promise<Map<Id, string>> {
     if (!this.storeNames) {
       const stores = await services.gallery.listStores().catch(() => []);
       this.storeNames = new Map(stores.map(({ store }) => [store.id, this.i18n.pick(store.nameEs, store.nameEn)]));
     }
+    return this.storeNames;
+  }
+
+  /** The order summary: each piece with its photo and workshop, subtotal, shipping and total. */
+  private async summarize(cart: Cart, shipping: number): Promise<OrderSummary> {
+    const stores = await this.stores();
     const money = (amount: number) => this.format.money(amount, cart.currency);
     return {
       items: cart.items.map((item) => ({
         image: item.coverUrl,
         title: this.i18n.pick(item.title, item.titleEn),
-        detail: this.storeNames?.get(item.storeId) ?? "",
+        detail: stores.get(item.storeId) ?? "",
         price: money(item.unitPrice * item.quantity),
       })),
       subtotal: money(cart.subtotal),

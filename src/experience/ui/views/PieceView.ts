@@ -1,11 +1,9 @@
-import { Control, Image, type Button, type Rectangle, type TextBlock } from "@babylonjs/gui";
-import { ArtworkImageFactory } from "../../../art/ArtworkImageFactory";
 import type { ArtworkDetail } from "../../../domain/gallery";
 import type { Localizer } from "../../../i18n/Localizer";
 import type { Formatter } from "../../../utils/Formatter";
+import { BoardView, type BoardContext } from "../board/BoardView";
 import { ErrorText } from "../ErrorText";
-import { PanelView, type PanelContext } from "../PanelView";
-import { UiTheme } from "../UiTheme";
+import type { UiButton, UiNode, UiText } from "../kit/UiKit";
 
 /** What the piece board can do; the purchase flow decides how. */
 export interface PieceActions {
@@ -21,15 +19,14 @@ export interface PieceActions {
  * Board of one piece: its photos (the big one changes with the thumbnails), master, price or
  * state, a bit of its story, and Add to cart and Save. Without a session it asks to sign in.
  */
-export class PieceView extends PanelView {
-  private static readonly PHOTO = 560;
-  private static readonly THUMB = 96;
-  private static readonly STORY_LENGTH = 320;
+export class PieceView extends BoardView {
+  private static readonly STORY_LENGTH = 420;
 
+  readonly size = "piece" as const;
   readonly title: string;
-  private notice: TextBlock | null = null;
-  private cartButton: Button | null = null;
-  private saveButton: Button | null = null;
+  private notice: UiText | null = null;
+  private cartButton: UiButton | null = null;
+  private saveButton: UiButton | null = null;
   private saved: boolean;
   private added = false;
 
@@ -51,64 +48,37 @@ export class PieceView extends PanelView {
     return artwork.saleMode === "SALE" && artwork.status === "EXHIBITED" && artwork.stock > 0 && artwork.price !== null;
   }
 
-  protected content({ kit }: PanelContext, width: number): Control {
-    const columns = kit.row(UiTheme.panel.gap * 2);
-    columns.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    columns.addControl(this.gallery(kit));
-
-    const info = kit.column();
-    info.widthInPixels = width - PieceView.PHOTO - UiTheme.panel.gap * 2;
-    info.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+  content({ kit }: BoardContext): UiNode {
     const { artwork } = this.detail;
-    info.addControl(this.line(kit.text(`${this.i18n.t("artwork.by")} ${this.detail.masterName}`, { muted: true }), info.widthInPixels));
-    info.addControl(this.line(kit.subtitle(this.priceText()), info.widthInPixels));
+    const photos = [...artwork.photos].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.sortOrder - b.sortOrder);
+    const gallery = kit.gallery(
+      photos.map((photo) => photo.url),
+      this.title,
+    );
+
+    const info = kit.column("medium");
+    info.add(kit.text(`${this.i18n.t("artwork.by")} ${this.detail.masterName}`, true));
+    info.add(kit.section(this.priceText()));
     const story = this.i18n.pick(artwork.historyEs, artwork.historyEn);
-    if (story) info.addControl(this.line(kit.text(this.shorten(story)), info.widthInPixels));
-    if (!this.signedIn && this.forSale) info.addControl(this.line(kit.text(this.i18n.t("shop.signInToBuy"), { muted: true }), info.widthInPixels));
-    this.notice = this.line(kit.text("", { small: true }), info.widthInPixels);
-    this.notice.color = UiTheme.color.green;
-    this.notice.fontWeight = "600";
-    info.addControl(this.notice);
-    columns.addControl(info);
-    return columns;
+    if (story) info.add(kit.text(this.shorten(story)));
+    const dimensions = this.format.centimeters(artwork.widthCm, artwork.heightCm, artwork.depthCm);
+    if (dimensions) info.add(kit.note(`${this.i18n.t("artwork.dimensions")}: ${dimensions}`));
+    if (!this.signedIn && this.forSale) info.add(kit.note(this.i18n.t("shop.signInToBuy")));
+    this.notice = kit.note("", "success");
+    this.notice.setVisible(false);
+    info.add(this.notice);
+    return kit.columns(gallery, info);
   }
 
-  protected override actions({ kit }: PanelContext): Control[] {
-    if (!this.signedIn) return this.forSale ? [kit.button(this.i18n.t("shop.signIn"), () => this.act.signIn(), "primary", 400)] : [];
-    this.saveButton = kit.button(this.saveLabel(), () => void this.toggleSaved(), "quiet", 300);
-    const buttons: Control[] = [this.saveButton];
+  override actions({ kit }: BoardContext): UiButton[] {
+    if (!this.signedIn) return this.forSale ? [kit.button(this.i18n.t("shop.signIn"), () => this.act.signIn())] : [];
+    this.saveButton = kit.button(this.saveLabel(), () => void this.toggleSaved(), "secondary");
+    const buttons = [this.saveButton];
     if (this.forSale) {
-      this.cartButton = kit.button(this.i18n.t("artwork.addToCart"), () => void this.addToCart(), "primary", 400);
+      this.cartButton = kit.button(this.i18n.t("artwork.addToCart"), () => void this.addToCart());
       buttons.push(this.cartButton);
     }
     return buttons;
-  }
-
-  /** The big photo and, with more than one, a row of thumbnails that swap it. */
-  private gallery(kit: PanelContext["kit"]): Control {
-    const column = kit.column(14);
-    column.widthInPixels = PieceView.PHOTO;
-    const photos = [...this.detail.artwork.photos].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.sortOrder - b.sortOrder);
-    const main = kit.image(photos[0]?.url ?? "", PieceView.PHOTO, PieceView.PHOTO);
-    column.addControl(main);
-    if (photos.length > 1) {
-      const thumbs = kit.row(12);
-      thumbs.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-      for (const photo of photos.slice(0, 5)) {
-        const thumb = kit.image(photo.url, PieceView.THUMB, PieceView.THUMB);
-        thumb.isPointerBlocker = true;
-        thumb.hoverCursor = "pointer";
-        thumb.onPointerClickObservable.add(() => this.showPhoto(main, photo.url));
-        thumbs.addControl(thumb);
-      }
-      column.addControl(thumbs);
-    }
-    return column;
-  }
-
-  private showPhoto(frame: Rectangle, url: string): void {
-    const picture = frame.children.find((child): child is Image => child instanceof Image);
-    if (picture) picture.source = ArtworkImageFactory.resolve(url);
   }
 
   private priceText(): string {
@@ -122,32 +92,31 @@ export class PieceView extends PanelView {
 
   private async addToCart(): Promise<void> {
     if (this.added || !this.cartButton) return;
-    this.cartButton.isEnabled = false;
+    this.cartButton.setEnabled(false);
     try {
       await this.act.addToCart();
       this.added = true;
-      this.say(this.i18n.t("artwork.addedToCart"));
+      this.say(this.i18n.t("artwork.addedToCart"), false);
       // The same button now takes the visitor to the cart.
-      this.relabel(this.cartButton, this.i18n.t("shop.seeCart"));
-      this.cartButton.onPointerClickObservable.clear();
-      this.cartButton.onPointerClickObservable.add(() => this.act.openCart());
+      this.cartButton.setLabel(this.i18n.t("shop.seeCart"));
+      this.cartButton.onClick(() => this.act.openCart());
     } catch (error) {
       this.say(ErrorText.of(this.i18n, error), true);
     } finally {
-      this.cartButton.isEnabled = true;
+      this.cartButton.setEnabled(true);
     }
   }
 
   private async toggleSaved(): Promise<void> {
     if (!this.saveButton) return;
-    this.saveButton.isEnabled = false;
+    this.saveButton.setEnabled(false);
     try {
       this.saved = await this.act.toggleSaved();
-      this.relabel(this.saveButton, this.saveLabel());
+      this.saveButton.setLabel(this.saveLabel());
     } catch (error) {
       this.say(ErrorText.of(this.i18n, error), true);
     } finally {
-      this.saveButton.isEnabled = true;
+      this.saveButton.setEnabled(true);
     }
   }
 
@@ -155,22 +124,13 @@ export class PieceView extends PanelView {
     return this.saved ? `✓ ${this.i18n.t("artwork.saved")}` : this.i18n.t("artwork.save");
   }
 
-  private say(text: string, error = false): void {
-    if (!this.notice) return;
-    this.notice.text = text;
-    this.notice.color = error ? UiTheme.color.accent : UiTheme.color.green;
-  }
-
-  private relabel(button: Button, text: string): void {
-    if (button.textBlock) button.textBlock.text = text;
+  private say(text: string, error: boolean): void {
+    this.notice?.setText(text);
+    this.notice?.setTone(error ? "error" : "success");
+    this.notice?.setVisible(text !== "");
   }
 
   private shorten(text: string): string {
     return text.length <= PieceView.STORY_LENGTH ? text : `${text.slice(0, PieceView.STORY_LENGTH).replace(/\s+\S*$/, "")}…`;
-  }
-
-  private line<T extends TextBlock>(block: T, width: number): T {
-    block.widthInPixels = width;
-    return block;
   }
 }

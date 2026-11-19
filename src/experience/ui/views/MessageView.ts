@@ -1,5 +1,5 @@
-import type { Control } from "@babylonjs/gui";
-import { PanelView, type PanelContext } from "../PanelView";
+import { BoardView, type BoardContext } from "../board/BoardView";
+import type { UiButton, UiNode } from "../kit/UiKit";
 
 /** An optional button of a message board, next to the close button. */
 export interface MessageAction {
@@ -8,7 +8,9 @@ export interface MessageAction {
 }
 
 /** A short board with a title, a sentence and maybe one action: errors, empty states, notices. */
-export class MessageView extends PanelView {
+export class MessageView extends BoardView {
+  readonly size = "form" as const;
+
   constructor(
     readonly title: string,
     private readonly text: string,
@@ -17,13 +19,11 @@ export class MessageView extends PanelView {
     super();
   }
 
-  protected content({ kit }: PanelContext, width: number): Control {
-    const text = kit.text(this.text);
-    text.widthInPixels = width;
-    return text;
+  content({ kit }: BoardContext): UiNode {
+    return kit.text(this.text);
   }
 
-  protected override actions({ kit }: PanelContext): Control[] {
-    return this.action ? [kit.button(this.action.label, () => this.action!.run(), "primary", 420)] : [];
+  override actions({ kit }: BoardContext): UiButton[] {
+    return this.action ? [kit.button(this.action.label, () => this.action!.run())] : [];
   }
 }
