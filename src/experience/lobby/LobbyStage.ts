@@ -32,6 +32,7 @@ import { AvatarPedestal } from "./AvatarPedestal";
 import { LobbyCamera, type CameraShot } from "./LobbyCamera";
 import { LobbyHall } from "./LobbyHall";
 import { LobbyPrompt } from "./LobbyPrompt";
+import { PedestalLabel } from "./PedestalLabel";
 import type { LobbyAvatar, LobbyResult } from "./LobbyTypes";
 
 export interface LobbyOptions {
@@ -83,6 +84,7 @@ export class LobbyStage implements Stage {
   private avatar: LobbyAvatar | null;
   private pedestals: AvatarPedestal[] = [];
   private prompt: LobbyPrompt | null = null;
+  private label: PedestalLabel | null = null;
   private picking = false;
   private disposed = false;
   private finish: ((result: LobbyResult) => void) | null = null;
@@ -137,6 +139,7 @@ export class LobbyStage implements Stage {
     window.removeEventListener("resize", this.onResize);
     this.scene.onPointerObservable.remove(this.pointerObserver);
     this.pedestals.forEach((pedestal) => pedestal.dispose());
+    this.label?.dispose();
     this.surface.dispose();
     this.layer.dispose();
     this.engine.stopRenderLoop();
@@ -165,6 +168,7 @@ export class LobbyStage implements Stage {
     if (!this.prompt) {
       this.prompt = new LobbyPrompt(this.layer.hudTexture, this.i18n.t("lobby.continue"));
       this.prompt.continuePressed.subscribe(() => void this.confirmAvatar());
+      this.label = new PedestalLabel(this.layer.hudTexture);
     }
     await this.camera.moveTo(SHOTS.avatars, 1.8);
     this.picking = true;
@@ -290,6 +294,7 @@ export class LobbyStage implements Stage {
   private setHovered(hovered: AvatarPedestal | null): void {
     this.pedestals.forEach((pedestal) => pedestal.setHovered(pedestal === hovered));
     this.canvas.style.cursor = hovered ? "pointer" : "";
+    this.label?.show(hovered ? this.i18n.name(hovered.item) : null, hovered?.labelAnchor);
   }
 
   private refreshPrompt(): void {
@@ -332,6 +337,7 @@ export class LobbyStage implements Stage {
     this.camera.update(delta);
     this.hall.update(delta);
     this.pedestals.forEach((pedestal) => pedestal.update(delta));
+    this.label?.update(delta, this.camera.camera);
     this.aimSpot(delta);
     this.scene.render();
   }

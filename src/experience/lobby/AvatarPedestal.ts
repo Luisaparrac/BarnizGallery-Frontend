@@ -1,4 +1,4 @@
-import { Color3, MeshBuilder, PBRMaterial, TransformNode, type AbstractMesh, type Mesh, type Scene } from "@babylonjs/core";
+import { Color3, MeshBuilder, PBRMaterial, TransformNode, Vector3, type AbstractMesh, type Mesh, type Scene } from "@babylonjs/core";
 import type { AvatarModel } from "../world/AvatarModel";
 import type { MaterialLibrary } from "../world/MaterialLibrary";
 import type { ShadowRig } from "../world/ShadowRig";
@@ -88,7 +88,7 @@ export class AvatarPedestal {
   }
 
   update(deltaSeconds: number): void {
-    const target = this.selected ? 1 : this.hovered ? 0.35 : 0;
+    const target = this.selected ? 1 : this.hovered ? 0.5 : 0;
     this.glow += (target - this.glow) * Math.min(1, deltaSeconds * 6);
     Color3.LerpToRef(AvatarPedestal.GLOW_OFF, AvatarPedestal.GLOW_ON, this.glow, this.ringMaterial.emissiveColor);
 
@@ -102,6 +102,11 @@ export class AvatarPedestal {
       root.rotation.y += difference * Math.min(1, deltaSeconds * 4);
     }
     this.avatar.animate(deltaSeconds, 0);
+  }
+
+  /** Where the floating name goes: just above the avatar's head. */
+  get labelAnchor(): Vector3 {
+    return this.root.position.add(new Vector3(0, AvatarPedestal.HEIGHT + 1.95, 0));
   }
 
   /** Where the spotlight should aim: the avatar's chest. */
