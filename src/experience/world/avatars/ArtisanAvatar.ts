@@ -8,7 +8,7 @@ const HAIR = "#3a2f29";
 
 /**
  * "artesano": a man of about 45 from Pasto in a red, black and ochre striped ruana, white
- * shirt, dark trousers, straw hat and a moustache.
+ * shirt, dark trousers and a moustache.
  */
 export class ArtisanAvatar extends ProceduralAvatar {
   constructor(context: AvatarContext) {
@@ -73,8 +73,8 @@ export class ArtisanAvatar extends ProceduralAvatar {
     const b = this.body;
     const y = b.headHeight;
     const hair = this.atlas.solid(HAIR);
-    // Short hair: a cap slightly behind the head, hidden on top by the hat.
-    this.parts.sphere("head", hair, [0, y + 0.012, -0.03], b.headSize + 0.012, [0.94, 1.02, 0.92], 20);
+    // Short hair combed back: a cap over the top and the back of the head.
+    this.parts.sphere("head", hair, [0, y + 0.024, -0.018], b.headSize + 0.012, [0.95, 1.0, 0.95], 22);
     for (const side of [-1, 1]) {
       this.parts.capsule("head", hair, [side * 0.022, y + 0.038, 0.104], [side * 0.062, y + 0.038, 0.094], 0.008, 0.006);
       // Thick moustache that falls a little at the ends.
@@ -82,46 +82,6 @@ export class ArtisanAvatar extends ProceduralAvatar {
     }
   }
 
-  protected buildHeadwear(): void {
-    const straw = this.atlas.paint(128, 64, (ctx, w, h) => {
-      ctx.fillStyle = P.STRAW;
-      ctx.fillRect(0, 0, w, h);
-      // Woven rings and stitches of the toquilla straw.
-      for (let y = 0; y < h; y += 4) {
-        ctx.fillStyle = "rgba(120,80,30,0.28)";
-        ctx.fillRect(0, y, w, 1);
-        for (let x = (y / 4) % 2 ? 0 : 3; x < w; x += 6) {
-          ctx.fillStyle = "rgba(255,240,200,0.22)";
-          ctx.fillRect(x, y + 1, 3, 2);
-        }
-      }
-    });
-    const y = this.body.headHeight;
-    this.parts.lathe(
-      "head",
-      straw,
-      [0, y, 0],
-      [
-        [0, 0.078],
-        [0.2, 0.074],
-        [0.295, 0.084],
-        [0.315, 0.098],
-        [0.3, 0.103],
-        [0.2, 0.091],
-        [0.135, 0.09],
-        [0.138, 0.15],
-        [0.125, 0.2],
-        [0.07, 0.218],
-        [0, 0.212],
-      ],
-      { tessellation: 40, doubleSided: true },
-    );
-    const band = this.atlas.paint(64, 16, (ctx, w, h) => {
-      ctx.fillStyle = P.BLACK;
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = P.RED;
-      ctx.fillRect(0, h / 2 - 1, w, 2);
-    });
-    this.parts.cylinder("head", band, [0, y + 0.107, 0], 0.032, 0.282, 0.279, 32);
-  }
+  /** No hat: his hair shows. */
+  protected buildHeadwear(): void {}
 }
