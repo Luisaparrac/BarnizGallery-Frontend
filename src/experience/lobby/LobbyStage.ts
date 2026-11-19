@@ -146,6 +146,7 @@ export class LobbyStage implements Stage {
     this.scene.onPointerObservable.remove(this.pointerObserver);
     this.pedestals.forEach((pedestal) => pedestal.dispose());
     this.label?.dispose();
+    this.prompt?.dispose();
     this.surface.dispose();
     this.layer.dispose();
     this.engine.stopRenderLoop();
@@ -172,7 +173,7 @@ export class LobbyStage implements Stage {
     this.layer.usePanelPointer(false);
     this.buildPedestals();
     if (!this.prompt) {
-      this.prompt = new LobbyPrompt(this.layer.hudTexture, this.i18n.t("lobby.continue"));
+      this.prompt = new LobbyPrompt(this.i18n.t("lobby.continue"));
       this.prompt.continuePressed.subscribe(() => void this.confirmAvatar());
       this.label = new PedestalLabel(this.layer.hudTexture);
     }

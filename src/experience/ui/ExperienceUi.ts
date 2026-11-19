@@ -46,7 +46,7 @@ export class ExperienceUi {
   ) {
     this.layer = new UiLayer(world.scene, world.camera);
     this.surface = new PanelSurface(world.scene, this.layer, i18n.t("ui.close"));
-    this.hud = new Hud(this.layer.hudTexture, {
+    this.hud = new Hud({
       cart: i18n.t("hud.cart"),
       account: i18n.t("hud.account"),
       controls: i18n.t("hud.controls"),
@@ -94,6 +94,7 @@ export class ExperienceUi {
   dispose(): void {
     this.unsubscribe.forEach((stop) => stop());
     this.stopWatchingCart?.();
+    this.hud.dispose();
     this.surface.dispose();
     this.layer.dispose();
   }
