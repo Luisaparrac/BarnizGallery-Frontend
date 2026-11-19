@@ -124,6 +124,22 @@ export class MaterialLibrary {
     return material;
   }
 
+  /**
+   * Finish of the avatars: their painted atlas under a soft clear coat, like a carved and
+   * varnished figure. Each avatar owns its material and disposes of it with its atlas.
+   */
+  carving(name: string, atlas: Texture): PBRMaterial {
+    const material = new PBRMaterial(`carving-${name}`, this.scene);
+    material.albedoTexture = atlas;
+    material.albedoColor = Color3.White();
+    material.metallic = 0;
+    material.roughness = 0.66;
+    material.clearCoat.isEnabled = true;
+    material.clearCoat.intensity = 0.32;
+    material.clearCoat.roughness = 0.32;
+    return material;
+  }
+
   private pbr(name: string, options: PbrOptions): PBRMaterial {
     const material = new PBRMaterial(name, this.scene);
     material.albedoColor = Color3.FromHexString(options.color ?? "#ffffff");
