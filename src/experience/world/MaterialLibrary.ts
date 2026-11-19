@@ -28,6 +28,8 @@ export class MaterialLibrary {
   readonly glowLamp: PBRMaterial;
   readonly water: PBRMaterial;
   readonly awning: PBRMaterial;
+  readonly awningGreen: PBRMaterial;
+  readonly kraft: PBRMaterial;
   readonly bark: PBRMaterial;
   readonly foliage: PBRMaterial;
   readonly terrain: PBRMaterial;
@@ -79,6 +81,10 @@ export class MaterialLibrary {
     const awning = this.textures.stripedCloth();
     this.awning = this.pbr("awning", { textures: awning, roughness: 0.92 });
     this.awning.backFaceCulling = false;
+    this.awningGreen = this.pbr("awningGreen", { textures: this.textures.stripedCloth("#2f5d3a"), roughness: 0.92 });
+    this.awningGreen.backFaceCulling = false;
+    // Brown paper of the bags and parcels at the cashier.
+    this.kraft = this.pbr("kraft", { color: "#b08458", roughness: 0.95 });
 
     this.bark = this.pbr("bark", { textures: this.textures.wood("#4a3322", 29), roughness: 0.95, bumpLevel: 1.6 });
     this.foliage = this.pbr("foliage", { roughness: 0.88 });

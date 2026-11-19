@@ -5,6 +5,8 @@ import { CameraRig } from "./CameraRig";
 import { QualityManager } from "./core/QualityManager";
 import { Fountain } from "./Fountain";
 import { InputController } from "./InputController";
+import { CashierStall } from "./CashierStall";
+import { CommissionStall } from "./CommissionStall";
 import { DoorInteractable, PieceInteractable, StallInteractable, type Interactable } from "./Interactable";
 import { InteractionSystem } from "./InteractionSystem";
 import { InteriorLighting } from "./InteriorLighting";
@@ -120,7 +122,7 @@ export class World {
   }
 
   private buildComponents(context: SceneContext, rooms: readonly WorldRoom[]): void {
-    const stalls = [new Kiosk(context)];
+    const stalls = [new Kiosk(context), new CashierStall(context), new CommissionStall(context)];
     this.components.push(new Terrain(context), new Plaza(context), new PerimeterWall(context), new Fountain(context), ...stalls, new Vegetation(context), new StreetFurniture(context));
 
     SalaSlots.assign(rooms).forEach(({ room, slot }, index) => {

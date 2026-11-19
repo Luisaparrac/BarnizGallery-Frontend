@@ -25,6 +25,8 @@ export interface UiSampleData {
 export class ExperienceUi {
   private static readonly STALL_PROMPTS = {
     welcome: "world.promptKiosk",
+    cashier: "world.promptCashier",
+    commissions: "world.promptCommissions",
   } as const;
 
   private readonly layer: UiLayer;
@@ -120,7 +122,7 @@ export class ExperienceUi {
   }
 
   private promptFor(item: Interactable | null): string | null {
-    if (item instanceof StallInteractable) return item.kind === "welcome" ? this.i18n.t(ExperienceUi.STALL_PROMPTS.welcome) : null;
+    if (item instanceof StallInteractable) return this.i18n.t(ExperienceUi.STALL_PROMPTS[item.kind]);
     if (item instanceof PieceInteractable) return this.i18n.t("world.promptPiece", { title: item.vitrina.piece.title });
     if (item instanceof DoorInteractable) {
       const { room } = item.sala;

@@ -265,14 +265,14 @@ export class TextureFactory {
     );
   }
 
-  /** Red and cream awning cloth. */
-  stripedCloth(): TextureSet {
+  /** Awning cloth: stripes of `color` and cream. */
+  stripedCloth(color = "#8c2a1f"): TextureSet {
     return this.textureSet(
       256,
       256,
       (ctx) => {
         for (let i = 0; i < 8; i++) {
-          ctx.fillStyle = i % 2 ? "#eadcb8" : "#8c2a1f";
+          ctx.fillStyle = i % 2 ? "#eadcb8" : color;
           ctx.fillRect(i * 32, 0, 32, 256);
         }
         const random = new SeededRandom(2);

@@ -4,6 +4,10 @@ import { Vector3 } from "@babylonjs/core";
 export class PlazaLayout {
   static readonly fountain = new Vector3(0, 0, 6);
   static readonly kiosk = new Vector3(0, 0, -14);
+  /** The stalls of the cashier ("Caja") and of the commissions workshop, facing the center. */
+  static readonly cashier = new Vector3(-18, 0, -15);
+  static readonly commissions = new Vector3(18, 0, -15);
+  static readonly center = new Vector3(0, 0, 0);
   static readonly spawn = new Vector3(0, 0, -52);
   /** Perimeter wall half-size and half width of the entrance gap. */
   static readonly wallHalf = 62;
