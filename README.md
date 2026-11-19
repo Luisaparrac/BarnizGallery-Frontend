@@ -210,3 +210,22 @@ GET    /api/admin/audit
 ```
 
 Errores: el backend debe responder `{ "code": "...", "message": "..." }`. El frontend traduce el `code` (ver `error.*` en `src/i18n/messages/common.ts`).
+
+## Patrones de la interfaz
+
+Los tableros de la experiencia 3D (iniciar sesión, pago, carrito, pieza, controles…) no dependen de cómo se dibujan.
+
+- **`UiKit` (Abstract Factory)** — `src/experience/ui/kit/UiKit.ts` es una interfaz que fabrica las piezas de un tablero: títulos, textos, campos, botones, tarjetas seleccionables, resumen del pedido, pasos, galería, etc. Los nodos son opacos: una vista solo los mete en cajas y usa unos pocos métodos (`setText`, `setEnabled`, `value`…).
+- **Dos fábricas concretas:**
+  - `DomUiKit`: HTML y CSS sobre el canvas (`dom-ui.css`). Texto nítido, campos reales con `autocomplete` y foco accesible.
+  - `BabylonUiKit`: Babylon GUI en un tablero dentro del mundo 3D.
+- **Bridge** — las vistas (`BoardView` y sus subclases, en `src/experience/ui/views`) son la abstracción y la fábrica más su superficie (`DomPanelSurface` o `BabylonPanelSurface`) son la implementación. `PanelSurface` elige la implementación sin que las vistas cambien.
+- **Template Method** — `BoardView` fija la estructura del tablero (encabezado, título, contenido y botones) y `BoardFormView` agrega la validación, el error y el envío con Enter.
+- **Mediator** — `PurchaseFlow` decide qué tablero sigue en la compra; los tableros no se conocen entre sí.
+
+### Cómo probar las dos fábricas
+
+1. `npm run dev`
+2. Abre `http://localhost:5173/`: los tableros salen en HTML (por defecto).
+3. Abre `http://localhost:5173/?ui=babylon`: los mismos tableros salen dibujados con Babylon GUI dentro del mundo 3D, con marco de madera. Hay pequeñas diferencias visuales; por ejemplo, la tarjeta "Agregar dirección" tiene borde sólido porque Babylon GUI no dibuja bordes punteados.
+4. Con `?debug` aparece abajo a la izquierda un contador de FPS y draw calls.
