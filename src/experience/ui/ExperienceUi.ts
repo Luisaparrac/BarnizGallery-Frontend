@@ -7,8 +7,10 @@ import { DoorInteractable, PieceInteractable, StallInteractable, type Interactab
 import type { World } from "../world/World";
 import { Hud } from "./Hud";
 import { PanelSurface } from "./PanelSurface";
+import { PurchaseFlow } from "./PurchaseFlow";
 import type { PanelView } from "./PanelView";
 import { UiLayer } from "./UiLayer";
+import { VisitorSession } from "./VisitorSession";
 import { ControlsView } from "./views/ControlsView";
 import { UiKitSampleView } from "./views/UiKitSampleView";
 
@@ -33,11 +35,14 @@ export class ExperienceUi {
   private readonly hud: Hud;
   private readonly surface: PanelSurface;
   private readonly unsubscribe: (() => void)[] = [];
+  private readonly session: VisitorSession;
+  private readonly purchase: PurchaseFlow;
+  private stopWatchingCart: (() => void) | null = null;
 
   constructor(
     private readonly world: World,
     private readonly i18n: Localizer,
-    private readonly user: User | null,
+    user: User | null,
     private readonly sample: UiSampleData | null,
   ) {
     this.layer = new UiLayer(world.scene, world.camera);
@@ -48,9 +53,10 @@ export class ExperienceUi {
       controls: i18n.t("hud.controls"),
       clickToLook: i18n.t("world.clickToLook"),
     });
-    // Cart and Account get their panels in later steps.
-    this.hud.setEnabled("cart", false);
+    // Account gets its board in a later step.
     this.hud.setEnabled("account", false);
+    this.session = new VisitorSession(user);
+    this.purchase = new PurchaseFlow(i18n, this.session, { show: (view) => this.open(view) });
     this.hud.setFirstPerson(world.cameraMode === "FIRST_PERSON");
     world.pointerBlocked = () => this.layer.pointerOverHud;
 
@@ -59,6 +65,12 @@ export class ExperienceUi {
       world.input.pointerLockChanged.subscribe((locked) => this.hud.setPointerLocked(locked)),
       world.player.modeChanged.subscribe((mode) => this.hud.setFirstPerson(mode === "FIRST_PERSON")),
       this.hud.controlsPressed.subscribe(() => this.open(this.controlsView(false))),
+      this.hud.cartPressed.subscribe(() => void this.purchase.showCart()),
+      world.pieceSelected.subscribe((piece) => void this.purchase.showPiece(piece)),
+      world.stallUsed.subscribe((kind) => {
+        if (kind === "cashier") void this.purchase.showCart();
+      }),
+      this.session.changed.subscribe(() => this.watchCart()),
       this.surface.closed.subscribe(() => this.onPanelClosed()),
     );
     this.watchCart();
@@ -82,6 +94,7 @@ export class ExperienceUi {
 
   dispose(): void {
     this.unsubscribe.forEach((stop) => stop());
+    this.stopWatchingCart?.();
     this.surface.dispose();
     this.layer.dispose();
   }
@@ -106,9 +119,13 @@ export class ExperienceUi {
     });
   }
 
-  /** Customers and artisans see how many pieces their cart holds. */
+  /** Customers and artisans see how many pieces their cart holds (again after signing in). */
   private watchCart(): void {
-    if (!this.user || this.user.role === "ADMIN") {
+    this.stopWatchingCart?.();
+    this.stopWatchingCart = null;
+    const user = this.session.user;
+    this.hud.setEnabled("cart", user?.role !== "ADMIN");
+    if (!user || user.role === "ADMIN") {
       this.hud.setCartCount(null);
       return;
     }
@@ -118,7 +135,7 @@ export class ExperienceUi {
         .then((cart) => this.hud.setCartCount(cart.items.length))
         .catch(() => this.hud.setCartCount(null));
     refresh();
-    this.unsubscribe.push(AppEvents.cartChanged.subscribe(refresh));
+    this.stopWatchingCart = AppEvents.cartChanged.subscribe(refresh);
   }
 
   private promptFor(item: Interactable | null): string | null {
