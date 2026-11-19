@@ -114,10 +114,9 @@ export class SeedData {
         ["300-800", "300 – 800", "300 – 800", 300, 800], ["800+", "Más de 800", "Over 800", 800, null],
       ].map(([code, es, en, min, max], index) => ({ ...item(index + 1, code as string, es as string, en as string), minAmount: min as number, maxAmount: max as number | null, currency: "USD" })),
       avatars: [
-        ["artesano", "Artesano", "Artisan (man)"], ["artesana", "Artesana", "Artisan (woman)"], ["coleccionista", "Coleccionista", "Collector"],
-        ["viajera", "Viajera", "Traveler"], ["estudiante", "Estudiante", "Student"], ["curadora", "Curadora", "Curator"],
-        ["colibri", "Colibrí", "Hummingbird"], ["condor", "Cóndor", "Condor"],
-      ].map(([code, es, en], index) => ({ ...item(index + 1, code, es, en), imageUrl: `/avatars/${code}.svg` })),
+        ["artesano", "Artesano", "Artisan (man)"], ["artesana", "Artesana", "Artisan (woman)"], ["viajera", "Viajera", "Traveler"],
+        ["cuy", "Cuy", "Guinea pig"], ["indigena", "Indígena", "Indigenous"],
+      ].map(([code, es, en], index) => ({ ...item(index + 1, code, es, en), imageUrl: `/avatars/${code}.png` })),
       templates: [
         template(1, "taller", "Taller clásico", "Classic workshop", "Portada con foto del taller, historia del maestro y galería en cuadrícula.", "Workshop cover photo, the master's story and a grid gallery.",
           ["COVER", "STORY", "GALLERY", "CUSTOM_ORDERS", "CONTACT"], { primary: "#7A1F1A", accent: "#C9A227", background: "#F5F1E8", font: "serif" }),
@@ -163,7 +162,7 @@ export class SeedData {
   }
 
   private static people(t: MockTables): void {
-    t.users.push(SeedData.user(1, "Administración MUSEO", "admin@museo.co", "ADMIN", { avatarId: 6 }));
+    t.users.push(SeedData.user(1, "Administración MUSEO", "admin@museo.co", "ADMIN", { avatarId: 3 }));
     const masters: [string, string, string, number][] = [
       ["Richard Valderrama", "valderrama", "Taller Valderrama", 1],
       ["José Naria", "naria", "Taller Naria", 1],

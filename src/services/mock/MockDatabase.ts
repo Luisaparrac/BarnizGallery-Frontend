@@ -5,7 +5,7 @@ import type { NotificationType } from "../../domain/messaging";
 import type { MockTables } from "./MockTables";
 import { SeedData } from "./SeedData";
 
-const STORAGE_KEY = "museo.mock.v2";
+const STORAGE_KEY = "museo.mock.v3";
 
 /**
  * In-browser stand-in for the PostgreSQL database (Singleton). Keeps every table in memory,
