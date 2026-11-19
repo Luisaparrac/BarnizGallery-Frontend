@@ -27,13 +27,13 @@ export class PlazaStage implements Stage {
 
   /** Throws when the browser has no WebGL. */
   constructor(canvas: HTMLCanvasElement, options: PlazaOptions) {
-    this.world = new World(canvas, options.rooms, options.quality);
+    this.world = new World(canvas, options.rooms, options.quality, options.avatarCode);
     this.world.setPlaying(false);
     this.ui = new ExperienceUi(this.world, options.i18n, options.user, options.sample);
     this.avatarCode = options.avatarCode;
   }
 
-  /** Loads the avatar (the procedural one stays if there is no .glb) and gives the plaza to the visitor. */
+  /** Swaps in the avatar's .glb if there is one and gives the plaza to the visitor. */
   async start(): Promise<void> {
     await this.world.useAvatar(this.avatarCode).catch(() => undefined);
     const firstVisit = !VisitorSetupStore.controlsSeen();

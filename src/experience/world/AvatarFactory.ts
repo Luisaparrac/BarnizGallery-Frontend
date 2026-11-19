@@ -43,11 +43,16 @@ export class AvatarFactory {
 
   async create(code: string | null): Promise<AvatarModel> {
     if (!code) return this.procedural(null);
+    return (await this.gltf(code)) ?? this.procedural(code);
+  }
+
+  /** Only the .glb model of a code; null when there is none or it fails to load. */
+  async gltf(code: string): Promise<AvatarModel | null> {
     try {
-      return (await this.load(code)) ?? this.procedural(code);
+      return await this.load(code);
     } catch (error) {
       console.warn(`Avatar "${code}": the .glb could not be loaded, using the procedural one.`, error);
-      return this.procedural(code);
+      return null;
     }
   }
 

@@ -55,7 +55,7 @@ export class World {
   private readonly onResize = () => this.engine.resize();
   private time = 0;
 
-  constructor(canvas: HTMLCanvasElement, rooms: readonly WorldRoom[], requestedQuality: string | null) {
+  constructor(canvas: HTMLCanvasElement, rooms: readonly WorldRoom[], requestedQuality: string | null, avatarCode: string | null = null) {
     this.quality = new QualityManager(requestedQuality);
     this.engine = new Engine(canvas, true, { stencil: true, antialias: false, powerPreference: "high-performance" }, true);
     this.applyHardwareScaling();
@@ -78,7 +78,7 @@ export class World {
 
     this.input = new InputController(canvas);
     this.avatars = new AvatarFactory({ scene: this.scene, materials, shadows });
-    this.player = new PlayerController(this.scene, this.input, this.avatars.procedural(null), cameraRig, PlazaLayout.spawn);
+    this.player = new PlayerController(this.scene, this.input, this.avatars.procedural(avatarCode), cameraRig, PlazaLayout.spawn);
     this.player.lookAt(0, 0);
 
     new PostProcessing(this.scene, cameraRig.camera, this.quality, sky.sunDisc);
@@ -100,10 +100,14 @@ export class World {
     this.player.setEnabled(playing);
   }
 
-  /** Puts the visitor's avatar by its catalog code: its .glb, or the one made in code. */
+  /**
+   * The world starts with the visitor's avatar made in code; this swaps it for the .glb model of
+   * that code when one exists.
+   */
   async useAvatar(code: string | null): Promise<void> {
     if (!code) return;
-    this.player.setAvatar(await this.avatars.create(code));
+    const model = await this.avatars.gltf(code);
+    if (model) this.player.setAvatar(model);
   }
 
   /** Stops rendering and frees the GPU and every listener. */
