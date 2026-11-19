@@ -31,4 +31,6 @@ export interface MotionStyle {
   bounce: number;
   /** Elbow bend when running (less under a ruana, so the arms stay under the cloth). */
   runElbow: number;
+  /** Length of the steps (shorter under a long skirt). */
+  stride: number;
 }

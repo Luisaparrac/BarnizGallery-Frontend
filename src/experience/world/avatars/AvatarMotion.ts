@@ -45,8 +45,8 @@ export class AvatarMotion {
     const sway = Math.sin(this.time * 0.55);
 
     // Legs: the thigh swings (negative x is forward) and the knee bends while the leg passes.
-    const legSwing = 0.42 * walk + 0.8 * run;
-    const kneeBend = 0.6 * walk + 1.3 * run;
+    const legSwing = (0.42 * walk + 0.8 * run) * this.style.stride;
+    const kneeBend = (0.6 * walk + 1.3 * run) * this.style.stride;
     j.legL.rotation.x = -s * legSwing - 0.1 * run;
     j.legR.rotation.x = s * legSwing - 0.1 * run;
     j.kneeL.rotation.x = Math.max(0, c) * kneeBend + 0.06 * moving;

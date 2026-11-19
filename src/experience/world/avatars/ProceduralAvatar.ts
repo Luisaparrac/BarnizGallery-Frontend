@@ -15,6 +15,16 @@ import type { AvatarBody, MotionStyle, Point } from "./AvatarTypes";
  * The steps run inside this constructor, before the subclass's own fields exist, so the
  * subclasses keep their colors in constants instead of fields.
  */
+/** How a draped cloth hangs; see `carveCape`. */
+export interface CapeOptions {
+  lift: number;
+  depth: number;
+  /** Height above which the cloth no longer rises at the sides. */
+  top: number;
+  fringe?: string[];
+  fringeLength?: number;
+}
+
 export abstract class ProceduralAvatar implements AvatarModel {
   /** Proportions shared by every avatar: about 1.7 m tall. */
   static readonly BODY: AvatarBody = {
@@ -30,6 +40,20 @@ export abstract class ProceduralAvatar implements AvatarModel {
     headHeight: 1.62,
     headSize: 0.235,
   };
+
+  /** Outline of a ruana from the knees up to the neck: [radius, height]. */
+  private static readonly RUANA: [number, number][] = [
+    [0.41, 0.6],
+    [0.4, 0.72],
+    [0.395, 0.84],
+    [0.37, 1.05],
+    [0.34, 1.22],
+    [0.315, 1.34],
+    [0.285, 1.39],
+    [0.225, 1.43],
+    [0.13, 1.455],
+    [0.088, 1.46],
+  ];
 
   readonly root: TransformNode;
   protected readonly scene: Scene;
@@ -61,7 +85,7 @@ export abstract class ProceduralAvatar implements AvatarModel {
       context.shadows.addCaster(mesh);
       context.shadows.receive(mesh);
     }
-    this.motion = new AvatarMotion(this.skeleton, { armSpread: 0.08, bounce: 1, runElbow: 1.3, ...this.motionStyle() });
+    this.motion = new AvatarMotion(this.skeleton, { armSpread: 0.08, bounce: 1, runElbow: 1.3, stride: 1, ...this.motionStyle() });
   }
 
   setVisible(visible: boolean): void {
@@ -147,35 +171,46 @@ export abstract class ProceduralAvatar implements AvatarModel {
   /**
    * A ruana: a wide woolen shell from the neck to the thighs, flatter front to back, whose sides
    * rise over the arms (it is a square cloth with a hole for the head), with a fringed hem.
+   * A higher `hem` makes a short ruana.
    */
   protected carveRuana(region: AtlasRegion, fringe: string[], hem = 0.72): void {
-    const top = 1.39;
-    const profile: [number, number][] = [
-      [0.4, hem],
-      [0.395, hem + 0.12],
-      [0.37, 1.05],
-      [0.34, 1.22],
-      [0.315, 1.34],
-      [0.285, 1.39],
-      [0.225, 1.43],
-      [0.13, 1.455],
-      [0.088, 1.46],
-    ];
+    this.carveCape(region, ProceduralAvatar.cut(ProceduralAvatar.RUANA, hem), { fringe, lift: 0.3, depth: 0.72, top: 1.39 });
+    this.parts.torus("spine", region, [0, 1.458, 0], 0.176, 0.026, 20).scaling.z = 0.85;
+  }
+
+  /**
+   * A draped cloth turned around the body (ruana, shawl): `profile` goes from the hem up to the
+   * neck. Its sides rise by `lift` over the arms and it is `depth` times as deep as it is wide.
+   */
+  protected carveCape(region: AtlasRegion, profile: [number, number][], options: CapeOptions): void {
+    const hem = profile[0][1];
+    const { lift, depth, top } = options;
     const drape = (x: number, y: number, z: number): Point => {
       const radial = Math.hypot(x, z) || 1;
       const side = Math.abs(x) / radial;
       const low = Math.min(1, Math.max(0, (top - y) / (top - hem)));
-      return [x, y + 0.3 * side * low, z * 0.72];
+      return [x, y + lift * side * low, z * depth];
     };
     const shell = this.parts.lathe("spine", region, [0, 0, 0], profile, { tessellation: 56, doubleSided: true });
     ProceduralAvatar.reshape(shell, drape);
-    const count = 64;
+    if (!options.fringe?.length) return;
+    const radius = profile[0][0] - 0.002;
+    const length = options.fringeLength ?? 0.045;
+    const count = Math.round(radius * 160);
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2;
-      const [x, y, z] = drape(Math.sin(angle) * 0.398, hem, Math.cos(angle) * 0.398);
-      this.parts.capsule("spine", this.atlas.solid(fringe[i % fringe.length]), [x, y + 0.005, z], [x, y - 0.04, z], 0.008, 0.006);
+      const [x, y, z] = drape(Math.sin(angle) * radius, hem, Math.cos(angle) * radius);
+      this.parts.capsule("spine", this.atlas.solid(options.fringe[i % options.fringe.length]), [x, y + 0.005, z], [x, y - length, z], 0.008, 0.006);
     }
-    this.parts.torus("spine", region, [0, 1.458, 0], 0.176, 0.026, 20).scaling.z = 0.85;
+  }
+
+  /** The part of a profile above `hem`, starting exactly at it. */
+  protected static cut(profile: [number, number][], hem: number): [number, number][] {
+    const above = profile.filter(([, y]) => y > hem);
+    const next = above[0];
+    const previous = [...profile].reverse().find(([, y]) => y <= hem) ?? next;
+    const t = next[1] === previous[1] ? 0 : (hem - previous[1]) / (next[1] - previous[1]);
+    return [[previous[0] + (next[0] - previous[0]) * t, hem], ...above];
   }
 
   /** Moves every vertex of a piece (in its own space) and recomputes its normals. */
