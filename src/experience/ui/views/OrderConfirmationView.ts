@@ -1,15 +1,20 @@
-import type { Control, TextBlock } from "@babylonjs/gui";
+import { Control, Rectangle, type TextBlock } from "@babylonjs/gui";
 import type { Order } from "../../../domain/commerce";
 import type { Localizer } from "../../../i18n/Localizer";
 import type { Formatter } from "../../../utils/Formatter";
-import { PanelView, type PanelContext } from "../PanelView";
-import { UiTheme } from "../UiTheme";
+import { BoardTheme } from "../board/BoardTheme";
+import { BoardView, type BoardContext } from "../board/BoardView";
 import { CheckoutView } from "./CheckoutView";
 
-/** The order is paid: its code, what was bought, where it goes and the total. */
-export class OrderConfirmationView extends PanelView {
-  /** "Keep touring" already closes the board. */
+/**
+ * Step 3 of paying: one centered column with a big ✓, the order code in a box that stands out,
+ * what was bought, where it goes, the total and "Keep touring".
+ */
+export class OrderConfirmationView extends BoardView {
+  /** "Keep touring" closes the board. */
   override readonly closable = false;
+  override readonly centered = true;
+  readonly size = "content" as const;
   readonly title: string;
 
   constructor(
@@ -19,31 +24,50 @@ export class OrderConfirmationView extends PanelView {
     private readonly keepTouring: () => void,
   ) {
     super();
-    this.title = i18n.t("shop.thanksTitle");
+    this.title = i18n.t("shop.confirmedTitle");
   }
 
-  protected content({ kit }: PanelContext, width: number): Control {
-    const column = kit.column();
-    const code = this.wide(kit.subtitle(this.i18n.t("shop.orderCode", { code: this.order.code })), width);
-    code.color = UiTheme.color.green;
-    column.addControl(code);
-    column.addControl(this.wide(kit.text(this.i18n.t("gateway.result.APPROVED")), width));
+  override header({ kit }: BoardContext): Control {
+    return CheckoutView.steps(this.i18n, kit, 2);
+  }
+
+  content({ kit }: BoardContext, width: number): Control {
+    const center = <T extends TextBlock>(block: T) => {
+      block.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+      return block;
+    };
+    const column = kit.column(BoardTheme.size.gap);
+    column.widthInPixels = width;
+    column.addControl(kit.bigCheck());
+    column.addControl(center(kit.text(this.i18n.t("gateway.result.APPROVED"), width)));
+
+    // The order code in a box, the one thing to remember.
+    const box = new Rectangle("orderCode");
+    box.widthInPixels = BoardTheme.px(420);
+    box.adaptHeightToChildren = true;
+    box.cornerRadius = BoardTheme.px(BoardTheme.size.radius);
+    box.thickness = BoardTheme.px(BoardTheme.size.border);
+    box.color = BoardTheme.color.green;
+    box.background = BoardTheme.color.card;
+    const code = kit.column(4);
+    code.paddingTopInPixels = code.paddingBottomInPixels = BoardTheme.px(BoardTheme.size.gapMedium);
+    code.addControl(center(kit.note(this.i18n.t("shop.orderCodeLabel"), box.widthInPixels)));
+    const value = center(kit.section(this.order.code, box.widthInPixels));
+    value.color = BoardTheme.color.green;
+    code.addControl(value);
+    box.addControl(code);
+    column.addControl(box);
+
+    const details = kit.column(4);
     for (const item of this.order.items.slice(0, 4)) {
-      column.addControl(this.wide(kit.text(`· ${item.description} — ${this.format.money(item.lineTotal, this.order.currency)}`, { small: true }), width));
+      details.addControl(center(kit.note(`${item.description} · ${this.format.money(item.lineTotal, this.order.currency)}`, width)));
     }
     if (this.order.shippingAddress) {
-      column.addControl(this.wide(kit.text(`${this.i18n.t("checkout.address")}: ${CheckoutView.describe(this.order.shippingAddress)}`, { small: true, muted: true }), width));
+      details.addControl(center(kit.note(`${this.i18n.t("checkout.address")}: ${CheckoutView.describe(this.order.shippingAddress)}`, width)));
     }
-    column.addControl(this.wide(kit.subtitle(`${this.i18n.t("order.total")}: ${this.format.money(this.order.total, this.order.currency)}`), width));
+    details.addControl(center(kit.text(`${this.i18n.t("order.total")}: ${this.format.money(this.order.total, this.order.currency)}`, width)));
+    column.addControl(details);
+    column.addControl(kit.button(this.i18n.t("shop.keepTouring"), () => this.keepTouring(), "primary"));
     return column;
-  }
-
-  protected override actions({ kit }: PanelContext): Control[] {
-    return [kit.button(this.i18n.t("shop.keepTouring"), () => this.keepTouring(), "primary", 420)];
-  }
-
-  private wide<T extends TextBlock>(block: T, width: number): T {
-    block.widthInPixels = width;
-    return block;
   }
 }

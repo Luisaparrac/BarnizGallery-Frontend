@@ -25,6 +25,8 @@ export abstract class BoardView {
   abstract readonly size: BoardSize;
   /** False for screens the visitor must answer (Esc and the close button are hidden). */
   readonly closable: boolean = true;
+  /** Header and title centered (a one-column message such as a confirmation). */
+  readonly centered: boolean = false;
 
   /** Something above the title, such as the steps of a process. */
   header(_context: BoardContext, _width: number): Control | null {

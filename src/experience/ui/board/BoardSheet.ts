@@ -70,8 +70,11 @@ export class BoardSheet {
     body.paddingTopInPixels = T.px(T.size.padding) - T.px(T.size.gapSmall);
     body.paddingBottomInPixels = T.px(T.size.padding) - T.px(T.size.gapSmall);
     const header = view.header(context, inner);
-    if (header) body.addControl(this.lane(header, inner, Control.HORIZONTAL_ALIGNMENT_LEFT));
-    body.addControl(kit.title(view.title, inner));
+    const side = view.centered ? Control.HORIZONTAL_ALIGNMENT_CENTER : Control.HORIZONTAL_ALIGNMENT_LEFT;
+    if (header) body.addControl(this.lane(header, inner, side));
+    const title = kit.title(view.title, inner);
+    title.textHorizontalAlignment = side;
+    body.addControl(title);
 
     this.holder = new Container("boardContent");
     this.holder.widthInPixels = inner;
