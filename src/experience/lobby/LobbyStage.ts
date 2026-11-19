@@ -65,6 +65,8 @@ const SHOTS = {
 export class LobbyStage implements Stage {
   private static readonly PEDESTAL_RADIUS = 5.4;
   private static readonly PEDESTAL_ANGLES = [-44, -22, 0, 22, 44];
+  private static readonly FILL = 0.85;
+  private static readonly FILL_DIMMED = 0.6;
 
   private readonly engine: Engine;
   private readonly scene: Scene;
@@ -74,6 +76,7 @@ export class LobbyStage implements Stage {
   private readonly shadows: ShadowRig;
   private readonly avatarFactory: AvatarFactory;
   private readonly spot: SpotLight;
+  private fill!: HemisphericLight;
   private readonly layer: UiLayer;
   private readonly surface: PanelSurface;
   private readonly pointerObserver: Observer<PointerInfo>;
@@ -170,7 +173,8 @@ export class LobbyStage implements Stage {
       this.prompt.continuePressed.subscribe(() => void this.confirmAvatar());
       this.label = new PedestalLabel(this.layer.hudTexture);
     }
-    await this.camera.moveTo(SHOTS.avatars, 1.8);
+    const chosen = this.pedestals.find((pedestal) => pedestal.item.code === this.avatar?.code);
+    await this.camera.moveTo(chosen ? this.closeShot(chosen) : SHOTS.avatars, 1.8);
     this.picking = true;
     this.refreshPrompt();
   }
@@ -252,7 +256,7 @@ export class LobbyStage implements Stage {
 
   private buildPedestals(): void {
     if (this.pedestals.length) {
-      this.pedestals.forEach((pedestal) => pedestal.setSelected(pedestal.item.code === this.avatar?.code));
+      this.markSelected();
       return;
     }
     const items = this.options.avatars.slice(0, LobbyStage.PEDESTAL_ANGLES.length);
@@ -263,10 +267,10 @@ export class LobbyStage implements Stage {
       const x = Math.sin(angle) * LobbyStage.PEDESTAL_RADIUS;
       const z = Math.cos(angle) * LobbyStage.PEDESTAL_RADIUS;
       const pedestal = new AvatarPedestal(this.scene, this.materials, this.shadows, item, this.i18n.name(item), x, z, Math.atan2(-x, -z));
-      pedestal.setSelected(item.code === this.avatar?.code);
       this.pedestals.push(pedestal);
       void this.avatarFactory.create(item.code).then((model) => (this.disposed ? model.dispose() : pedestal.setAvatar(model)));
     });
+    this.markSelected();
   }
 
   private onPointer(info: PointerInfo): void {
@@ -286,9 +290,36 @@ export class LobbyStage implements Stage {
   }
 
   private select(pedestal: AvatarPedestal): void {
+    if (pedestal.item.code === this.avatar?.code) return;
     this.avatar = pedestal.item;
-    this.pedestals.forEach((other) => other.setSelected(other === pedestal));
+    this.markSelected();
     this.refreshPrompt();
+    void this.camera.moveTo(this.closeShot(pedestal), 0.6);
+  }
+
+  /** Lights the chosen pedestal and dims the others. */
+  private markSelected(): void {
+    const chosen = this.pedestals.find((pedestal) => pedestal.item.code === this.avatar?.code);
+    this.pedestals.forEach((pedestal) => {
+      pedestal.setSelected(pedestal === chosen);
+      pedestal.setDimmed(!!chosen && pedestal !== chosen);
+    });
+  }
+
+  /** The avatars' shot, a little closer to the chosen pedestal. */
+  private closeShot(pedestal: AvatarPedestal): CameraShot {
+    const base = SHOTS.avatars;
+    const place = pedestal.root.position;
+    const position = base.position.add(new Vector3(place.x - base.position.x, 0, place.z - base.position.z).scale(0.18));
+    const target = Vector3.Lerp(base.target, new Vector3(place.x, 1.25, place.z), 0.45);
+    return { position, target };
+  }
+
+  /** While an avatar is chosen the hall's fill light goes down, so its spotlight stands out. */
+  private dimHall(delta: number): void {
+    const chosen = this.picking && !!this.avatar;
+    const target = chosen ? LobbyStage.FILL_DIMMED : LobbyStage.FILL;
+    this.fill.intensity += (target - this.fill.intensity) * Math.min(1, delta * 5);
   }
 
   private setHovered(hovered: AvatarPedestal | null): void {
@@ -307,7 +338,8 @@ export class LobbyStage implements Stage {
 
   private buildLights(): DirectionalLight {
     const fill = new HemisphericLight("lobbyFill", new Vector3(0, 1, 0), this.scene);
-    fill.intensity = 0.85;
+    this.fill = fill;
+    fill.intensity = LobbyStage.FILL;
     fill.diffuse = Color3.FromHexString("#ffe6c4");
     fill.groundColor = Color3.FromHexString("#5a4030");
     fill.specular = Color3.Black();
@@ -336,7 +368,8 @@ export class LobbyStage implements Stage {
     const delta = Math.min(this.engine.getDeltaTime() / 1000, 0.1);
     this.camera.update(delta);
     this.hall.update(delta);
-    this.pedestals.forEach((pedestal) => pedestal.update(delta));
+    this.pedestals.forEach((pedestal) => pedestal.update(delta, this.camera.camera.position));
+    this.dimHall(delta);
     this.label?.update(delta, this.camera.camera);
     this.aimSpot(delta);
     this.scene.render();

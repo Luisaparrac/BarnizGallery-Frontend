@@ -5,22 +5,31 @@ import type { ShadowRig } from "../world/ShadowRig";
 import type { LobbyAvatar } from "./LobbyTypes";
 
 /**
- * A stone pedestal with one avatar on top and its name on a plaque. The chosen one turns slowly
- * and its ring lights up; the others turn back to face the visitor.
+ * A stone pedestal with one avatar on top and its name on a plaque. The chosen one turns to the
+ * camera, steps forward and waves while its ring lights up; when another one is chosen it goes
+ * back to its place. While one is chosen, the rings of the others go dimmer.
  */
 export class AvatarPedestal {
   static readonly HEIGHT = 0.6;
-  private static readonly SPIN_SPEED = 1.1;
+  /** Time constant of every transition (they settle in about 0.4 s). */
+  private static readonly EASE_SECONDS = 0.13;
+  private static readonly STEP = 0.2;
+  private static readonly WAVE_DELAY = 0.35;
+  private static readonly GLOW_DIM = new Color3(0.025, 0.015, 0.008);
   private static readonly GLOW_OFF = new Color3(0.08, 0.05, 0.02);
   private static readonly GLOW_ON = Color3.FromHexString("#ffbf5c");
+  private static readonly GLOW_HOVER = Color3.Lerp(AvatarPedestal.GLOW_OFF, AvatarPedestal.GLOW_ON, 0.5);
 
   readonly root: TransformNode;
   private readonly ringMaterial: PBRMaterial;
   private readonly pickables: AbstractMesh[] = [];
   private avatar: AvatarModel | null = null;
   private selected = false;
-  private glow = 0;
   private hovered = false;
+  private dimmed = false;
+  private step = 0;
+  /** Seconds until the wave, or -1 when no wave is waiting. */
+  private waveDelay = -1;
 
   constructor(
     scene: Scene,
@@ -73,6 +82,7 @@ export class AvatarPedestal {
     avatar.root.position.set(0, AvatarPedestal.HEIGHT, 0);
     avatar.root.rotation.y = 0;
     avatar.setVisible(true);
+    if (this.selected) this.waveDelay = AvatarPedestal.WAVE_DELAY;
   }
 
   owns(mesh: AbstractMesh | null | undefined): boolean {
@@ -80,28 +90,46 @@ export class AvatarPedestal {
   }
 
   setSelected(selected: boolean): void {
+    if (selected && !this.selected) this.waveDelay = AvatarPedestal.WAVE_DELAY;
+    if (!selected) this.waveDelay = -1;
     this.selected = selected;
+  }
+
+  /** Another pedestal is chosen: this one lowers its light. */
+  setDimmed(dimmed: boolean): void {
+    this.dimmed = dimmed;
   }
 
   setHovered(hovered: boolean): void {
     this.hovered = hovered;
   }
 
-  update(deltaSeconds: number): void {
-    const target = this.selected ? 1 : this.hovered ? 0.5 : 0;
-    this.glow += (target - this.glow) * Math.min(1, deltaSeconds * 6);
-    Color3.LerpToRef(AvatarPedestal.GLOW_OFF, AvatarPedestal.GLOW_ON, this.glow, this.ringMaterial.emissiveColor);
+  /** `viewer` is the camera position: the chosen avatar turns and steps towards it. */
+  update(deltaSeconds: number, viewer: Vector3): void {
+    const ease = 1 - Math.exp(-deltaSeconds / AvatarPedestal.EASE_SECONDS);
+    const glow = this.selected ? AvatarPedestal.GLOW_ON : this.hovered ? AvatarPedestal.GLOW_HOVER : this.dimmed ? AvatarPedestal.GLOW_DIM : AvatarPedestal.GLOW_OFF;
+    Color3.LerpToRef(this.ringMaterial.emissiveColor, glow, ease, this.ringMaterial.emissiveColor);
 
     if (!this.avatar) return;
     const root = this.avatar.root;
-    if (this.selected) {
-      root.rotation.y += deltaSeconds * AvatarPedestal.SPIN_SPEED;
-    } else {
-      // Back to facing the visitor by the shortest way.
-      const difference = Math.atan2(Math.sin(-root.rotation.y), Math.cos(-root.rotation.y));
-      root.rotation.y += difference * Math.min(1, deltaSeconds * 4);
+    // Direction of the viewer in the pedestal's own space (its +z already faces the hall's center).
+    const local = Vector3.TransformCoordinates(viewer, this.root.getWorldMatrix().clone().invert());
+    const towards = Math.atan2(local.x, local.z);
+    const yaw = this.selected ? towards : 0;
+    const difference = Math.atan2(Math.sin(yaw - root.rotation.y), Math.cos(yaw - root.rotation.y));
+    root.rotation.y += difference * ease;
+
+    const before = this.step;
+    this.step += ((this.selected ? AvatarPedestal.STEP : 0) - this.step) * ease;
+    root.position.set(Math.sin(towards) * this.step, AvatarPedestal.HEIGHT, Math.cos(towards) * this.step);
+    // A few walking frames while it steps forward or back.
+    const speed = Math.min(1, (Math.abs(this.step - before) / Math.max(deltaSeconds, 0.001)) * 2.5);
+
+    if (this.waveDelay >= 0) {
+      this.waveDelay -= deltaSeconds;
+      if (this.waveDelay < 0) this.avatar.wave();
     }
-    this.avatar.animate(deltaSeconds, 0);
+    this.avatar.animate(deltaSeconds, speed);
   }
 
   /** Where the floating name goes: just above the avatar's head. */
