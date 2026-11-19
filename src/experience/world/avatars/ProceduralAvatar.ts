@@ -23,6 +23,8 @@ export interface CapeOptions {
   top: number;
   fringe?: string[];
   fringeLength?: number;
+  /** How much the front rises (an open shawl); 0 keeps the hem level all around. */
+  frontLift?: number;
 }
 
 export abstract class ProceduralAvatar implements AvatarModel {
@@ -191,11 +193,13 @@ export abstract class ProceduralAvatar implements AvatarModel {
   protected carveCape(region: AtlasRegion, profile: [number, number][], options: CapeOptions): void {
     const hem = profile[0][1];
     const { lift, depth, top } = options;
+    const frontLift = options.frontLift ?? 0;
     const drape = (x: number, y: number, z: number): Point => {
       const radial = Math.hypot(x, z) || 1;
       const side = Math.abs(x) / radial;
       const low = Math.min(1, Math.max(0, (top - y) / (top - hem)));
-      return [x, y + lift * side * low, z * depth];
+      const front = Math.pow(Math.max(0, z) / radial, 1.5);
+      return [x, y + (lift * side + frontLift * front) * low, z * depth];
     };
     const shell = this.parts.lathe("spine", region, [0, 0, 0], profile, { tessellation: 56, doubleSided: true });
     ProceduralAvatar.reshape(shell, drape);

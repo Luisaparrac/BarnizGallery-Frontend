@@ -116,19 +116,31 @@ export class ArtisanWomanAvatar extends ProceduralAvatar {
       ctx.fillRect(0, h - 15, w, 2);
       this.atlas.fibers(ctx, w, h);
     });
+    // The shawl falls loose and long over the sides and the back and opens at the front,
+    // where its two ends cross over the chest (not the bell of a ruana).
     this.carveCape(
       shawl,
       [
-        [0.3, 1.1],
-        [0.295, 1.2],
-        [0.28, 1.3],
-        [0.262, 1.38],
-        [0.215, 1.425],
-        [0.13, 1.448],
-        [0.082, 1.452],
+        [0.255, 0.98],
+        [0.255, 1.12],
+        [0.255, 1.26],
+        [0.258, 1.35],
+        [0.25, 1.395],
+        [0.226, 1.428],
+        [0.15, 1.447],
+        [0.085, 1.452],
       ],
-      { lift: 0.06, depth: 0.78, top: 1.38, fringe: [P.RED, P.GREEN], fringeLength: 0.06 },
+      { lift: 0, frontLift: 0.36, depth: 0.8, top: 1.41, fringe: [P.RED, P.GREEN], fringeLength: 0.06 },
     );
+    for (const side of [-1, 1]) {
+      const end = this.parts.capsule("spine", shawl, [side * 0.11, 1.37, 0.14], [-side * 0.15, 1.08, 0.165 + side * 0.006], 0.045, 0.042);
+      end.scaling.z = 0.26;
+      // The end that crosses on top ends in a short fringe at the hip.
+      for (let k = -2; k <= 2; k++) {
+        const x = -side * 0.15 + k * 0.012;
+        this.parts.capsule("spine", this.atlas.solid(k % 2 ? P.GREEN : P.RED), [x, 1.05, 0.17], [x, 0.99, 0.172], 0.006, 0.005);
+      }
+    }
 
     // Braid: from the nape over the shawl down to the waist, tied with a red ribbon.
     const hair = this.atlas.solid(HAIR);
