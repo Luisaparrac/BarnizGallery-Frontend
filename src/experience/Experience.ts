@@ -4,6 +4,7 @@ import type { Language } from "../domain/common";
 import { Localizer } from "../i18n/Localizer";
 import { services } from "../services/ServiceRegistry";
 import { Formatter } from "../utils/Formatter";
+import { AvatarStudio } from "./debug/AvatarStudio";
 import { LobbyStage } from "./lobby/LobbyStage";
 import type { LobbyAvatar, LobbyResult } from "./lobby/LobbyTypes";
 import { PlazaStage } from "./plaza/PlazaStage";
@@ -41,6 +42,11 @@ export class Experience {
     this.showNotice(this.i18n.t("world.loading"));
     // The 3D interface draws text on textures, so the fonts must be ready first.
     await Promise.all([document.fonts.load('500 16px "Figtree"'), document.fonts.load('700 16px "Bricolage Grotesque"')]).catch(() => undefined);
+
+    if (this.params.get("debug") === "avatars") {
+      this.stage = new AvatarStudio(this.createCanvas());
+      return;
+    }
 
     const session = await services.auth.restore().catch(() => null);
     const catalogs = await services.catalog.getCatalogs().catch(() => null);
