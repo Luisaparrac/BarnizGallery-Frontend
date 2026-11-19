@@ -170,10 +170,10 @@ export abstract class ProceduralAvatar implements AvatarModel {
   /**
    * A ruana: a wide woolen shell from the neck to the thighs, flatter front to back, whose sides
    * rise over the arms (it is a square cloth with a hole for the head), with a fringed hem.
-   * A higher `hem` makes a short ruana.
+   * A higher `hem` makes a short ruana; `lift` is how much its sides rise.
    */
-  protected carveRuana(region: AtlasRegion, fringe: string[], hem = 0.72): void {
-    this.carveCape(region, ProceduralAvatar.cut(ProceduralAvatar.RUANA, hem), { fringe, lift: 0.3, depth: 0.72, top: 1.39 });
+  protected carveRuana(region: AtlasRegion, fringe: string[], hem = 0.72, lift = 0.3): void {
+    this.carveCape(region, ProceduralAvatar.cut(ProceduralAvatar.RUANA, hem), { fringe, lift, depth: 0.72, top: 1.39 });
     this.parts.torus("spine", region, [0, 1.458, 0], 0.176, 0.026, 20).scaling.z = 0.85;
   }
 
