@@ -2,6 +2,7 @@ import { SceneLoader, TransformNode, type Scene } from "@babylonjs/core";
 import type { AvatarModel } from "./AvatarModel";
 import { ArtisanAvatar } from "./avatars/ArtisanAvatar";
 import { ArtisanWomanAvatar } from "./avatars/ArtisanWomanAvatar";
+import { TravelerAvatar } from "./avatars/TravelerAvatar";
 import { GltfAvatar } from "./GltfAvatar";
 import type { MaterialLibrary } from "./MaterialLibrary";
 import type { ShadowRig } from "./ShadowRig";
@@ -27,6 +28,7 @@ export class AvatarFactory {
   private static readonly PROCEDURAL: Record<string, (context: AvatarContext) => AvatarModel> = {
     artesano: (context) => new ArtisanAvatar(context),
     artesana: (context) => new ArtisanWomanAvatar(context),
+    viajera: (context) => new TravelerAvatar(context),
   };
 
   constructor(private readonly context: AvatarContext) {}
