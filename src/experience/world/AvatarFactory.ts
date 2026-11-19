@@ -1,6 +1,6 @@
 import { SceneLoader, TransformNode, type Scene } from "@babylonjs/core";
-import { ArtisanAvatar } from "./ArtisanAvatar";
 import type { AvatarModel } from "./AvatarModel";
+import { ArtisanAvatar } from "./avatars/ArtisanAvatar";
 import { GltfAvatar } from "./GltfAvatar";
 import type { MaterialLibrary } from "./MaterialLibrary";
 import type { ShadowRig } from "./ShadowRig";
@@ -14,13 +14,18 @@ export interface AvatarContext {
 
 /**
  * Creates the visitor's avatar (Factory): the model `public/models/avatars/<code>.glb` when it
- * exists, or the procedural artisan when it is missing or fails to load.
+ * exists, or the procedural avatar of that code (made in code) when it is missing or fails.
  */
 export class AvatarFactory {
   /** Codes of the avatar catalog; each one may have its .glb model. */
   static readonly CODES = ["artesano", "artesana", "viajera", "cuy", "indigena"] as const;
 
   private static readonly HEIGHT = 1.7;
+
+  /** The avatar made in code for each catalog code; unknown codes get the artisan. */
+  private static readonly PROCEDURAL: Record<string, (context: AvatarContext) => AvatarModel> = {
+    artesano: (context) => new ArtisanAvatar(context),
+  };
 
   constructor(private readonly context: AvatarContext) {}
 
@@ -29,17 +34,18 @@ export class AvatarFactory {
   }
 
   async create(code: string | null): Promise<AvatarModel> {
-    if (!code) return this.procedural();
+    if (!code) return this.procedural(null);
     try {
-      return (await this.load(code)) ?? this.procedural();
+      return (await this.load(code)) ?? this.procedural(code);
     } catch (error) {
       console.warn(`Avatar "${code}": the .glb could not be loaded, using the procedural one.`, error);
-      return this.procedural();
+      return this.procedural(code);
     }
   }
 
-  procedural(): AvatarModel {
-    return new ArtisanAvatar(this.context.scene, this.context.materials, this.context.shadows);
+  procedural(code: string | null): AvatarModel {
+    const build = (code && AvatarFactory.PROCEDURAL[code]) || AvatarFactory.PROCEDURAL.artesano;
+    return build(this.context);
   }
 
   /** Null when the file does not exist (the dev server and Vercel answer missing files with index.html). */

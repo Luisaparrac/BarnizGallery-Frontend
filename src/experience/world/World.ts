@@ -78,7 +78,7 @@ export class World {
 
     this.input = new InputController(canvas);
     this.avatars = new AvatarFactory({ scene: this.scene, materials, shadows });
-    this.player = new PlayerController(this.scene, this.input, this.avatars.procedural(), cameraRig, PlazaLayout.spawn);
+    this.player = new PlayerController(this.scene, this.input, this.avatars.procedural(null), cameraRig, PlazaLayout.spawn);
     this.player.lookAt(0, 0);
 
     new PostProcessing(this.scene, cameraRig.camera, this.quality, sky.sunDisc);
@@ -100,7 +100,7 @@ export class World {
     this.player.setEnabled(playing);
   }
 
-  /** Loads the visitor's avatar by its catalog code; the procedural one stays if there is no .glb. */
+  /** Puts the visitor's avatar by its catalog code: its .glb, or the one made in code. */
   async useAvatar(code: string | null): Promise<void> {
     if (!code) return;
     this.player.setAvatar(await this.avatars.create(code));
