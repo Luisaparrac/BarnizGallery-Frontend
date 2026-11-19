@@ -54,8 +54,8 @@ export class ArtisanWomanAvatar extends ProceduralAvatar {
       ctx.fillStyle = P.BLACK;
       ctx.fillRect(0, h - band - 4, w, 3);
       ctx.fillRect(0, h - 3, w, 3);
-      const size = w / 6;
-      for (let i = 0; i < 6; i++) {
+      const size = w / 5;
+      for (let i = 0; i < 5; i++) {
         const cx = i * size + size / 2;
         const cy = h - band / 2 - 3;
         ctx.fillStyle = i % 2 ? P.GREEN : P.RED;
@@ -69,16 +69,32 @@ export class ArtisanWomanAvatar extends ProceduralAvatar {
         ctx.fillRect(cx - 3, cy - 3, 6, 6);
       }
     });
-    const arc = 0.3;
+    // A front panel of about ±43°: wider, its far edge reached the silhouette in three-quarter
+    // views and the apron looked shifted to one side.
+    const arc = 0.24;
     const front = this.parts.lathe("hips", apron, [0, 0, 0], [[0.33, 0.42], [0.326, 0.45], [0.281, 0.68], [0.231, 0.86], [0.191, 0.98], [0.172, 1.01]], {
       tessellation: 40,
       arc,
       doubleSided: true,
     });
-    // Turned so the middle of the arc faces forward, then flattened like the skirt.
+    // Turned so the middle of the arc faces forward, then pulled almost flat (an apron is a
+    // panel in front of the skirt, it does not wrap around it) and squeezed like the skirt.
     const turn = Math.PI / 2 - arc * Math.PI;
-    ProceduralAvatar.reshape(front, (x, y, z) => [x * Math.cos(turn) - z * Math.sin(turn), y, (x * Math.sin(turn) + z * Math.cos(turn)) * 0.88]);
-    this.parts.torus("hips", this.atlas.solid(P.RED), [0, 1.005, 0], 0.32, 0.022, 28).scaling.z = 0.88;
+    ProceduralAvatar.reshape(front, (x, y, z) => {
+      const rx = x * Math.cos(turn) - z * Math.sin(turn);
+      const rz = x * Math.sin(turn) + z * Math.cos(turn);
+      const radius = Math.hypot(rx, rz);
+      const cos = rz / (radius || 1);
+      // Half way between following the skirt (cos) and a flat front plane (1).
+      return [rx, y, (radius * (cos + 0.5 * (1 - cos)) + 0.006) * 0.88];
+    });
+    const red = this.atlas.solid(P.RED);
+    this.parts.torus("hips", red, [0, 1.005, 0], 0.32, 0.022, 28).scaling.z = 0.88;
+    // The apron's strings are tied in a bow at the back.
+    for (const side of [-1, 1]) {
+      this.parts.sphere("hips", red, [side * 0.035, 1.0, -0.15], 0.06, [1, 0.6, 0.4], 10).rotation.z = side * 0.4;
+      this.parts.capsule("hips", red, [side * 0.01, 0.99, -0.148], [side * 0.03, 0.88, -0.165], 0.012, 0.01);
+    }
   }
 
   /** Embroidered blouse, the shawl over the shoulders and the braid down the back. */
