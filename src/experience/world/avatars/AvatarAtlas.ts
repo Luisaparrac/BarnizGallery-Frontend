@@ -54,25 +54,6 @@ export class AvatarAtlas {
     return region;
   }
 
-  /**
-   * Stripes that run along the mesh (vertical bands around a cylinder or lathe). The pattern
-   * repeats `repeats` times so it closes seamlessly around.
-   */
-  stripes(widths: [string, number][], repeats: number, width = 256, height = 128): AtlasRegion {
-    return this.paint(width, height, (ctx, w, h) => {
-      const total = widths.reduce((sum, [, size]) => sum + size, 0);
-      const unit = w / (total * repeats);
-      let x = 0;
-      for (let r = 0; r < repeats; r++) {
-        for (const [color, size] of widths) {
-          ctx.fillStyle = color;
-          ctx.fillRect(Math.floor(x), 0, Math.ceil(size * unit) + 1, h);
-          x += size * unit;
-        }
-      }
-    });
-  }
-
   /** A free region painted by the avatar itself (borders, woven bands, faces of the costume). */
   paint(width: number, height: number, painter: RegionPainter, grain = true): AtlasRegion {
     const gutter = AvatarAtlas.GUTTER;

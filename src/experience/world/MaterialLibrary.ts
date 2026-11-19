@@ -32,12 +32,6 @@ export class MaterialLibrary {
   readonly foliage: PBRMaterial;
   readonly terrain: PBRMaterial;
   readonly flowerBed: PBRMaterial;
-  readonly wool: PBRMaterial;
-  readonly straw: PBRMaterial;
-  readonly skin: PBRMaterial;
-  readonly leather: PBRMaterial;
-  readonly cloth: PBRMaterial;
-  readonly felt: PBRMaterial;
   readonly cream: PBRMaterial;
   readonly translucentGlow: PBRMaterial;
   readonly glass: PBRMaterial;
@@ -90,13 +84,6 @@ export class MaterialLibrary {
     this.foliage = this.pbr("foliage", { roughness: 0.88 });
     this.terrain = this.pbr("terrain", { roughness: 1 });
     this.flowerBed = this.pbr("flowerBed", { roughness: 0.9 });
-
-    this.wool = this.pbr("wool", { textures: this.textures.wool(), roughness: 0.97, bumpLevel: 0.8 });
-    this.straw = this.pbr("straw", { textures: this.textures.straw(), roughness: 0.8 });
-    this.skin = this.pbr("skin", { color: "#b98462", roughness: 0.6 });
-    this.leather = this.pbr("leather", { color: "#6b4528", roughness: 0.55 });
-    this.cloth = this.pbr("cloth", { color: "#2b2320", roughness: 0.95 });
-    this.felt = this.pbr("felt", { color: "#15100d", roughness: 0.9 });
   }
 
   /** Sets how many times a textured material repeats over a mesh whose UVs span 0..1. */

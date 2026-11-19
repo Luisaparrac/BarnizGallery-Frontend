@@ -265,50 +265,6 @@ export class TextureFactory {
     );
   }
 
-  /** Striped wool of the artisan's ruana. */
-  wool(): TextureSet {
-    return this.textureSet(
-      256,
-      256,
-      (ctx) => {
-        const stripes = ["#8c2a1f", "#1d1512", "#c8922f", "#1d1512", "#8c2a1f", "#2f5d3a"];
-        const width = 256 / stripes.length;
-        stripes.forEach((color, i) => {
-          ctx.fillStyle = color;
-          ctx.fillRect(i * width, 0, width + 1, 256);
-        });
-        const random = new SeededRandom(5);
-        for (let i = 0; i < 2600; i++) {
-          ctx.fillStyle = `rgba(255,255,255,${random.next() * 0.07})`;
-          ctx.fillRect(random.next() * 256, random.next() * 256, 1, 3);
-          ctx.fillStyle = `rgba(0,0,0,${random.next() * 0.1})`;
-          ctx.fillRect(random.next() * 256, random.next() * 256, 1, 3);
-        }
-      },
-      1.6,
-    );
-  }
-
-  straw(): TextureSet {
-    return this.textureSet(
-      256,
-      256,
-      (ctx) => {
-        const random = new SeededRandom(9);
-        ctx.fillStyle = "#d9b877";
-        ctx.fillRect(0, 0, 256, 256);
-        for (let y = 0; y < 256; y += 3) {
-          ctx.strokeStyle = `rgba(120,80,30,${0.15 + random.next() * 0.25})`;
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(256, y + (random.next() - 0.5) * 2);
-          ctx.stroke();
-        }
-      },
-      2,
-    );
-  }
-
   /** Red and cream awning cloth. */
   stripedCloth(): TextureSet {
     return this.textureSet(

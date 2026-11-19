@@ -71,11 +71,6 @@ export class AvatarSkeleton {
     return skeleton;
   }
 
-  /** Rest position of a joint in avatar space. */
-  place(name: JointName): Vector3 {
-    return this.places[name];
-  }
-
   /** Rest offset of a joint from its parent (the motion adds to it). */
   restOffset(name: JointName): Vector3 {
     const node = this.joints[name];
