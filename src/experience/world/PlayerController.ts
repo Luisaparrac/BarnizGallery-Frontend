@@ -5,12 +5,15 @@ import type { AvatarModel } from "./AvatarModel";
 import type { CameraRig } from "./CameraRig";
 import type { InputController } from "./InputController";
 
-/** Moves the artisan with collisions and drives the camera; the single owner of the player's state. */
+/** Moves the avatar with collisions and drives the camera; the single owner of the player's state. */
 export class PlayerController {
   readonly modeChanged = new Signal<CameraMode>();
 
   private static readonly WALK_SPEED = 4.2;
   private static readonly RUN_SPEED = 7.6;
+  /** Radians per second at most, and the time constant of the easing. */
+  private static readonly TURN_SPEED = 10;
+  private static readonly TURN_EASE_SECONDS = 0.09;
 
   private readonly collider: Mesh;
   private enabled = false;
@@ -91,10 +94,21 @@ export class PlayerController {
 
     const position = this.collider.position;
     this.avatar.root.position.set(position.x, 0, position.z);
-    const difference = Math.atan2(Math.sin(this.facing - this.avatar.root.rotation.y), Math.cos(this.facing - this.avatar.root.rotation.y));
-    this.avatar.root.rotation.y += difference * Math.min(1, deltaSeconds * 12);
+    this.turnAvatar(deltaSeconds);
     this.avatar.animate(deltaSeconds, animationSpeed);
     this.cameraRig.follow(this.position, this.collider);
+  }
+
+  /**
+   * Turns the avatar towards where it walks: eased (the same at any frame rate) and never faster
+   * than TURN_SPEED, so a half turn takes about a third of a second instead of snapping.
+   */
+  private turnAvatar(deltaSeconds: number): void {
+    const root = this.avatar.root;
+    const difference = Math.atan2(Math.sin(this.facing - root.rotation.y), Math.cos(this.facing - root.rotation.y));
+    const eased = difference * (1 - Math.exp(-deltaSeconds / PlayerController.TURN_EASE_SECONDS));
+    const limit = PlayerController.TURN_SPEED * deltaSeconds;
+    root.rotation.y += Math.max(-limit, Math.min(limit, eased));
   }
 
   private move(deltaSeconds: number): number {
