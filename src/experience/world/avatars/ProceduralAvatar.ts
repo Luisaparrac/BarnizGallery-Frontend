@@ -131,8 +131,7 @@ export abstract class ProceduralAvatar implements AvatarModel {
     const y = b.headHeight;
     const r = b.headSize / 2;
     this.parts.cylinder("head", skinRegion, [0, b.neckHeight + 0.04, 0], 0.11, 0.1, 0.09, 16);
-    this.parts.sphere("head", skinRegion, [0, y, 0], b.headSize, [0.9, 1.07, 0.98], 24);
-    this.parts.sphere("head", skinRegion, [0, y - 0.055, 0.03], b.headSize * 0.6, [1, 0.72, 1], 16);
+    this.parts.sphere("head", skinRegion, [0, y, 0], b.headSize, [0.9, 1.08, 0.98], 28);
     const eyeRegion = this.atlas.solid(eyes);
     for (const side of [-1, 1]) {
       this.parts.sphere("head", eyeRegion, [side * 0.04, y + 0.008, r * 0.93], 0.024, [1, 1.25, 0.5], 10);
