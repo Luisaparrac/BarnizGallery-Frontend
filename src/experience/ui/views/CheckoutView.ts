@@ -4,10 +4,9 @@ import type { Cart } from "../../../domain/commerce";
 import type { Address } from "../../../domain/user";
 import type { Localizer } from "../../../i18n/Localizer";
 import type { Formatter } from "../../../utils/Formatter";
+import type { BoardKit } from "../board/BoardKit";
+import { BoardView, type BoardContext } from "../board/BoardView";
 import { ErrorText } from "../ErrorText";
-import { PanelView, type PanelContext } from "../PanelView";
-import type { Toggle } from "../UiKit";
-import { UiTheme } from "../UiTheme";
 
 export interface CheckoutActions {
   back(): void;
@@ -16,11 +15,13 @@ export interface CheckoutActions {
   pay(addressId: Id): Promise<void>;
 }
 
-/** Shipping address (one of the saved ones or a new one), the order summary and Pay. */
-export class CheckoutView extends PanelView {
+/** First step of paying: the shipping address (a card per saved address) and the receipt. */
+export class CheckoutView extends BoardView {
   override readonly closable = false;
+  readonly size = "content" as const;
   readonly title: string;
   private addressId: Id | null;
+  private kit: BoardKit | null = null;
   private payButton: Button | null = null;
   private error: TextBlock | null = null;
   private busy = false;
@@ -39,74 +40,88 @@ export class CheckoutView extends PanelView {
     this.addressId = selected ?? addresses.find((address) => address.isDefault)?.id ?? addresses[0]?.id ?? null;
   }
 
+  /** One line with the whole address. */
   static describe(address: Pick<Address, "recipientName" | "line1" | "line2" | "city" | "region" | "countryCode">): string {
-    const place = [address.line1, address.line2, address.city, address.region, address.countryCode].filter(Boolean).join(", ");
-    return `${address.recipientName} · ${place}`;
+    return `${address.recipientName} · ${CheckoutView.place(address)}`;
   }
 
-  protected content({ kit }: PanelContext, width: number): Control {
-    const column = kit.column();
-    column.addControl(this.wide(kit.subtitle(this.i18n.t("checkout.address")), width));
-    const choices: Toggle[] = [];
-    for (const address of this.addresses) {
-      const chip = kit.chip(CheckoutView.describe(address), address.id === this.addressId, () => {
-        this.addressId = address.id;
-        choices.forEach((other) => other.setSelected(other === chip));
-        this.refresh();
-      });
-      chip.control.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-      choices.push(chip);
-      column.addControl(chip.control);
-    }
-    const add = kit.button(this.i18n.t("checkout.newAddress"), () => this.act.newAddress(), "quiet", 420);
-    add.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    column.addControl(add);
+  private static place(address: Pick<Address, "line1" | "line2" | "city" | "region" | "countryCode">): string {
+    return [address.line1, address.line2, address.city, address.region, address.countryCode].filter(Boolean).join(", ");
+  }
 
-    column.addControl(this.wide(kit.subtitle(this.i18n.t("checkout.summary")), width));
+  override header({ kit }: BoardContext): Control {
+    return kit.steps([this.i18n.t("shop.stepAddress"), this.i18n.t("shop.stepPayment"), this.i18n.t("shop.stepDone")], 0);
+  }
+
+  content({ kit }: BoardContext, width: number): Control {
+    this.kit = kit;
+    const column = kit.column();
+
+    const address = kit.column(16);
+    address.addControl(kit.section(this.i18n.t("checkout.address"), width));
+    const selected = this.addresses.find((item) => item.id === this.addressId) ?? null;
+    address.addControl(
+      kit.choice(this.addresses, width, selected, (item) => [item.recipientName, CheckoutView.place(item)], (item) => {
+        this.addressId = item.id;
+        this.refresh();
+      }),
+    );
+    const add = kit.button(`+ ${this.i18n.t("checkout.newAddress")}`, () => this.act.newAddress(), "secondary");
+    add.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    address.addControl(add);
+    column.addControl(address);
+
+    const summary = kit.column(16);
+    summary.addControl(kit.section(this.i18n.t("checkout.summary"), width));
     const money = (amount: number) => this.format.money(amount, this.cart.currency);
-    const lines = [
-      `${this.i18n.t("order.subtotal")}: ${money(this.cart.subtotal)} (${this.cart.items.length})`,
-      `${this.i18n.t("order.shipping")}: ${money(this.shippingCost)}`,
-    ];
-    for (const line of lines) column.addControl(this.wide(kit.text(line), width));
-    column.addControl(this.wide(kit.subtitle(`${this.i18n.t("order.total")}: ${money(this.cart.subtotal + this.shippingCost)}`), width));
-    column.addControl(this.wide(kit.text(this.i18n.t("checkout.reservation"), { small: true, muted: true }), width));
-    this.error = this.wide(kit.text("", { small: true }), width);
-    this.error.color = UiTheme.color.accent;
-    this.error.fontWeight = "600";
+    summary.addControl(
+      kit.receipt(
+        [
+          ...this.cart.items.map((item) => ({ label: this.i18n.pick(item.title, item.titleEn), value: money(item.unitPrice * item.quantity), image: item.coverUrl })),
+          { label: this.i18n.t("order.subtotal"), value: money(this.cart.subtotal) },
+          { label: this.i18n.t("order.shipping"), value: money(this.shippingCost) },
+        ],
+        { label: this.i18n.t("order.total"), value: money(this.cart.subtotal + this.shippingCost) },
+        width,
+      ),
+    );
+    summary.addControl(kit.note(this.i18n.t("checkout.reservation"), width));
+    column.addControl(summary);
+
+    this.error = kit.note("", width, "error");
+    this.error.isVisible = false;
     column.addControl(this.error);
     return column;
   }
 
-  protected override actions({ kit }: PanelContext): Control[] {
-    this.payButton = kit.button(this.i18n.t("checkout.pay"), () => void this.pay(), "primary", 500);
+  override actions({ kit }: BoardContext): Control[] {
+    this.payButton = kit.button(this.i18n.t("checkout.pay"), () => void this.pay(), "primary");
     this.refresh();
-    return [kit.button(this.i18n.t("common.back"), () => !this.busy && this.act.back(), "quiet", 260), this.payButton];
+    return [kit.button(this.i18n.t("common.back"), () => !this.busy && this.act.back(), "secondary"), this.payButton];
+  }
+
+  /** The note under the receipt only takes room while it has something to say. */
+  private say(text: string): void {
+    if (!this.error) return;
+    this.error.text = text;
+    this.error.isVisible = text !== "";
   }
 
   private refresh(): void {
-    if (!this.payButton) return;
-    const ready = this.addressId !== null && !this.busy;
-    this.payButton.isEnabled = ready;
-    this.payButton.alpha = ready ? 1 : 0.45;
+    if (this.payButton && this.kit) this.kit.setEnabled(this.payButton, this.addressId !== null && !this.busy);
   }
 
   private async pay(): Promise<void> {
     if (this.addressId === null || this.busy) return;
     this.busy = true;
     this.refresh();
-    if (this.error) this.error.text = this.i18n.t("checkout.creating");
+    this.say(this.i18n.t("checkout.creating"));
     try {
       await this.act.pay(this.addressId);
     } catch (error) {
-      if (this.error) this.error.text = ErrorText.of(this.i18n, error);
+      this.say(ErrorText.of(this.i18n, error));
       this.busy = false;
       this.refresh();
     }
-  }
-
-  private wide<T extends TextBlock>(block: T, width: number): T {
-    block.widthInPixels = width;
-    return block;
   }
 }

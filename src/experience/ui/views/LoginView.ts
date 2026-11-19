@@ -1,20 +1,24 @@
-import { Control } from "@babylonjs/gui";
+import type { Control } from "@babylonjs/gui";
 import { AppConfig } from "../../../config/AppConfig";
-import type { LoginRequest } from "../../../domain/user";
+import type { LoginRequest, UserRole } from "../../../domain/user";
 import type { Localizer } from "../../../i18n/Localizer";
-import type { Field, Toggle } from "../UiKit";
-import type { PanelContext } from "../PanelView";
-import { FormView } from "./FormView";
+import { BoardFormView } from "../board/BoardFormView";
+import type { BoardField } from "../board/BoardKit";
+import type { BoardContext } from "../board/BoardView";
 
 /** Demo accounts shown only with simulated data (same as the panel login). */
-const DEMO_ACCOUNTS = ["ana@example.com", "valderrama@museo.co", "admin@museo.co"];
+const DEMO_ACCOUNTS: { email: string; role: UserRole }[] = [
+  { email: "ana@example.com", role: "CUSTOMER" },
+  { email: "valderrama@museo.co", role: "ARTISAN" },
+  { email: "admin@museo.co", role: "ADMIN" },
+];
 const DEMO_PASSWORD = "museo123";
 
-/** Sign in at the ticket office with email and password. */
-export class LoginView extends FormView {
+/** Sign in with email and password (at the ticket office or from a board in the plaza). */
+export class LoginView extends BoardFormView {
   readonly title: string;
-  private email: Field | null = null;
-  private password: Field | null = null;
+  private email: BoardField | null = null;
+  private password: BoardField | null = null;
 
   constructor(
     i18n: Localizer,
@@ -25,33 +29,21 @@ export class LoginView extends FormView {
     this.title = i18n.t("lobby.loginTitle");
   }
 
-  protected fields({ kit }: PanelContext, width: number): Control {
+  protected fields({ kit }: BoardContext, width: number): Control {
     const column = kit.column();
-    const fieldWidth = Math.min(760, width);
-    this.email = kit.field(this.i18n.t("auth.email"), { width: fieldWidth });
-    this.password = kit.field(this.i18n.t("auth.password"), { password: true, width: fieldWidth });
-    for (const field of [this.email, this.password]) {
-      field.control.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-      column.addControl(field.control);
-    }
+    this.email = kit.field(this.i18n.t("auth.email"), width);
+    this.password = kit.field(this.i18n.t("auth.password"), width, { password: true });
+    column.addControl(this.email.control);
+    column.addControl(this.password.control);
     this.submitOnEnter(this.email.input, this.password.input);
 
     if (AppConfig.anyMock) {
-      const note = kit.text(`${this.i18n.t("demo.accountsTitle")} ${this.i18n.t("demo.accountsText")}`, { small: true, muted: true });
-      note.widthInPixels = width;
-      column.addControl(note);
-      const chips = kit.row(14);
-      chips.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-      const toggles: Toggle[] = [];
-      for (const email of DEMO_ACCOUNTS) {
-        const chip = kit.chip(email, false, () => {
-          toggles.forEach((toggle) => toggle.setSelected(toggle === chip));
-          this.fill(email);
-        });
-        toggles.push(chip);
-        chips.addControl(chip.control);
-      }
-      column.addControl(chips);
+      const demo = kit.column(8);
+      demo.addControl(kit.note(`${this.i18n.t("demo.accountsTitle")} ${this.i18n.t("demo.accountsText")}`, width));
+      demo.addControl(
+        kit.choice(DEMO_ACCOUNTS, width, null, (account) => [account.email, this.i18n.t(`role.${account.role}`)], (account) => this.fill(account.email)),
+      );
+      column.addControl(demo);
     }
     return column;
   }
