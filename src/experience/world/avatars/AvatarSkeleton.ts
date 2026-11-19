@@ -1,10 +1,11 @@
-import { TransformNode, Vector3, type Scene } from "@babylonjs/core";
+import { Bone, Matrix, Skeleton, TransformNode, Vector3, type Scene } from "@babylonjs/core";
 import type { AvatarBody, JointName } from "./AvatarTypes";
 
 /**
  * The joints of a procedural avatar: a small hierarchy of nodes (hips → spine → head and arms,
  * hips → legs). It is created at rest, without rotations, so a joint's place in avatar space is
- * simply the sum of the offsets above it.
+ * simply the sum of the offsets above it. The motion turns these nodes and a skeleton with one
+ * bone per joint follows them, so the whole avatar can be a single skinned mesh.
  */
 export class AvatarSkeleton {
   readonly joints: Record<JointName, TransformNode>;
@@ -49,6 +50,25 @@ export class AvatarSkeleton {
       joints[name] = node;
     }
     this.joints = joints;
+  }
+
+  /** Joints in bone order: every parent comes before its children. */
+  get names(): JointName[] {
+    return Object.keys(this.joints) as JointName[];
+  }
+
+  /** A Babylon skeleton whose bones copy the joints every frame (bone index = `names` order). */
+  createSkeleton(scene: Scene, name: string): Skeleton {
+    const skeleton = new Skeleton(`${name}-skeleton`, `${name}-skeleton`, scene);
+    const bones = new Map<JointName, Bone>();
+    for (const joint of this.names) {
+      const node = this.joints[joint];
+      const parentJoint = this.names.find((other) => this.joints[other] === node.parent);
+      const bone = new Bone(`${name}-${joint}`, skeleton, parentJoint ? bones.get(parentJoint) : null, Matrix.Translation(node.position.x, node.position.y, node.position.z));
+      bone.linkTransformNode(node);
+      bones.set(joint, bone);
+    }
+    return skeleton;
   }
 
   /** Rest position of a joint in avatar space. */

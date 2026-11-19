@@ -62,6 +62,7 @@ export abstract class ProceduralAvatar implements AvatarModel {
   protected readonly parts: AvatarPartBuilder;
   protected readonly skeleton: AvatarSkeleton;
   private readonly motion: AvatarMotion;
+  private readonly mesh: Mesh | null;
 
   constructor(context: AvatarContext, code: string, seed: number) {
     this.scene = context.scene;
@@ -81,9 +82,10 @@ export abstract class ProceduralAvatar implements AvatarModel {
 
     this.atlas.commit();
     const material = context.materials.carving(code, this.atlas.texture);
-    for (const mesh of this.parts.merge(material)) {
-      context.shadows.addCaster(mesh);
-      context.shadows.receive(mesh);
+    this.mesh = this.parts.merge(material, this.root);
+    if (this.mesh) {
+      context.shadows.addCaster(this.mesh);
+      context.shadows.receive(this.mesh);
     }
     this.motion = new AvatarMotion(this.skeleton, { armSpread: 0.08, bounce: 1, runElbow: 1.3, stride: 1, ...this.motionStyle() });
   }
@@ -101,7 +103,8 @@ export abstract class ProceduralAvatar implements AvatarModel {
   }
 
   dispose(): void {
-    // The atlas and its material belong to this avatar only.
+    // The skeleton, the atlas and its material belong to this avatar only.
+    this.mesh?.skeleton?.dispose();
     this.root.dispose(false, true);
   }
 

@@ -1,4 +1,4 @@
-import { Mesh, MeshBuilder, Quaternion, Vector3, VertexBuffer, type Material, type Scene } from "@babylonjs/core";
+import { Mesh, MeshBuilder, Quaternion, Vector3, VertexBuffer, type Material, type Scene, type TransformNode } from "@babylonjs/core";
 import type { AtlasRegion } from "./AvatarAtlas";
 import type { AvatarSkeleton } from "./AvatarSkeleton";
 import type { JointName, Point } from "./AvatarTypes";
@@ -13,8 +13,9 @@ interface LatheOptions {
 
 /**
  * Builds the pieces of an avatar (Builder pattern). Every piece is placed in avatar space,
- * belongs to one joint and takes its color from a region of the atlas; `merge` joins the
- * pieces of each joint into one mesh hung from that joint, so the avatar needs few draw calls.
+ * belongs to one joint and takes its color from a region of the atlas; `merge` joins all the
+ * pieces into one mesh skinned to the skeleton (each piece follows its joint's bone), so the
+ * whole avatar is a single draw call per pass.
  */
 export class AvatarPartBuilder {
   private readonly groups = new Map<JointName, Mesh[]>();
@@ -84,24 +85,39 @@ export class AvatarPartBuilder {
   }
 
   /**
-   * Merges the pieces of every joint into one mesh with the shared material and hangs it from
-   * the joint. Call it while the skeleton is still at rest.
+   * Merges every piece into one mesh with the shared material, hung from `root` and skinned to
+   * the skeleton: the pieces of each joint get that joint's bone with full weight. Call it while
+   * the avatar is still at rest, at the origin.
    */
-  merge(material: Material): Mesh[] {
-    const merged: Mesh[] = [];
+  merge(material: Material, root: TransformNode): Mesh | null {
+    const names = this.skeleton.names;
+    const parts: Mesh[] = [];
     for (const [joint, meshes] of this.groups) {
       meshes.forEach((mesh) => mesh.computeWorldMatrix(true));
-      const mesh = Mesh.MergeMeshes(meshes, true, true);
-      if (!mesh) continue;
-      mesh.name = `${this.skeleton.joints[joint].name}-mesh`;
-      mesh.material = material;
-      mesh.isPickable = false;
-      mesh.parent = this.skeleton.joints[joint];
-      mesh.position.copyFrom(this.skeleton.place(joint).negate());
-      merged.push(mesh);
+      const part = Mesh.MergeMeshes(meshes, true, true);
+      if (!part) continue;
+      const count = part.getTotalVertices();
+      const bone = names.indexOf(joint);
+      const indices = new Array<number>(count * 4).fill(0);
+      const weights = new Array<number>(count * 4).fill(0);
+      for (let i = 0; i < count; i++) {
+        indices[i * 4] = bone;
+        weights[i * 4] = 1;
+      }
+      part.setVerticesData(VertexBuffer.MatricesIndicesKind, indices);
+      part.setVerticesData(VertexBuffer.MatricesWeightsKind, weights);
+      parts.push(part);
     }
     this.groups.clear();
-    return merged;
+    const mesh = parts.length ? Mesh.MergeMeshes(parts, true, true) : null;
+    if (!mesh) return null;
+    mesh.name = `${root.name}-mesh`;
+    mesh.material = material;
+    mesh.isPickable = false;
+    mesh.parent = root;
+    mesh.skeleton = this.skeleton.createSkeleton(this.scene, root.name);
+    mesh.numBoneInfluencers = 1;
+    return mesh;
   }
 
   private add(joint: JointName, region: AtlasRegion, mesh: Mesh, at: Point): Mesh {
