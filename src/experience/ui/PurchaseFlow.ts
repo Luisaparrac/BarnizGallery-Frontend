@@ -133,6 +133,12 @@ export class PurchaseFlow {
     );
   }
 
+  /** The summary of the address step, with the amount the gateway charges as the total. */
+  private paymentSummary(payment: Payment): OrderSummary {
+    const total = this.format.money(payment.amount, payment.currency);
+    return this.summary ? { ...this.summary, total } : { items: [], subtotal: total, shipping: this.format.money(0, payment.currency), total };
+  }
+
   /** Without a real backend for commerce the gateway is the simulated one (no money moves). */
   private static get simulatedPayments(): boolean {
     return !AppConfig.usesApi("commerce");
@@ -199,7 +205,7 @@ export class PurchaseFlow {
    */
   private showGateway(order: Order, payment: Payment): void {
     this.host.show(
-      new GatewayView(this.i18n, this.format, payment, async (method, result) => {
+      new GatewayView(this.i18n, this.paymentSummary(payment), payment, async (method, result) => {
         const outcome = await services.commerce.simulateGatewayResult(payment.id, method, result);
         if (outcome.status === "APPROVED") await this.showConfirmation(order.id);
         else this.showRejected(outcome);
