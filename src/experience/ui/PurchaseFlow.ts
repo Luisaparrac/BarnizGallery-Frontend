@@ -11,6 +11,7 @@ import type { VisitorSession } from "./VisitorSession";
 import { AddressFormView } from "./views/AddressFormView";
 import { CartView } from "./views/CartView";
 import { CheckoutView } from "./views/CheckoutView";
+import { ExternalPaymentView } from "./views/ExternalPaymentView";
 import { GatewayView } from "./views/GatewayView";
 import { LoginView } from "./views/LoginView";
 import { MessageView } from "./views/MessageView";
@@ -122,9 +123,32 @@ export class PurchaseFlow {
     await this.startPayment(order);
   }
 
+  /** A real gateway (http address) pays in a new tab; the simulated one pays on a board. */
   private async startPayment(order: Order): Promise<void> {
     const payment = await services.commerce.startPayment(order.id);
-    this.showGateway(order, payment);
+    if (PurchaseFlow.isExternal(payment.checkoutUrl)) this.showExternalPayment(order, payment);
+    else this.showGateway(order, payment);
+  }
+
+  private showExternalPayment(order: Order, payment: Payment): void {
+    const open = () => window.open(payment.checkoutUrl, "_blank", "noopener");
+    open();
+    this.host.show(
+      new ExternalPaymentView(this.i18n, this.format, payment, {
+        open,
+        checkPaid: async () => {
+          const current = await services.commerce.getPayment(payment.id);
+          if (current.status === "APPROVED") await this.showConfirmation(order.id);
+          else if (current.status === "REJECTED" || current.status === "VOIDED" || current.status === "ERROR") this.showRejected(current);
+          else return false;
+          return true;
+        },
+      }),
+    );
+  }
+
+  private static isExternal(url: string): boolean {
+    return /^https?:\/\//i.test(url);
   }
 
   /**
