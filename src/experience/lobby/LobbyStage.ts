@@ -81,6 +81,7 @@ export class LobbyStage implements Stage {
   private readonly surface: PanelSurface;
   private readonly pointerObserver: Observer<PointerInfo>;
   private readonly onResize = () => this.engine.resize();
+  private readonly onKey = (event: KeyboardEvent) => this.key(event);
 
   private i18n: Localizer;
   private user: User | null;
@@ -125,6 +126,7 @@ export class LobbyStage implements Stage {
 
     this.pointerObserver = this.scene.onPointerObservable.add((info) => this.onPointer(info));
     window.addEventListener("resize", this.onResize);
+    window.addEventListener("keydown", this.onKey);
     this.engine.runRenderLoop(() => this.frame());
   }
 
@@ -140,6 +142,7 @@ export class LobbyStage implements Stage {
   dispose(): void {
     this.disposed = true;
     window.removeEventListener("resize", this.onResize);
+    window.removeEventListener("keydown", this.onKey);
     this.scene.onPointerObservable.remove(this.pointerObserver);
     this.pedestals.forEach((pedestal) => pedestal.dispose());
     this.label?.dispose();
@@ -281,6 +284,23 @@ export class LobbyStage implements Stage {
       if (this.layer.pointerOverHud) return;
       const pedestal = this.pedestalAtPointer();
       if (pedestal) this.select(pedestal);
+    }
+  }
+
+  /** Left and right arrows choose the previous or next avatar; Enter continues. */
+  private key(event: KeyboardEvent): void {
+    if (!this.picking || !this.pedestals.length) return;
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      const count = this.pedestals.length;
+      const current = this.pedestals.findIndex((pedestal) => pedestal.item.code === this.avatar?.code);
+      const next = current < 0 ? (event.key === "ArrowRight" ? 0 : count - 1) : (current + (event.key === "ArrowRight" ? 1 : count - 1)) % count;
+      const pedestal = this.pedestals[next];
+      this.select(pedestal);
+      this.label?.show(this.i18n.name(pedestal.item), pedestal.labelAnchor);
+    } else if (event.key === "Enter" && this.avatar) {
+      event.preventDefault();
+      void this.confirmAvatar();
     }
   }
 
