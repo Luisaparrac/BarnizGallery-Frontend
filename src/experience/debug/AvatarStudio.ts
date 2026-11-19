@@ -4,6 +4,7 @@ import {
   DirectionalLight,
   Engine,
   HemisphericLight,
+  type Mesh,
   ImageProcessingConfiguration,
   MeshBuilder,
   Scene,
@@ -31,6 +32,7 @@ export class AvatarStudio implements Stage {
   private readonly scene: Scene;
   private readonly camera: ArcRotateCamera;
   private readonly avatars = new Map<string, AvatarModel>();
+  private readonly floor: Mesh;
   private readonly onResize = () => this.engine.resize();
   private readonly onKey = (event: KeyboardEvent) => this.key(event);
   private speed = 0;
@@ -61,10 +63,10 @@ export class AvatarStudio implements Stage {
     const shadows = new ShadowRig(key, new QualityManager("high").settings);
     const materials = new MaterialLibrary(this.scene);
 
-    const floor = MeshBuilder.CreateDisc("studioFloor", { radius: 6, tessellation: 64 }, this.scene);
-    floor.rotation.x = Math.PI / 2;
-    floor.material = materials.cream;
-    shadows.receive(floor);
+    this.floor = MeshBuilder.CreateDisc("studioFloor", { radius: 6, tessellation: 64 }, this.scene);
+    this.floor.rotation.x = Math.PI / 2;
+    this.floor.material = materials.cream;
+    shadows.receive(this.floor);
 
     const factory = new AvatarFactory({ scene: this.scene, materials, shadows });
     AvatarFactory.CODES.forEach((code, index) => {
@@ -100,16 +102,19 @@ export class AvatarStudio implements Stage {
   async portraits(): Promise<Record<string, string>> {
     const saved = { alpha: this.camera.alpha, beta: this.camera.beta, radius: this.camera.radius, target: this.camera.target.clone() };
     const result: Record<string, string> = {};
+    // Only the cream background behind the portrait.
+    this.floor.setEnabled(false);
     for (const [code, avatar] of this.avatars) {
       this.avatars.forEach((other) => other.setVisible(other === avatar));
-      this.camera.setTarget(new Vector3(avatar.root.position.x, 1.43, 0));
-      this.camera.alpha = Math.PI / 2 - 0.32;
-      this.camera.beta = 1.47;
-      this.camera.radius = 1.45;
+      this.camera.setTarget(new Vector3(avatar.root.position.x, 1.5, 0));
+      this.camera.alpha = Math.PI / 2 - 0.3;
+      this.camera.beta = 1.5;
+      this.camera.radius = 1.75;
       this.scene.render();
       result[code] = await Tools.CreateScreenshotUsingRenderTargetAsync(this.engine, this.camera, AvatarStudio.PORTRAIT_SIZE, "image/png", 4, true);
     }
     this.avatars.forEach((avatar) => avatar.setVisible(true));
+    this.floor.setEnabled(true);
     this.camera.setTarget(saved.target);
     Object.assign(this.camera, { alpha: saved.alpha, beta: saved.beta, radius: saved.radius });
     return result;
