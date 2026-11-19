@@ -8,6 +8,7 @@ import type {
   LinkTone,
   NoteTone,
   OptionExtras,
+  SelectOption,
   SummaryItem,
   UiBox,
   UiButton,
@@ -73,7 +74,7 @@ class DomButton extends DomNode implements UiButton {
 class DomField extends DomNode implements UiField {
   constructor(
     element: HTMLElement,
-    private readonly input: HTMLInputElement,
+    private readonly input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
   ) {
     super(element);
   }
@@ -88,7 +89,7 @@ class DomField extends DomNode implements UiField {
 
   onEnter(run: () => void): void {
     this.input.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter") return;
+      if ((event as KeyboardEvent).key !== "Enter" || this.input instanceof HTMLTextAreaElement) return;
       event.preventDefault();
       run();
     });
@@ -115,6 +116,31 @@ class DomOption extends DomNode implements UiOption {
 
   private paint(): void {
     this.element.setAttribute("aria-checked", String(this.state));
+    this.element.classList.toggle("is-selected", this.state);
+  }
+}
+
+/** A chip or swatch: pressed or not (several can be pressed). */
+class DomToggle extends DomNode implements UiOption {
+  constructor(
+    element: HTMLElement,
+    private state: boolean,
+  ) {
+    super(element);
+    this.paint();
+  }
+
+  get selected(): boolean {
+    return this.state;
+  }
+
+  setSelected(selected: boolean): void {
+    this.state = selected;
+    this.paint();
+  }
+
+  private paint(): void {
+    this.element.setAttribute("aria-pressed", String(this.state));
     this.element.classList.toggle("is-selected", this.state);
   }
 }
@@ -172,16 +198,107 @@ export class DomUiKit implements UiKit {
     const wrap = this.tag("div", "mu-field");
     const caption = this.tag("label", "mu-label", label) as HTMLLabelElement;
     caption.htmlFor = id;
-    const input = document.createElement("input");
+    let input: HTMLInputElement | HTMLTextAreaElement;
+    if (options.multiline) {
+      input = document.createElement("textarea");
+      input.rows = 4;
+      input.className = "mu-input is-multiline";
+    } else {
+      input = document.createElement("input");
+      input.className = "mu-input";
+      input.type = options.password ? "password" : (options.type ?? "text");
+      input.spellcheck = false;
+    }
     input.id = id;
-    input.className = "mu-input";
-    input.type = options.password ? "password" : (options.type ?? "text");
     input.value = options.value ?? "";
     input.placeholder = options.placeholder ?? "";
     if (options.autocomplete) input.autocomplete = options.autocomplete as AutoFill;
-    input.spellcheck = false;
     wrap.append(caption, input);
     return new DomField(wrap, input);
+  }
+
+  select(label: string, options: SelectOption[], value: string, onChange?: (value: string) => void): UiField {
+    const id = this.id("select");
+    const wrap = this.tag("div", "mu-field");
+    const caption = this.tag("label", "mu-label", label) as HTMLLabelElement;
+    caption.htmlFor = id;
+    const select = document.createElement("select");
+    select.id = id;
+    select.className = "mu-input mu-select";
+    for (const option of options) select.append(new Option(option.label, option.value, false, option.value === value));
+    select.addEventListener("change", () => onChange?.(select.value));
+    wrap.append(caption, select);
+    return new DomField(wrap, select);
+  }
+
+  chip(label: string, selected: boolean, onChange: (selected: boolean) => void): UiOption {
+    const chip = this.tag("button", "mu-chip", label) as HTMLButtonElement;
+    chip.type = "button";
+    const option = new DomToggle(chip, selected);
+    chip.addEventListener("click", () => {
+      option.setSelected(!option.selected);
+      onChange(option.selected);
+    });
+    return option;
+  }
+
+  swatch(hex: string | null, label: string, selected: boolean, onChange: (selected: boolean) => void): UiOption {
+    const swatch = this.tag("button", hex ? "mu-swatch" : "mu-swatch is-multi") as HTMLButtonElement;
+    swatch.type = "button";
+    swatch.title = label;
+    swatch.setAttribute("aria-label", label);
+    if (hex) swatch.style.setProperty("--swatch", hex);
+    const option = new DomToggle(swatch, selected);
+    swatch.addEventListener("click", () => {
+      option.setSelected(!option.selected);
+      onChange(option.selected);
+    });
+    return option;
+  }
+
+  keyHint(keys: string, description: string): UiNode {
+    const row = this.tag("div", "mu-key");
+    row.append(this.tag("kbd", "mu-kbd", keys), this.tag("span", "", description));
+    return new DomNode(row);
+  }
+
+  gallery(urls: string[], description: string): UiNode {
+    const box = this.tag("div", "mu-gallery");
+    const main = document.createElement("img");
+    main.className = "mu-gallery-main";
+    main.alt = description;
+    main.src = ArtworkImageFactory.resolve(urls[0] ?? "");
+    box.append(main);
+    if (urls.length > 1) {
+      const thumbs = this.tag("div", "mu-gallery-thumbs");
+      urls.slice(0, 5).forEach((url, index) => {
+        const thumb = this.tag("button", index === 0 ? "mu-gallery-thumb is-current" : "mu-gallery-thumb") as HTMLButtonElement;
+        thumb.type = "button";
+        thumb.setAttribute("aria-label", `${description} ${index + 1}`);
+        const image = document.createElement("img");
+        image.src = ArtworkImageFactory.resolve(url);
+        image.alt = "";
+        thumb.append(image);
+        thumb.addEventListener("click", () => {
+          main.src = ArtworkImageFactory.resolve(url);
+          thumbs.querySelectorAll(".is-current").forEach((other) => other.classList.remove("is-current"));
+          thumb.classList.add("is-current");
+        });
+        thumbs.append(thumb);
+      });
+      box.append(thumbs);
+    }
+    return new DomNode(box);
+  }
+
+  picture(url: string, caption?: string): UiNode {
+    const figure = this.tag("figure", "mu-picture");
+    const image = document.createElement("img");
+    image.src = ArtworkImageFactory.resolve(url);
+    image.alt = caption ?? "";
+    figure.append(image);
+    if (caption) figure.append(this.tag("figcaption", "", caption));
+    return new DomNode(figure);
   }
 
   button(label: string, onClick: () => void, variant: ButtonVariant = "primary", fullWidth = false): UiButton {

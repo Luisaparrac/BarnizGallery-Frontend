@@ -1,4 +1,4 @@
-import { Button, Container, Control, Ellipse, Image, InputPassword, InputText, Rectangle, StackPanel, TextBlock } from "@babylonjs/gui";
+import { Button, Container, Control, Ellipse, Image, InputPassword, InputText, InputTextArea, Rectangle, StackPanel, TextBlock } from "@babylonjs/gui";
 import { ArtworkImageFactory } from "../../../art/ArtworkImageFactory";
 import { BoardArt } from "../board/BoardArt";
 import { BoardTheme as T } from "../board/BoardTheme";
@@ -11,6 +11,7 @@ import type {
   LinkTone,
   NoteTone,
   OptionExtras,
+  SelectOption,
   SummaryItem,
   UiBox,
   UiButton,
@@ -113,6 +114,42 @@ class BabylonField extends BabylonNode implements UiField {
   }
 }
 
+/** A drop-down list on the 3D board: "‹ Colombia ›", the arrows go through the options. */
+class BabylonSelect extends BabylonNode implements UiField {
+  constructor(
+    control: Control,
+    private readonly options: SelectOption[],
+    private index: number,
+    private readonly label: TextBlock,
+    private readonly onChange?: (value: string) => void,
+  ) {
+    super(control);
+    this.show();
+  }
+
+  get value(): string {
+    return this.options[this.index]?.value ?? "";
+  }
+
+  setValue(value: string): void {
+    this.index = Math.max(0, this.options.findIndex((option) => option.value === value));
+    this.show();
+  }
+
+  onEnter(): void {}
+
+  move(step: number): void {
+    if (!this.options.length) return;
+    this.index = (this.index + step + this.options.length) % this.options.length;
+    this.show();
+    this.onChange?.(this.value);
+  }
+
+  private show(): void {
+    this.label.text = this.options[this.index]?.label ?? "";
+  }
+}
+
 class BabylonOption extends BabylonNode implements UiOption {
   constructor(
     control: Control,
@@ -194,9 +231,15 @@ export class BabylonUiKit implements UiKit {
     ring.thickness = T.px(T.size.border);
     ring.color = T.color.line;
     ring.background = T.color.white;
-    const input = options.password ? new InputPassword(this.name("password")) : new InputText(this.name("field"));
+    const tall = options.multiline ? T.px(112) : T.px(T.size.control);
+    ring.heightInPixels = tall;
+    const input = options.multiline
+      ? new InputTextArea(this.name("area"))
+      : options.password
+        ? new InputPassword(this.name("password"))
+        : new InputText(this.name("field"));
     input.width = "100%";
-    input.heightInPixels = T.px(T.size.control) - T.px(T.size.focus) * 2;
+    input.heightInPixels = tall - T.px(T.size.focus) * 2;
     input.thickness = 0;
     input.background = "transparent";
     input.focusedBackground = "transparent";
@@ -333,6 +376,128 @@ export class BabylonUiKit implements UiKit {
     return box;
   }
 
+  select(label: string, options: SelectOption[], value: string, onChange?: (value: string) => void): UiField {
+    const block = this.stack(true, T.size.gapSmall);
+    block.addControl(this.block(label, T.font.body, T.type.note, "600", T.color.ink));
+    const box = new Rectangle(this.name("select"));
+    box.width = "100%";
+    box.heightInPixels = T.px(T.size.control);
+    box.cornerRadius = T.px(T.size.radius);
+    box.thickness = T.px(T.size.border);
+    box.color = T.color.line;
+    box.background = T.color.white;
+    const text = this.inline("", T.type.text, "600", T.color.ink);
+    box.addControl(text);
+    let select: BabylonSelect | null = null;
+    for (const [mark, step, side] of [["‹", -1, Control.HORIZONTAL_ALIGNMENT_LEFT], ["›", 1, Control.HORIZONTAL_ALIGNMENT_RIGHT]] as const) {
+      const arrow = Button.CreateSimpleButton(this.name("arrow"), mark);
+      arrow.widthInPixels = arrow.heightInPixels = T.px(T.size.control) - T.px(8);
+      arrow.thickness = 0;
+      arrow.color = T.color.ink;
+      arrow.fontSizeInPixels = T.px(24);
+      arrow.horizontalAlignment = side;
+      arrow.hoverCursor = "pointer";
+      arrow.onPointerClickObservable.add(() => select?.move(step));
+      box.addControl(arrow);
+    }
+    block.addControl(box);
+    const start = Math.max(0, options.findIndex((option) => option.value === value));
+    select = new BabylonSelect(block, options, start, text, onChange);
+    return select;
+  }
+
+  chip(label: string, selected: boolean, onChange: (selected: boolean) => void): UiOption {
+    const chip = Button.CreateSimpleButton(this.name("chip"), label);
+    chip.widthInPixels = this.measure(label, `600 ${T.px(T.type.note)}px ${T.font.body}`) + T.px(40);
+    chip.heightInPixels = T.px(36);
+    chip.cornerRadius = T.px(18);
+    chip.thickness = T.px(T.size.border);
+    chip.fontFamily = T.font.body;
+    chip.fontSizeInPixels = T.px(T.type.note);
+    chip.fontWeight = "600";
+    chip.hoverCursor = "pointer";
+    const paint = (state: boolean) => {
+      chip.color = state ? T.color.green : T.color.ink;
+      chip.background = state ? T.color.greenTint : T.color.white;
+    };
+    const option = new BabylonOption(chip, paint, selected);
+    chip.onPointerClickObservable.add(() => {
+      option.setSelected(!option.selected);
+      onChange(option.selected);
+    });
+    return option;
+  }
+
+  swatch(hex: string | null, _label: string, selected: boolean, onChange: (selected: boolean) => void): UiOption {
+    const ring = new Ellipse(this.name("swatch"));
+    ring.widthInPixels = ring.heightInPixels = T.px(42);
+    ring.thickness = T.px(3);
+    ring.hoverCursor = "pointer";
+    ring.isPointerBlocker = true;
+    const dot = new Ellipse(this.name("swatchDot"));
+    dot.widthInPixels = dot.heightInPixels = T.px(32);
+    dot.thickness = T.px(1);
+    dot.color = T.color.line;
+    dot.background = hex ?? T.color.paperHover;
+    if (!hex) dot.addControl(this.inline("✦", 14, "700", T.color.ink));
+    ring.addControl(dot);
+    const option = new BabylonOption(ring, (state) => (ring.color = state ? T.color.green : "transparent"), selected);
+    ring.onPointerClickObservable.add(() => {
+      option.setSelected(!option.selected);
+      onChange(option.selected);
+    });
+    return option;
+  }
+
+  keyHint(keys: string, description: string): UiNode {
+    const row = this.stack(false, T.size.gapMedium);
+    row.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    const cap = new Rectangle(this.name("key"));
+    cap.widthInPixels = T.px(150);
+    cap.heightInPixels = T.px(34);
+    cap.cornerRadius = T.px(8);
+    cap.thickness = T.px(T.size.border);
+    cap.color = T.color.line;
+    cap.background = T.color.white;
+    cap.addControl(this.inline(keys, T.type.note, "700", T.color.ink));
+    row.addControl(cap);
+    row.addControl(this.inline(description, T.type.text, "400", T.color.ink));
+    return new BabylonNode(row);
+  }
+
+  gallery(urls: string[], _description: string): UiNode {
+    const column = this.stack(true, T.size.gapSmall);
+    const size = T.px(380);
+    const main = this.framedImage(urls[0] ?? "", size);
+    main.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    column.addControl(main);
+    if (urls.length > 1) {
+      const picture = main.children[0] as Image;
+      const thumbs = this.stack(false, T.size.gapSmall);
+      thumbs.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+      for (const url of urls.slice(0, 5)) {
+        const thumb = this.framedImage(url, T.px(64));
+        thumb.isPointerBlocker = true;
+        thumb.hoverCursor = "pointer";
+        thumb.onPointerClickObservable.add(() => (picture.source = ArtworkImageFactory.resolve(url)));
+        thumbs.addControl(thumb);
+      }
+      column.addControl(thumbs);
+    }
+    return new BabylonNode(column);
+  }
+
+  picture(url: string, caption?: string): UiNode {
+    const column = this.stack(true, T.size.gapSmall);
+    column.widthInPixels = T.px(180);
+    const frame = this.framedImage(url, T.px(180));
+    frame.thickness = T.px(6);
+    frame.color = T.color.white;
+    column.addControl(frame);
+    if (caption) column.addControl(this.block(caption, T.font.body, T.type.note, "400", T.color.inkSoft));
+    return new BabylonNode(column);
+  }
+
   /** On the 3D board the border is solid (Babylon GUI has no dashed borders). */
   addCard(label: string, onClick: () => void): UiNode {
     const card = new Rectangle(this.name("addCard"));
@@ -428,7 +593,7 @@ export class BabylonUiKit implements UiKit {
     const box = new Container(this.name("summaryItem"));
     box.width = "100%";
     box.adaptHeightToChildren = true;
-    const thumb = this.picture(item.image, size);
+    const thumb = this.framedImage(item.image, size);
     thumb.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     thumb.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     box.addControl(thumb);
@@ -553,7 +718,7 @@ export class BabylonUiKit implements UiKit {
     return stack;
   }
 
-  private picture(url: string, size: number): Rectangle {
+  private framedImage(url: string, size: number): Rectangle {
     const frame = new Rectangle(this.name("imageFrame"));
     frame.widthInPixels = frame.heightInPixels = size;
     frame.cornerRadius = T.px(8);

@@ -39,7 +39,15 @@ export interface FieldOptions {
   placeholder?: string;
   /** The browser's autocomplete hint: email, current-password, new-password, address-line1… */
   autocomplete?: string;
-  type?: "text" | "email" | "tel";
+  type?: "text" | "email" | "tel" | "number";
+  /** A text area of several lines (descriptions). */
+  multiline?: boolean;
+}
+
+/** One option of a drop-down list. */
+export interface SelectOption {
+  value: string;
+  label: string;
 }
 
 export interface UiField extends UiNode {
@@ -95,6 +103,19 @@ export interface UiKit {
   ): UiBox;
   /** The last card of a list: dashed border, a + and a label. */
   addCard(label: string, onClick: () => void): UiNode;
+
+  /** A drop-down list (on the 3D board, arrows that go through the options). */
+  select(label: string, options: SelectOption[], value: string, onChange?: (value: string) => void): UiField;
+  /** A chip that can be switched on and off (several can be on). */
+  chip(label: string, selected: boolean, onChange: (selected: boolean) => void): UiOption;
+  /** A round color sample that can be switched on and off; `hex` null is "multicolor". */
+  swatch(hex: string | null, label: string, selected: boolean, onChange: (selected: boolean) => void): UiOption;
+  /** A key cap and what it does ("W A S D · Walk"). */
+  keyHint(keys: string, description: string): UiNode;
+  /** The photos of a piece: a big one and thumbnails that swap it. */
+  gallery(urls: string[], description: string): UiNode;
+  /** A framed picture with an optional caption (a design proposal). */
+  picture(url: string, caption?: string): UiNode;
 
   /** Steps of a process, the current one in green. */
   steps(labels: string[], current: number): UiNode;
