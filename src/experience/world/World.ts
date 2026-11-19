@@ -5,7 +5,7 @@ import { CameraRig } from "./CameraRig";
 import { QualityManager } from "./core/QualityManager";
 import { Fountain } from "./Fountain";
 import { InputController } from "./InputController";
-import { DoorInteractable, KioskInteractable, PieceInteractable, type Interactable } from "./Interactable";
+import { DoorInteractable, PieceInteractable, StallInteractable, type Interactable } from "./Interactable";
 import { InteractionSystem } from "./InteractionSystem";
 import { InteriorLighting } from "./InteriorLighting";
 import { Kiosk } from "./Kiosk";
@@ -26,7 +26,7 @@ import { StreetFurniture } from "./StreetFurniture";
 import { Terrain } from "./Terrain";
 import { Vegetation } from "./Vegetation";
 import type { PieceMetadata } from "./Vitrina";
-import type { CameraMode, WorldPiece, WorldRoom } from "./WorldTypes";
+import type { CameraMode, StallKind, WorldPiece, WorldRoom } from "./WorldTypes";
 
 /**
  * Facade over the whole 3D scene: the plaza, one sala per master with the pieces in display cases,
@@ -43,8 +43,8 @@ export class World {
   readonly salas = new Map<string, SalaBuilding>();
   /** The visitor chose a piece (E in front of a case, or a click on it). */
   readonly pieceSelected = new Signal<WorldPiece>();
-  /** The visitor used the welcome kiosk. */
-  readonly kioskUsed = new Signal<void>();
+  /** The visitor used a stall (the welcome kiosk, the cashier or the commissions workshop). */
+  readonly stallUsed = new Signal<StallKind>();
   /** Returns true while a click belongs to the UI (a HUD button), so the world ignores it. */
   pointerBlocked: () => boolean = () => false;
 
@@ -120,7 +120,8 @@ export class World {
   }
 
   private buildComponents(context: SceneContext, rooms: readonly WorldRoom[]): void {
-    this.components.push(new Terrain(context), new Plaza(context), new PerimeterWall(context), new Fountain(context), new Kiosk(context), new Vegetation(context), new StreetFurniture(context));
+    const stalls = [new Kiosk(context)];
+    this.components.push(new Terrain(context), new Plaza(context), new PerimeterWall(context), new Fountain(context), ...stalls, new Vegetation(context), new StreetFurniture(context));
 
     SalaSlots.assign(rooms).forEach(({ room, slot }, index) => {
       const accent = index % 2 === 0 ? context.materials.paintRed : context.materials.paintGreen;
@@ -139,12 +140,12 @@ export class World {
         this.interactions.register(new PieceInteractable(vitrina.viewPoint, vitrina));
       }
     });
-    this.interactions.register(new KioskInteractable(PlazaLayout.kioskPoint));
+    stalls.forEach((stall) => this.interactions.register(new StallInteractable(stall.standPoint, stall.kind)));
   }
 
   private activate(item: Interactable): void {
     if (item instanceof PieceInteractable) this.pieceSelected.emit(item.vitrina.piece);
-    else if (item instanceof KioskInteractable) this.kioskUsed.emit();
+    else if (item instanceof StallInteractable) this.stallUsed.emit(item.kind);
   }
 
   /** A click on a display case opens the piece; any other click captures the mouse to look around. */

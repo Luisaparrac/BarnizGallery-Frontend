@@ -3,7 +3,7 @@ import type { Catalogs } from "../../domain/catalog";
 import type { User } from "../../domain/user";
 import type { Localizer } from "../../i18n/Localizer";
 import { services } from "../../services/ServiceRegistry";
-import { DoorInteractable, KioskInteractable, PieceInteractable, type Interactable } from "../world/Interactable";
+import { DoorInteractable, PieceInteractable, StallInteractable, type Interactable } from "../world/Interactable";
 import type { World } from "../world/World";
 import { Hud } from "./Hud";
 import { PanelSurface } from "./PanelSurface";
@@ -23,6 +23,10 @@ export interface UiSampleData {
  * the HUD; closing it gives both back. Views and the world never talk to each other directly.
  */
 export class ExperienceUi {
+  private static readonly STALL_PROMPTS = {
+    welcome: "world.promptKiosk",
+  } as const;
+
   private readonly layer: UiLayer;
   private readonly hud: Hud;
   private readonly surface: PanelSurface;
@@ -116,7 +120,7 @@ export class ExperienceUi {
   }
 
   private promptFor(item: Interactable | null): string | null {
-    if (item instanceof KioskInteractable) return this.i18n.t("world.promptKiosk");
+    if (item instanceof StallInteractable) return item.kind === "welcome" ? this.i18n.t(ExperienceUi.STALL_PROMPTS.welcome) : null;
     if (item instanceof PieceInteractable) return this.i18n.t("world.promptPiece", { title: item.vitrina.piece.title });
     if (item instanceof DoorInteractable) {
       const { room } = item.sala;

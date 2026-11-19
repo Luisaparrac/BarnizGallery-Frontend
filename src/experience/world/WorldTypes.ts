@@ -2,6 +2,9 @@ import type { Id } from "../../domain/common";
 
 export type CameraMode = "FIRST_PERSON" | "THIRD_PERSON";
 
+/** The stalls of the plaza; for now only the welcome kiosk (tastes). */
+export type StallKind = "welcome";
+
 /** One piece shown inside a sala: a 2D photo in a glass display case. Texts arrive already translated. */
 export interface WorldPiece {
   id: Id;

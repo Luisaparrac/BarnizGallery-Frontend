@@ -1,6 +1,7 @@
 import type { Vector3 } from "@babylonjs/core";
 import type { SalaBuilding } from "./SalaBuilding";
 import type { Vitrina } from "./Vitrina";
+import type { StallKind } from "./WorldTypes";
 
 /** Something the visitor can use with the E key when standing close enough. */
 export abstract class Interactable {
@@ -10,9 +11,13 @@ export abstract class Interactable {
   ) {}
 }
 
-/** The welcome kiosk in the middle of the plaza (taste questionnaire). */
-export class KioskInteractable extends Interactable {
-  constructor(position: Vector3, radius = 4.2) {
+/** A stall of the plaza: the welcome kiosk, the cashier or the commissions workshop. */
+export class StallInteractable extends Interactable {
+  constructor(
+    position: Vector3,
+    readonly kind: StallKind,
+    radius = 4.2,
+  ) {
     super(position, radius);
   }
 }
