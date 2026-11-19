@@ -43,7 +43,8 @@ export class BoardArt {
         ctx.fillRect(0, 0, 512, 512);
         for (let i = 0; i < 2600; i++) {
           const dark = random.next() > 0.45;
-          ctx.strokeStyle = dark ? `rgba(90,60,30,${random.range(0.02, 0.05)})` : `rgba(255,255,255,${random.range(0.05, 0.12)})`;
+          // Half as strong as at first, so the fibre never shows behind the text.
+          ctx.strokeStyle = dark ? `rgba(90,60,30,${random.range(0.01, 0.025)})` : `rgba(255,255,255,${random.range(0.025, 0.06)})`;
           ctx.lineWidth = random.range(0.6, 1.2);
           const x = random.next() * 512;
           const y = random.next() * 512;
