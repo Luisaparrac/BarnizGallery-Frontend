@@ -56,7 +56,7 @@ export class ExperienceUi {
     // Account gets its board in a later step.
     this.hud.setEnabled("account", false);
     this.session = new VisitorSession(user);
-    this.purchase = new PurchaseFlow(i18n, this.session, { show: (view) => this.open(view) });
+    this.purchase = new PurchaseFlow(i18n, this.session, { show: (view) => this.open(view), close: () => this.surface.close() });
     this.hud.setFirstPerson(world.cameraMode === "FIRST_PERSON");
     world.pointerBlocked = () => this.layer.pointerOverHud;
 

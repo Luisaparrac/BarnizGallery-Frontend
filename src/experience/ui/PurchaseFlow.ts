@@ -1,4 +1,6 @@
 import { AppEvents } from "../../core/AppEvents";
+import type { Id } from "../../domain/common";
+import type { Order, Payment } from "../../domain/commerce";
 import type { Localizer } from "../../i18n/Localizer";
 import { services } from "../../services/ServiceRegistry";
 import { Formatter } from "../../utils/Formatter";
@@ -6,22 +8,31 @@ import type { WorldPiece } from "../world/WorldTypes";
 import { ErrorText } from "./ErrorText";
 import type { PanelView } from "./PanelView";
 import type { VisitorSession } from "./VisitorSession";
+import { AddressFormView } from "./views/AddressFormView";
 import { CartView } from "./views/CartView";
+import { CheckoutView } from "./views/CheckoutView";
+import { GatewayView } from "./views/GatewayView";
 import { LoginView } from "./views/LoginView";
 import { MessageView } from "./views/MessageView";
+import { OrderConfirmationView } from "./views/OrderConfirmationView";
 import { PieceView } from "./views/PieceView";
 
 /** Where the purchase boards are shown (the experience's board). */
 export interface PurchaseHost {
   show(view: PanelView): void;
+  /** Closes the board and gives the walk back. */
+  close(): void;
 }
 
 /**
- * Mediator of buying in 3D: it loads the data, opens each board (piece, cart…) and decides what
- * comes next, so the boards never know each other. Without a session it asks to sign in first
+ * Mediator of buying in 3D: it loads the data, opens each board (piece → cart → address →
+ * gateway → confirmation) and decides what comes next, so the boards never know each other. Without a session it asks to sign in first
  * and then comes back to where the visitor was.
  */
 export class PurchaseFlow {
+  /** Shipping cost when the settings cannot be read (the same default as the backend). */
+  private static readonly SHIPPING_FALLBACK = 25;
+
   private readonly format: Formatter;
 
   constructor(
@@ -66,9 +77,82 @@ export class PurchaseFlow {
             AppEvents.cartChanged.emit();
             await this.showCart();
           },
+          checkout: () => void this.showCheckout(),
         }),
       );
     });
+  }
+
+  /** Shipping address and summary; without saved addresses it starts with the address form. */
+  async showCheckout(selected: Id | null = null): Promise<void> {
+    await this.load(async () => {
+      const [cart, addresses, settings] = await Promise.all([services.commerce.getCart(), services.profile.listAddresses(), services.catalog.getPublicSettings().catch(() => ({}))]);
+      if (!cart.items.length) {
+        await this.showCart();
+        return;
+      }
+      if (!addresses.length) {
+        this.showAddressForm(true);
+        return;
+      }
+      const shipping = Number((settings as Record<string, unknown>)["commerce.shipping_flat_cost"] ?? PurchaseFlow.SHIPPING_FALLBACK);
+      this.host.show(
+        new CheckoutView(this.i18n, this.format, cart, addresses, shipping, selected, {
+          back: () => void this.showCart(),
+          newAddress: () => this.showAddressForm(false),
+          pay: (addressId) => this.createOrder(addressId),
+        }),
+      );
+    });
+  }
+
+  private showAddressForm(first: boolean): void {
+    this.host.show(
+      new AddressFormView(this.i18n, () => void (first ? this.showCart() : this.showCheckout()), this.session.user?.fullName ?? "", first, async (address) => {
+        const saved = await services.profile.saveAddress(address);
+        await this.showCheckout(saved.id);
+      }),
+    );
+  }
+
+  /** The order is created (its pieces stay reserved) and the payment starts at the gateway. */
+  private async createOrder(addressId: Id): Promise<void> {
+    const order = await services.commerce.checkout({ addressId });
+    AppEvents.cartChanged.emit();
+    await this.startPayment(order);
+  }
+
+  private async startPayment(order: Order): Promise<void> {
+    const payment = await services.commerce.startPayment(order.id);
+    this.showGateway(order, payment);
+  }
+
+  /**
+   * The simulated gateway: Approve shows the confirmation. A rejection cancels the order and
+   * frees its pieces (they stay in the cart), so trying again goes back to the checkout.
+   */
+  private showGateway(order: Order, payment: Payment): void {
+    this.host.show(
+      new GatewayView(this.i18n, this.format, payment, async (method, result) => {
+        const outcome = await services.commerce.simulateGatewayResult(payment.id, method, result);
+        if (outcome.status === "APPROVED") await this.showConfirmation(order.id);
+        else this.showRejected(outcome);
+      }),
+    );
+  }
+
+  private showRejected(payment: Payment): void {
+    this.host.show(
+      new MessageView(this.i18n.t("gateway.name"), `${this.i18n.tx(`gateway.result.${payment.status}`, this.i18n.t("gateway.result.REJECTED"))} ${this.i18n.t("shop.tryAgainText")}`, {
+        label: this.i18n.t("shop.tryAgain"),
+        run: () => void this.showCheckout(),
+      }),
+    );
+  }
+
+  private async showConfirmation(orderId: Id): Promise<void> {
+    const order = await services.commerce.getOrder(orderId);
+    this.host.show(new OrderConfirmationView(this.i18n, this.format, order, () => this.host.close()));
   }
 
   /** The sign-in board; after signing in (or going back) the visitor returns to `then`. */
