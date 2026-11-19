@@ -7,13 +7,15 @@ import { ProceduralAvatar } from "./ProceduralAvatar";
 const SKIN = "#b98462";
 const FUR = "#8a5530";
 const FUR_DARK = "#5e3720";
+const CINNAMON = "#c97e3e";
 const FUR_WHITE = "#f1e6d2";
 const PINK = "#e3a29a";
 
 /**
  * "cuy": a person in a full guinea-pig costume, like the ones of the Pasto carnival: a round
- * brown and white furry body, a hood with round ears and its own little eyes, the face of the
- * wearer showing, paws and a red scarf with a Barniz pattern.
+ * body with white, brown and cinnamon patches, a hood with small petal ears on the sides, eyes
+ * on the sides and a short snout with a pink nose and whiskers, the face of the wearer showing,
+ * paws and a red scarf with a Barniz pattern.
  */
 export class GuineaPigAvatar extends ProceduralAvatar {
   constructor(context: AvatarContext) {
@@ -59,9 +61,7 @@ export class GuineaPigAvatar extends ProceduralAvatar {
         ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
         ctx.fill();
       };
-      blob(w * 0.5, h * 0.35, 30, 26, FUR_WHITE);
-      blob(w * 0.12, h * 0.7, 18, 22, FUR_DARK);
-      blob(w * 0.82, h * 0.6, 22, 20, FUR_DARK);
+      GuineaPigAvatar.patches(blob, w, h);
       this.atlas.fibers(ctx, w, h, 0.08, 0.16);
     });
     this.parts
@@ -95,10 +95,12 @@ export class GuineaPigAvatar extends ProceduralAvatar {
   protected buildArms(): void {
     const b = this.body;
     for (const side of [-1, 1] as const) {
-      this.carveArm(side, FUR, FUR, FUR_WHITE, 0.064);
+      // Tricolor like a real cuy: one cinnamon sleeve and one brown.
+      const sleeve = side < 0 ? CINNAMON : FUR;
+      this.carveArm(side, sleeve, sleeve, FUR_WHITE, 0.064);
       const x = side * b.shoulderWidth;
       const elbow = side < 0 ? "elbowL" : "elbowR";
-      this.parts.sphere(elbow, this.atlas.solid(FUR), [x, b.wristHeight - 0.03, 0.005], 0.11, [1, 1, 0.9], 12);
+      this.parts.sphere(elbow, this.atlas.solid(side < 0 ? CINNAMON : FUR), [x, b.wristHeight - 0.03, 0.005], 0.11, [1, 1, 0.9], 12);
       this.parts.sphere(elbow, this.atlas.solid(PINK), [x, b.wristHeight - 0.04, 0.05], 0.05, [1, 1, 0.4], 10);
     }
   }
@@ -113,25 +115,65 @@ export class GuineaPigAvatar extends ProceduralAvatar {
     }
   }
 
-  /** The hood: a furry shell open at the front, round ears and the cuy's own face on top. */
+  /**
+   * The hood: a patched furry shell open at the front. The cuy's face sits on the brim, above
+   * the wearer's: eyes on the sides, a short white snout with a pink nose and whiskers, and
+   * small petal ears that droop on the sides of the head (not on top, so it is not a bear).
+   */
   protected buildHeadwear(): void {
     const y = this.body.headHeight;
-    const fur = this.atlas.solid(FUR);
     const white = this.atlas.solid(FUR_WHITE);
-    this.carveHood(fur, y);
+    const pink = this.atlas.solid(PINK);
+    const hood = this.atlas.paint(128, 96, (ctx, w, h) => {
+      ctx.fillStyle = FUR;
+      ctx.fillRect(0, 0, w, h);
+      const blob = (x: number, py: number, rx: number, ry: number, color: string) => {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.ellipse(x, py, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      // u = 0.25 is the top of the hood after it is turned; the cinnamon patch covers one side.
+      blob(w * 0.75, h * 0.55, 26, 34, CINNAMON);
+      blob(w * 0.05, h * 0.6, 14, 22, FUR_DARK);
+      blob(w * 0.95, h * 0.6, 14, 22, FUR_DARK);
+      this.atlas.fibers(ctx, w, h, 0.08, 0.16);
+    });
+    this.carveHood(hood, y);
     const rim = this.parts.torus("head", white, [0, y + 0.01, 0.1], 0.285, 0.05, 28);
     rim.rotation.x = Math.PI / 2;
     rim.scaling.set(0.92, 1.05, 1);
-    // White blaze over the top, like a real cuy.
-    this.parts.sphere("head", white, [0, y + 0.19, 0.0], 0.14, [0.7, 0.45, 1.3], 14);
+
+    // White blaze from the snout over the head.
+    this.parts.sphere("head", white, [0, y + 0.19, 0.01], 0.15, [0.62, 0.42, 1.35], 14);
+    // Short snout on the brim, with a pink nose and whiskers.
+    this.parts.sphere("head", white, [0, y + 0.165, 0.125], 0.13, [1.05, 0.62, 0.85], 16);
+    this.parts.sphere("head", pink, [0, y + 0.18, 0.18], 0.042, [1.25, 0.75, 0.8], 10);
+    const whisker = this.atlas.solid("#3a2a20");
     const eye = this.atlas.solid("#120c0a");
     for (const side of [-1, 1]) {
-      this.parts.sphere("head", eye, [side * 0.062, y + 0.185, 0.07], 0.045, [1, 1, 0.8], 10);
-      this.parts.sphere("head", white, [side * 0.055, y + 0.197, 0.09], 0.012, [1, 1, 1], 6);
-      this.parts.sphere("head", fur, [side * 0.125, y + 0.205, -0.06], 0.12, [1, 0.95, 0.42], 14).rotation.y = side * 0.5;
-      this.parts.sphere("head", this.atlas.solid(PINK), [side * 0.123, y + 0.203, -0.042], 0.08, [1, 0.95, 0.25], 12).rotation.y = side * 0.5;
+      for (const tilt of [-0.012, 0.004, 0.02]) {
+        this.parts.capsule("head", whisker, [side * 0.035, y + 0.163, 0.17], [side * 0.15, y + 0.163 + tilt * 2.2, 0.145], 0.0025, 0.0018);
+      }
+      // Eyes on the sides of the head, as guinea pigs have them.
+      this.parts.sphere("head", eye, [side * 0.112, y + 0.185, 0.06], 0.046, [0.7, 1, 1], 10);
+      this.parts.sphere("head", white, [side * 0.121, y + 0.197, 0.075], 0.012, [1, 1, 1], 6);
+      // Small petal ears hanging on the sides of the hood.
+      const ear = this.parts.sphere("head", side < 0 ? this.atlas.solid(CINNAMON) : this.atlas.solid(FUR), [side * 0.168, y + 0.15, -0.03], 0.11, [0.24, 0.62, 1], 12);
+      ear.rotation.set(0.25, 0, side * 0.55);
+      const inner = this.parts.sphere("head", pink, [side * 0.177, y + 0.146, -0.025], 0.075, [0.12, 0.55, 0.85], 10);
+      inner.rotation.set(0.25, 0, side * 0.55);
     }
-    this.parts.sphere("head", this.atlas.solid(PINK), [0, y + 0.168, 0.125], 0.04, [1.2, 0.8, 0.8], 10);
+  }
+
+  /** Brown base with white, dark brown and cinnamon patches (they close around u). */
+  private static patches(blob: (x: number, y: number, rx: number, ry: number, color: string) => void, w: number, h: number): void {
+    // u = 0.25 is the front (the white belly goes there), 0.75 the back.
+    blob(w * 0.75, h * 0.4, 30, 32, FUR_WHITE);
+    blob(w * 0.5, h * 0.45, 24, 34, CINNAMON);
+    blob(w * 0.98, h * 0.55, 22, 30, CINNAMON);
+    blob(w * 0.02, h * 0.55, 22, 30, CINNAMON);
+    blob(w * 0.86, h * 0.82, 14, 12, FUR_DARK);
   }
 
   /** A turned dome whose axis points forward, so its opening frames the face. */
