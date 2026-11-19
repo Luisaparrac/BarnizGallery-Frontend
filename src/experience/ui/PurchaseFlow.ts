@@ -1,6 +1,8 @@
 import { AppEvents } from "../../core/AppEvents";
 import type { Id } from "../../domain/common";
-import type { Order, Payment } from "../../domain/commerce";
+import type { Cart, Order, Payment } from "../../domain/commerce";
+import type { Address } from "../../domain/user";
+import { AppConfig } from "../../config/AppConfig";
 import type { Localizer } from "../../i18n/Localizer";
 import { services } from "../../services/ServiceRegistry";
 import { Formatter } from "../../utils/Formatter";
@@ -16,6 +18,7 @@ import { GatewayView } from "./views/GatewayView";
 import { LoginView } from "./views/LoginView";
 import { MessageView } from "./views/MessageView";
 import { OrderConfirmationView } from "./views/OrderConfirmationView";
+import type { OrderSummary } from "./views/OrderSummaryCard";
 import { PieceView } from "./views/PieceView";
 
 /** Where the purchase boards are shown (the experience's board). */
@@ -35,6 +38,10 @@ export class PurchaseFlow {
   private static readonly SHIPPING_FALLBACK = 25;
 
   private readonly format: Formatter;
+  /** Names of the workshops (stores) by id, for the order summary. */
+  private storeNames: Map<Id, string> | null = null;
+  /** The summary shown at the address step, kept for the payment step. */
+  private summary: OrderSummary | null = null;
 
   constructor(
     private readonly i18n: Localizer,
@@ -97,23 +104,58 @@ export class PurchaseFlow {
         return;
       }
       const shipping = Number((settings as Record<string, unknown>)["commerce.shipping_flat_cost"] ?? PurchaseFlow.SHIPPING_FALLBACK);
+      this.summary = await this.summarize(cart, shipping);
       this.host.show(
-        new CheckoutView(this.i18n, this.format, cart, addresses, shipping, selected, {
+        new CheckoutView(this.i18n, this.summary, addresses, PurchaseFlow.simulatedPayments, selected, {
           back: () => void this.showCart(),
           newAddress: () => this.showAddressForm(false),
+          editAddress: (address) => this.showAddressForm(false, address),
           pay: (addressId) => this.createOrder(addressId),
         }),
       );
     });
   }
 
-  private showAddressForm(first: boolean): void {
+  /** A new address, or `editing` one of the saved ones. */
+  private showAddressForm(first: boolean, editing: Address | null = null): void {
     this.host.show(
-      new AddressFormView(this.i18n, () => void (first ? this.showCart() : this.showCheckout()), this.session.user?.fullName ?? "", first, async (address) => {
-        const saved = await services.profile.saveAddress(address);
-        await this.showCheckout(saved.id);
-      }),
+      new AddressFormView(
+        this.i18n,
+        () => void (first ? this.showCart() : this.showCheckout(editing?.id ?? null)),
+        this.session.user?.fullName ?? "",
+        first,
+        async (address) => {
+          const saved = await services.profile.saveAddress(address, editing?.id);
+          await this.showCheckout(saved.id);
+        },
+        editing,
+      ),
     );
+  }
+
+  /** Without a real backend for commerce the gateway is the simulated one (no money moves). */
+  private static get simulatedPayments(): boolean {
+    return !AppConfig.usesApi("commerce");
+  }
+
+  /** The order summary: each piece with its photo and workshop, subtotal, shipping and total. */
+  private async summarize(cart: Cart, shipping: number): Promise<OrderSummary> {
+    if (!this.storeNames) {
+      const stores = await services.gallery.listStores().catch(() => []);
+      this.storeNames = new Map(stores.map(({ store }) => [store.id, this.i18n.pick(store.nameEs, store.nameEn)]));
+    }
+    const money = (amount: number) => this.format.money(amount, cart.currency);
+    return {
+      items: cart.items.map((item) => ({
+        image: item.coverUrl,
+        title: this.i18n.pick(item.title, item.titleEn),
+        detail: this.storeNames?.get(item.storeId) ?? "",
+        price: money(item.unitPrice * item.quantity),
+      })),
+      subtotal: money(cart.subtotal),
+      shipping: money(shipping),
+      total: money(cart.subtotal + shipping),
+    };
   }
 
   /** The order is created (its pieces stay reserved) and the payment starts at the gateway. */

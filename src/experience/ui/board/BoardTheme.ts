@@ -16,6 +16,10 @@ export class BoardTheme {
     red: "#b3261e",
     redHover: "#8f1d17",
     green: "#2e7d32",
+    /** Background of a chosen card: the green barely showing. */
+    greenTint: "rgba(46, 125, 50, 0.035)",
+    /** Cards a little lighter than the paper (the order summary). */
+    card: "#fbf7ef",
     bronze: "#b08a3e",
     wood: "#5e3822",
     white: "#ffffff",

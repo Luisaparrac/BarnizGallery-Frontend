@@ -83,6 +83,61 @@ export class BoardArt {
     );
   }
 
+  /**
+   * Small line icons (64 × 64, drawn with round strokes): lock, card, bank (PSE), phone
+   * (Nequi) and plus. `color` is the stroke color.
+   */
+  static icon(name: "lock" | "card" | "bank" | "phone" | "plus", color: string = BoardTheme.color.ink): string {
+    return BoardArt.remember(`icon-${name}-${color}`, () =>
+      BoardArt.paint(64, 64, (ctx) => {
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 5;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        const box = (x: number, y: number, w: number, h: number, r: number) => {
+          ctx.beginPath();
+          ctx.roundRect(x, y, w, h, r);
+          ctx.stroke();
+        };
+        const line = (x1: number, y1: number, x2: number, y2: number) => {
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        };
+        if (name === "lock") {
+          box(12, 28, 40, 28, 6);
+          ctx.beginPath();
+          ctx.arc(32, 28, 12, Math.PI, 0);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(32, 41, 4, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (name === "card") {
+          box(6, 14, 52, 36, 6);
+          line(6, 26, 58, 26);
+          line(14, 40, 28, 40);
+        } else if (name === "bank") {
+          ctx.beginPath();
+          ctx.moveTo(8, 24);
+          ctx.lineTo(32, 10);
+          ctx.lineTo(56, 24);
+          ctx.closePath();
+          ctx.stroke();
+          for (const x of [16, 27, 37, 48]) line(x, 30, x, 46);
+          line(8, 54, 56, 54);
+        } else if (name === "phone") {
+          box(18, 6, 28, 52, 6);
+          line(28, 48, 36, 48);
+        } else {
+          line(32, 14, 32, 50);
+          line(14, 32, 50, 32);
+        }
+      }),
+    );
+  }
+
   private static paint(width: number, height: number, draw: (ctx: CanvasRenderingContext2D) => void): string {
     const canvas = document.createElement("canvas");
     canvas.width = width;

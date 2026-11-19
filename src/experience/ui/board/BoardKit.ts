@@ -1,5 +1,6 @@
 import { Button, Container, Control, Ellipse, Image, InputPassword, InputText, Line, Rectangle, StackPanel, TextBlock } from "@babylonjs/gui";
 import { ArtworkImageFactory } from "../../../art/ArtworkImageFactory";
+import { BoardArt } from "./BoardArt";
 import { BoardTheme as T } from "./BoardTheme";
 
 export type BoardButtonVariant = "primary" | "secondary";
@@ -16,6 +17,20 @@ export interface BoardOption {
   control: Control;
   readonly selected: boolean;
   setSelected(selected: boolean): void;
+}
+
+/** What else an option card may show: an icon on the left, a text link (Edit) on the right. */
+export interface OptionExtras {
+  icon?: string;
+  action?: { label: string; run(): void };
+}
+
+/** A piece in an order summary. */
+export interface SummaryItem {
+  image: string;
+  title: string;
+  detail: string;
+  price: string;
 }
 
 /** One line of a receipt; `image` adds a thumbnail of the piece. */
@@ -127,8 +142,11 @@ export class BoardKit {
     button.alpha = enabled ? 1 : 0.45;
   }
 
-  /** A card with a bold first line and an optional second line; the chosen one shows a green ✓. */
-  option(title: string, detail: string | null, width: number, selected: boolean, onSelect: () => void): BoardOption {
+  /**
+   * A card with a bold first line and smaller lines under it; the chosen one has a green border,
+   * a faint green tint and a ✓. It may carry an icon and a text link (Edit).
+   */
+  option(title: string, details: string | string[] | null, width: number, selected: boolean, onSelect: () => void, extras: OptionExtras = {}): BoardOption {
     const card = new Rectangle(this.name("option"));
     card.widthInPixels = width;
     card.adaptHeightToChildren = true;
@@ -137,29 +155,50 @@ export class BoardKit {
     card.hoverCursor = "pointer";
     card.isPointerBlocker = true;
 
+    const pad = T.px(T.size.gapMedium);
+    const iconSize = T.px(32);
+    let left = pad;
+    if (extras.icon) {
+      const icon = new Image(this.name("optionIcon"), extras.icon);
+      icon.widthInPixels = icon.heightInPixels = iconSize;
+      icon.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+      icon.leftInPixels = pad;
+      card.addControl(icon);
+      left += iconSize + pad;
+    }
+    const linkWidth = extras.action ? this.measure(extras.action.label, `600 ${T.px(T.type.note)}px ${T.font.body}`) + pad : 0;
     const inner = this.column(4);
-    inner.widthInPixels = width - T.px(T.size.gapMedium) * 2 - T.px(40);
+    inner.widthInPixels = width - left - pad - T.px(24) - pad - linkWidth;
     inner.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    inner.leftInPixels = T.px(T.size.gapMedium);
+    inner.leftInPixels = left;
     inner.paddingTopInPixels = T.px(14);
     inner.paddingBottomInPixels = T.px(14);
-    inner.addControl(this.block(title, T.font.body, T.type.text, "600", T.color.ink, inner.widthInPixels));
-    if (detail) inner.addControl(this.block(detail, T.font.body, T.type.note, "400", T.color.inkSoft, inner.widthInPixels));
+    inner.addControl(this.block(title, T.font.body, T.type.text, "700", T.color.ink, inner.widthInPixels));
+    for (const detail of details === null ? [] : Array.isArray(details) ? details : [details]) {
+      inner.addControl(this.block(detail, T.font.body, T.type.note, "400", T.color.inkSoft, inner.widthInPixels));
+    }
     card.addControl(inner);
 
     const mark = new Ellipse(this.name("optionMark"));
     mark.widthInPixels = mark.heightInPixels = T.px(24);
     mark.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    mark.leftInPixels = -T.px(T.size.gapMedium);
+    mark.leftInPixels = -pad;
     const check = this.block("✓", T.font.body, 15, "700", T.color.white, T.px(24));
     check.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
     mark.addControl(check);
     card.addControl(mark);
 
+    if (extras.action) {
+      const link = this.link(extras.action.label, () => extras.action!.run());
+      link.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+      link.leftInPixels = -(pad + T.px(24) + pad);
+      card.addControl(link);
+    }
+
     let state = selected;
     const paint = (hover = false) => {
       card.color = state ? T.color.green : T.color.line;
-      card.background = hover && !state ? T.color.paperHover : state ? "#2e7d320f" : "transparent";
+      card.background = state ? T.color.greenTint : hover ? T.color.paperHover : "transparent";
       mark.background = state ? T.color.green : "transparent";
       mark.thickness = state ? 0 : T.px(T.size.border);
       mark.color = T.color.line;
@@ -185,16 +224,189 @@ export class BoardKit {
     };
   }
 
+  /** The last card of a list: dashed border, a + and a label (Add address). */
+  addCard(label: string, width: number, onClick: () => void): Control {
+    const height = T.px(64);
+    const box = new Container(this.name("addCard"));
+    box.widthInPixels = width;
+    box.heightInPixels = height;
+    box.isPointerBlocker = true;
+    box.hoverCursor = "pointer";
+    const half = T.px(1);
+    const edges: [number, number, number, number][] = [
+      [half, half, width - half, half],
+      [half, height - half, width - half, height - half],
+      [half, half, half, height - half],
+      [width - half, half, width - half, height - half],
+    ];
+    const lines = edges.map(([x1, y1, x2, y2]) => {
+      const line = new Line(this.name("dash"));
+      Object.assign(line, { x1, y1, x2, y2 });
+      line.lineWidth = T.px(T.size.border);
+      line.dash = [T.px(6), T.px(5)];
+      line.color = T.color.line;
+      box.addControl(line);
+      return line;
+    });
+    const content = this.row(T.size.gapSmall);
+    const plus = new Image(this.name("plus"), BoardArt.icon("plus", T.color.ink));
+    plus.widthInPixels = plus.heightInPixels = T.px(20);
+    content.addControl(plus);
+    const text = this.block(label, T.font.body, T.type.text, "600", T.color.ink, 0);
+    text.textWrapping = false;
+    content.addControl(text);
+    box.addControl(content);
+    box.onPointerEnterObservable.add(() => lines.forEach((line) => (line.color = T.color.ink)));
+    box.onPointerOutObservable.add(() => lines.forEach((line) => (line.color = T.color.line)));
+    box.onPointerClickObservable.add(() => onClick());
+    return box;
+  }
+
+  /** A text link (Edit, ← Back): underlined on hover. */
+  link(label: string, onClick: () => void, color: string = T.color.red): TextBlock {
+    const link = this.block(label, T.font.body, T.type.note, "600", color, 0);
+    link.textWrapping = false;
+    link.isPointerBlocker = true;
+    link.hoverCursor = "pointer";
+    link.onPointerEnterObservable.add(() => (link.underline = true));
+    link.onPointerOutObservable.add(() => (link.underline = false));
+    link.onPointerClickObservable.add(() => onClick());
+    return link;
+  }
+
+  /** A card a little lighter than the paper (the order summary). Returns the card and its column. */
+  card(width: number): { card: Rectangle; body: StackPanel } {
+    const card = new Rectangle(this.name("card"));
+    card.widthInPixels = width;
+    card.adaptHeightToChildren = true;
+    card.cornerRadius = T.px(T.size.radius);
+    card.thickness = T.px(1);
+    card.color = T.color.line;
+    card.background = T.color.card;
+    card.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    const body = this.column(T.size.gapMedium);
+    body.widthInPixels = width - T.px(T.size.gap) * 2;
+    body.paddingTopInPixels = T.px(T.size.gap);
+    body.paddingBottomInPixels = T.px(T.size.gap);
+    card.addControl(body);
+    return { card, body };
+  }
+
+  /** A piece of the summary: 64 px framed thumbnail, title, workshop and the price on the right. */
+  summaryItem(item: SummaryItem, width: number): Control {
+    const size = T.px(64);
+    // The height follows the title, which may take two lines; everything hangs from the top.
+    const box = new Container(this.name("summaryItem"));
+    box.widthInPixels = width;
+    box.adaptHeightToChildren = true;
+    const thumb = this.image(item.image, size, size);
+    thumb.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    thumb.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    box.addControl(thumb);
+    const priceFont = `600 ${T.px(T.type.text)}px ${T.font.body}`;
+    const priceWidth = this.measure(item.price, priceFont) + T.px(4);
+    const texts = this.column(2);
+    texts.widthInPixels = width - size - T.px(T.size.gapMedium) * 2 - priceWidth;
+    texts.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    texts.leftInPixels = size + T.px(T.size.gapMedium);
+    texts.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    texts.addControl(this.block(item.title, T.font.body, T.type.text, "600", T.color.ink, texts.widthInPixels));
+    texts.addControl(this.block(item.detail, T.font.body, T.type.note, "400", T.color.inkSoft, texts.widthInPixels));
+    box.addControl(texts);
+    const price = this.block(item.price, T.font.body, T.type.text, "600", T.color.ink, priceWidth);
+    price.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    price.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    price.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    box.addControl(price);
+    return box;
+  }
+
+  /** "Subtotal ........ US$ 310" without dots: label left, value right; `total` in large type. */
+  amount(label: string, value: string, width: number, total = false): Control {
+    const size = total ? T.type.section : T.type.text;
+    const family = total ? T.font.display : T.font.body;
+    const weight = total ? "700" : "400";
+    const box = new Container(this.name("amount"));
+    box.widthInPixels = width;
+    box.heightInPixels = T.px(size * 1.45);
+    const left = this.block(label, family, size, weight, T.color.ink, 0);
+    left.textWrapping = false;
+    left.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    box.addControl(left);
+    const right = this.block(value, family, size, weight, T.color.ink, 0);
+    right.textWrapping = false;
+    right.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    box.addControl(right);
+    return box;
+  }
+
+  divider(width: number, color: string = T.color.line): Rectangle {
+    const rule = new Rectangle(this.name("divider"));
+    rule.widthInPixels = width;
+    rule.heightInPixels = T.px(1);
+    rule.thickness = 0;
+    rule.background = color;
+    return rule;
+  }
+
+  /** A quiet line with a small icon in front (🔒 Your pieces stay reserved…). */
+  iconNote(icon: string, text: string, width: number): Control {
+    const row = this.row(T.size.gapSmall);
+    row.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    const image = new Image(this.name("noteIcon"), icon);
+    image.widthInPixels = image.heightInPixels = T.px(14);
+    row.addControl(image);
+    row.addControl(this.block(text, T.font.body, T.type.note - 1, "400", T.color.inkSoft, width - T.px(22)));
+    return row;
+  }
+
+  /** Two columns side by side, both aligned to the top. */
+  columns(left: Control, right: Control, gap: number = T.size.padding): StackPanel {
+    const row = this.row(gap);
+    row.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    left.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    right.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    row.addControl(left);
+    row.addControl(right);
+    return row;
+  }
+
+  /** A big green circle with a ✓ (a finished order). */
+  bigCheck(): Control {
+    const circle = new Ellipse(this.name("bigCheck"));
+    circle.widthInPixels = circle.heightInPixels = T.px(72);
+    circle.thickness = 0;
+    circle.background = T.color.green;
+    const mark = this.block("✓", T.font.body, 40, "700", T.color.white, T.px(72));
+    mark.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    circle.addControl(mark);
+    return circle;
+  }
+
   /** Several option cards where only one can be chosen. */
-  choice<Item>(items: Item[], width: number, selected: Item | null, describe: (item: Item) => [string, string | null], onChange: (item: Item) => void): StackPanel {
+  choice<Item>(
+    items: Item[],
+    width: number,
+    selected: Item | null,
+    describe: (item: Item) => [string, string | string[] | null],
+    onChange: (item: Item) => void,
+    extras: (item: Item) => OptionExtras = () => ({}),
+  ): StackPanel {
     const column = this.column(T.size.gapSmall);
     const options: BoardOption[] = [];
     for (const item of items) {
       const [title, detail] = describe(item);
-      const option = this.option(title, detail, width, item === selected, () => {
-        options.forEach((other) => other.setSelected(other === option));
-        onChange(item);
-      });
+      const option = this.option(
+        title,
+        detail,
+        width,
+        item === selected,
+        () => {
+          options.forEach((other) => other.setSelected(other === option));
+          onChange(item);
+        },
+        extras(item),
+      );
       options.push(option);
       column.addControl(option.control);
     }

@@ -1,12 +1,12 @@
 import { Control } from "@babylonjs/gui";
-import type { AddressInput } from "../../../domain/user";
+import type { Address, AddressInput } from "../../../domain/user";
 import type { Localizer } from "../../../i18n/Localizer";
 import type { PanelContext } from "../PanelView";
 import type { Field } from "../UiKit";
 import { UiTheme } from "../UiTheme";
 import { FormView } from "./FormView";
 
-/** A new shipping address, in two columns; the first one becomes the main address. */
+/** A shipping address in two columns: a new one (the first becomes the main one) or one being edited. */
 export class AddressFormView extends FormView {
   readonly title: string;
   private readonly inputs = new Map<keyof AddressInput, Field>();
@@ -17,29 +17,31 @@ export class AddressFormView extends FormView {
     private readonly recipient: string,
     private readonly makeDefault: boolean,
     private readonly save: (address: AddressInput) => Promise<void>,
+    private readonly initial: Address | null = null,
   ) {
     super(i18n, back);
-    this.title = i18n.t("checkout.newAddress");
+    this.title = initial ? i18n.t("shop.editAddress") : i18n.t("checkout.newAddress");
   }
 
   protected fields({ kit }: PanelContext, width: number): Control {
     const half = (width - UiTheme.panel.gap * 2) / 2;
+    const start = (key: keyof AddressInput, fallback: string) => String(this.initial?.[key] ?? fallback);
     const layout: [keyof AddressInput, string, string][][] = [
       [
-        ["recipientName", this.i18n.t("address.recipient"), this.recipient],
-        ["phone", this.i18n.t("address.phone"), ""],
+        ["recipientName", this.i18n.t("address.recipient"), start("recipientName", this.recipient)],
+        ["phone", this.i18n.t("address.phone"), start("phone", "")],
       ],
       [
-        ["line1", this.i18n.t("address.line1"), ""],
-        ["line2", this.i18n.t("address.line2"), ""],
+        ["line1", this.i18n.t("address.line1"), start("line1", "")],
+        ["line2", this.i18n.t("address.line2"), start("line2", "")],
       ],
       [
-        ["city", this.i18n.t("address.city"), ""],
-        ["region", this.i18n.t("address.region"), ""],
+        ["city", this.i18n.t("address.city"), start("city", "")],
+        ["region", this.i18n.t("address.region"), start("region", "")],
       ],
       [
-        ["postalCode", this.i18n.t("address.postalCode"), ""],
-        ["countryCode", this.i18n.t("address.country"), "CO"],
+        ["postalCode", this.i18n.t("address.postalCode"), start("postalCode", "")],
+        ["countryCode", this.i18n.t("address.country"), start("countryCode", "CO")],
       ],
     ];
     const column = kit.column(10);
@@ -77,7 +79,7 @@ export class AddressFormView extends FormView {
       region: optional("region"),
       postalCode: optional("postalCode"),
       countryCode: this.value("countryCode").toUpperCase(),
-      isDefault: this.makeDefault,
+      isDefault: this.initial?.isDefault ?? this.makeDefault,
     });
   }
 

@@ -1,24 +1,32 @@
 import { Control, type Button, type TextBlock } from "@babylonjs/gui";
 import type { Id } from "../../../domain/common";
-import type { Cart } from "../../../domain/commerce";
 import type { Address } from "../../../domain/user";
 import type { Localizer } from "../../../i18n/Localizer";
-import type { Formatter } from "../../../utils/Formatter";
+import { BoardArt } from "../board/BoardArt";
 import type { BoardKit } from "../board/BoardKit";
+import { BoardTheme } from "../board/BoardTheme";
 import { BoardView, type BoardContext } from "../board/BoardView";
 import { ErrorText } from "../ErrorText";
+import { OrderSummaryCard, type OrderSummary } from "./OrderSummaryCard";
 
 export interface CheckoutActions {
   back(): void;
   newAddress(): void;
+  editAddress(address: Address): void;
   /** Creates the order to the chosen address and goes to the payment. */
   pay(addressId: Id): Promise<void>;
 }
 
-/** First step of paying: the shipping address (a card per saved address) and the receipt. */
+/**
+ * Step 1 of paying, like the checkout of a real shop: on the left the shipping addresses as
+ * cards (and a dashed card to add one), on the right the order summary with the button.
+ */
 export class CheckoutView extends BoardView {
+  /** Room of the summary column, in screen pixels. */
+  static readonly SUMMARY_WIDTH = 384;
+
   override readonly closable = false;
-  readonly size = "content" as const;
+  readonly size = "piece" as const;
   readonly title: string;
   private addressId: Id | null;
   private kit: BoardKit | null = null;
@@ -28,79 +36,81 @@ export class CheckoutView extends BoardView {
 
   constructor(
     private readonly i18n: Localizer,
-    private readonly format: Formatter,
-    private readonly cart: Cart,
+    private readonly summary: OrderSummary,
     private readonly addresses: Address[],
-    private readonly shippingCost: number,
+    private readonly simulatedPayment: boolean,
     selected: Id | null,
     private readonly act: CheckoutActions,
   ) {
     super();
-    this.title = i18n.t("checkout.title");
+    this.title = i18n.t("checkout.address");
     this.addressId = selected ?? addresses.find((address) => address.isDefault)?.id ?? addresses[0]?.id ?? null;
   }
 
   /** One line with the whole address. */
   static describe(address: Pick<Address, "recipientName" | "line1" | "line2" | "city" | "region" | "countryCode">): string {
-    return `${address.recipientName} · ${CheckoutView.place(address)}`;
+    return `${address.recipientName} · ${[address.line1, address.line2, address.city, address.region, address.countryCode].filter(Boolean).join(", ")}`;
   }
 
-  private static place(address: Pick<Address, "line1" | "line2" | "city" | "region" | "countryCode">): string {
-    return [address.line1, address.line2, address.city, address.region, address.countryCode].filter(Boolean).join(", ");
+  /** The steps of paying, shared by the three boards. */
+  static steps(i18n: Localizer, kit: BoardKit, current: number): Control {
+    return kit.steps([i18n.t("shop.stepAddress"), i18n.t("shop.stepPayment"), i18n.t("shop.stepDone")], current);
+  }
+
+  /** The quiet lines under the button: the reservation and, with the test gateway, no charge. */
+  static notes(i18n: Localizer, kit: BoardKit, width: number, simulated: boolean): Control[] {
+    const notes = [kit.iconNote(BoardArt.icon("lock", BoardTheme.color.inkSoft), i18n.t("shop.reservedNote"), width)];
+    if (simulated) notes.push(kit.iconNote(BoardArt.icon("card", BoardTheme.color.inkSoft), i18n.t("shop.testNote"), width));
+    return notes;
   }
 
   override header({ kit }: BoardContext): Control {
-    return kit.steps([this.i18n.t("shop.stepAddress"), this.i18n.t("shop.stepPayment"), this.i18n.t("shop.stepDone")], 0);
+    return CheckoutView.steps(this.i18n, kit, 0);
   }
 
   content({ kit }: BoardContext, width: number): Control {
     this.kit = kit;
-    const column = kit.column();
+    const right = BoardTheme.px(CheckoutView.SUMMARY_WIDTH);
+    const leftWidth = width - right - BoardTheme.px(BoardTheme.size.padding);
 
-    const address = kit.column(16);
-    address.addControl(kit.section(this.i18n.t("checkout.address"), width));
+    const left = kit.column(BoardTheme.size.gapMedium);
+    left.widthInPixels = leftWidth;
+    left.addControl(kit.text(this.i18n.t("shop.chooseAddress"), leftWidth, true));
     const selected = this.addresses.find((item) => item.id === this.addressId) ?? null;
-    address.addControl(
-      kit.choice(this.addresses, width, selected, (item) => [item.recipientName, CheckoutView.place(item)], (item) => {
+    const cards = kit.choice(
+      this.addresses,
+      leftWidth,
+      selected,
+      (item) => [item.recipientName, this.lines(item)],
+      (item) => {
         this.addressId = item.id;
         this.refresh();
-      }),
+      },
+      (item) => ({ action: { label: this.i18n.t("shop.edit"), run: () => this.act.editAddress(item) } }),
     );
-    const add = kit.button(`+ ${this.i18n.t("checkout.newAddress")}`, () => this.act.newAddress(), "secondary");
-    add.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    address.addControl(add);
-    column.addControl(address);
-
-    const summary = kit.column(16);
-    summary.addControl(kit.section(this.i18n.t("checkout.summary"), width));
-    const money = (amount: number) => this.format.money(amount, this.cart.currency);
-    summary.addControl(
-      kit.receipt(
-        [
-          ...this.cart.items.map((item) => ({ label: this.i18n.pick(item.title, item.titleEn), value: money(item.unitPrice * item.quantity), image: item.coverUrl })),
-          { label: this.i18n.t("order.subtotal"), value: money(this.cart.subtotal) },
-          { label: this.i18n.t("order.shipping"), value: money(this.shippingCost) },
-        ],
-        { label: this.i18n.t("order.total"), value: money(this.cart.subtotal + this.shippingCost) },
-        width,
-      ),
-    );
-    summary.addControl(kit.note(this.i18n.t("checkout.reservation"), width));
-    column.addControl(summary);
-
-    this.error = kit.note("", width, "error");
+    cards.addControl(kit.addCard(this.i18n.t("shop.addAddress"), leftWidth, () => this.act.newAddress()));
+    left.addControl(cards);
+    this.error = kit.note("", leftWidth, "error");
     this.error.isVisible = false;
-    column.addControl(this.error);
-    return column;
-  }
+    left.addControl(this.error);
+    const back = kit.link(`← ${this.i18n.t("common.back")}`, () => !this.busy && this.act.back(), BoardTheme.color.ink);
+    back.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    left.addControl(back);
 
-  override actions({ kit }: BoardContext): Control[] {
-    this.payButton = kit.button(this.i18n.t("checkout.pay"), () => void this.pay(), "primary");
+    this.payButton = kit.button(this.i18n.t("shop.continueToPay", { total: this.summary.total }), () => void this.pay(), "primary");
     this.refresh();
-    return [kit.button(this.i18n.t("common.back"), () => !this.busy && this.act.back(), "secondary"), this.payButton];
+    const notesWidth = right - BoardTheme.px(BoardTheme.size.gap) * 2;
+    const card = OrderSummaryCard.build(kit, this.i18n, this.summary, right, this.payButton, CheckoutView.notes(this.i18n, kit, notesWidth, this.simulatedPayment));
+    return kit.columns(left, card);
   }
 
-  /** The note under the receipt only takes room while it has something to say. */
+  /** Street, city and phone under the name. */
+  private lines(address: Address): string[] {
+    const street = [address.line1, address.line2].filter(Boolean).join(", ");
+    const city = [address.city, address.region, address.countryCode].filter(Boolean).join(", ");
+    return [street, city, address.phone ? `${this.i18n.t("address.phone")}: ${address.phone}` : ""].filter(Boolean);
+  }
+
   private say(text: string): void {
     if (!this.error) return;
     this.error.text = text;
