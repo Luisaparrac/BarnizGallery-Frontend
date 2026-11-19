@@ -1,13 +1,12 @@
-import type { Control } from "@babylonjs/gui";
-import type { BoardKit } from "./BoardKit";
-import type { BoardTheme } from "./BoardTheme";
+import type { UiButton, UiKit, UiNode } from "../kit/UiKit";
 
-/** Width of the paper: a form, ordinary content or a piece with its photos. */
-export type BoardSize = keyof typeof BoardTheme.width;
+/** Width of the sheet: a form, ordinary content or a piece (or a two-column checkout). */
+export type BoardSize = "form" | "content" | "piece";
 
 /** What a view can ask of the board it is shown on. */
 export interface BoardContext {
-  kit: BoardKit;
+  /** The factory of the pieces: HTML or Babylon GUI, the view does not know which. */
+  kit: UiKit;
   /** Closes the board (the same as Esc). */
   close(): void;
   /** Label of the close button, already translated. */
@@ -15,10 +14,10 @@ export interface BoardContext {
 }
 
 /**
- * One screen of the redesigned board (Template Method): the board draws the frame, the resin
- * band, the title and the row of buttons; each view gives its width, an optional header (the
- * steps of a process), its content and its buttons (the primary one last).
- * The board calls these methods; views never call each other.
+ * One screen of a board (Template Method): the surface draws the sheet, the resin band, the
+ * title and the row of buttons; each view gives its size, an optional header (the steps of a
+ * process), its content and its buttons (the primary one last). Views only use the UiKit
+ * interface, so the same view works on the HTML surface and on the 3D board.
  */
 export abstract class BoardView {
   abstract readonly title: string;
@@ -29,15 +28,14 @@ export abstract class BoardView {
   readonly centered: boolean = false;
 
   /** Something above the title, such as the steps of a process. */
-  header(_context: BoardContext, _width: number): Control | null {
+  header(_context: BoardContext): UiNode | null {
     return null;
   }
 
-  /** The body of the board; `width` is the room inside the paper's margins (texture pixels). */
-  abstract content(context: BoardContext, width: number): Control;
+  abstract content(context: BoardContext): UiNode;
 
   /** Buttons at the bottom right, the primary one last (the board adds Close before them). */
-  actions(_context: BoardContext): Control[] {
+  actions(_context: BoardContext): UiButton[] {
     return [];
   }
 }

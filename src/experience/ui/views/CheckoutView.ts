@@ -1,12 +1,9 @@
-import { Control, type Button, type TextBlock } from "@babylonjs/gui";
 import type { Id } from "../../../domain/common";
 import type { Address } from "../../../domain/user";
 import type { Localizer } from "../../../i18n/Localizer";
-import { BoardArt } from "../board/BoardArt";
-import type { BoardKit } from "../board/BoardKit";
-import { BoardTheme } from "../board/BoardTheme";
 import { BoardView, type BoardContext } from "../board/BoardView";
 import { ErrorText } from "../ErrorText";
+import type { UiButton, UiKit, UiNode, UiText } from "../kit/UiKit";
 import { OrderSummaryCard, type OrderSummary } from "./OrderSummaryCard";
 
 export interface CheckoutActions {
@@ -22,16 +19,12 @@ export interface CheckoutActions {
  * cards (and a dashed card to add one), on the right the order summary with the button.
  */
 export class CheckoutView extends BoardView {
-  /** Room of the summary column, in screen pixels. */
-  static readonly SUMMARY_WIDTH = 384;
-
   override readonly closable = false;
   readonly size = "piece" as const;
   readonly title: string;
   private addressId: Id | null;
-  private kit: BoardKit | null = null;
-  private payButton: Button | null = null;
-  private error: TextBlock | null = null;
+  private payButton: UiButton | null = null;
+  private error: UiText | null = null;
   private busy = false;
 
   constructor(
@@ -53,33 +46,27 @@ export class CheckoutView extends BoardView {
   }
 
   /** The steps of paying, shared by the three boards. */
-  static steps(i18n: Localizer, kit: BoardKit, current: number): Control {
+  static steps(i18n: Localizer, kit: UiKit, current: number): UiNode {
     return kit.steps([i18n.t("shop.stepAddress"), i18n.t("shop.stepPayment"), i18n.t("shop.stepDone")], current);
   }
 
   /** The quiet lines under the button: the reservation and, with the test gateway, no charge. */
-  static notes(i18n: Localizer, kit: BoardKit, width: number, simulated: boolean): Control[] {
-    const notes = [kit.iconNote(BoardArt.icon("lock", BoardTheme.color.inkSoft), i18n.t("shop.reservedNote"), width)];
-    if (simulated) notes.push(kit.iconNote(BoardArt.icon("card", BoardTheme.color.inkSoft), i18n.t("shop.testNote"), width));
+  static notes(i18n: Localizer, kit: UiKit, simulated: boolean): UiNode[] {
+    const notes = [kit.iconNote("lock", i18n.t("shop.reservedNote"))];
+    if (simulated) notes.push(kit.iconNote("card", i18n.t("shop.testNote")));
     return notes;
   }
 
-  override header({ kit }: BoardContext): Control {
+  override header({ kit }: BoardContext): UiNode {
     return CheckoutView.steps(this.i18n, kit, 0);
   }
 
-  content({ kit }: BoardContext, width: number): Control {
-    this.kit = kit;
-    const right = BoardTheme.px(CheckoutView.SUMMARY_WIDTH);
-    const leftWidth = width - right - BoardTheme.px(BoardTheme.size.padding);
-
-    const left = kit.column(BoardTheme.size.gapMedium);
-    left.widthInPixels = leftWidth;
-    left.addControl(kit.text(this.i18n.t("shop.chooseAddress"), leftWidth, true));
+  content({ kit }: BoardContext): UiNode {
+    const left = kit.column("medium");
+    left.add(kit.text(this.i18n.t("shop.chooseAddress"), true));
     const selected = this.addresses.find((item) => item.id === this.addressId) ?? null;
     const cards = kit.choice(
       this.addresses,
-      leftWidth,
       selected,
       (item) => [item.recipientName, this.lines(item)],
       (item) => {
@@ -88,20 +75,16 @@ export class CheckoutView extends BoardView {
       },
       (item) => ({ action: { label: this.i18n.t("shop.edit"), run: () => this.act.editAddress(item) } }),
     );
-    cards.addControl(kit.addCard(this.i18n.t("shop.addAddress"), leftWidth, () => this.act.newAddress()));
-    left.addControl(cards);
-    this.error = kit.note("", leftWidth, "error");
-    this.error.isVisible = false;
-    left.addControl(this.error);
-    const back = kit.link(`← ${this.i18n.t("common.back")}`, () => !this.busy && this.act.back(), BoardTheme.color.ink);
-    back.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    left.addControl(back);
+    cards.add(kit.addCard(this.i18n.t("shop.addAddress"), () => this.act.newAddress()));
+    left.add(cards);
+    this.error = kit.note("", "error");
+    this.error.setVisible(false);
+    left.add(this.error);
+    left.add(kit.link(`← ${this.i18n.t("common.back")}`, () => !this.busy && this.act.back(), "ink"));
 
-    this.payButton = kit.button(this.i18n.t("shop.continueToPay", { total: this.summary.total }), () => void this.pay(), "primary");
+    this.payButton = kit.button(this.i18n.t("shop.continueToPay", { total: this.summary.total }), () => void this.pay(), "primary", true);
     this.refresh();
-    const notesWidth = right - BoardTheme.px(BoardTheme.size.gap) * 2;
-    const card = OrderSummaryCard.build(kit, this.i18n, this.summary, right, this.payButton, CheckoutView.notes(this.i18n, kit, notesWidth, this.simulatedPayment));
-    return kit.columns(left, card);
+    return kit.columns(left, OrderSummaryCard.build(kit, this.i18n, this.summary, this.payButton, CheckoutView.notes(this.i18n, kit, this.simulatedPayment)));
   }
 
   /** Street, city and phone under the name. */
@@ -112,13 +95,12 @@ export class CheckoutView extends BoardView {
   }
 
   private say(text: string): void {
-    if (!this.error) return;
-    this.error.text = text;
-    this.error.isVisible = text !== "";
+    this.error?.setText(text);
+    this.error?.setVisible(text !== "");
   }
 
   private refresh(): void {
-    if (this.payButton && this.kit) this.kit.setEnabled(this.payButton, this.addressId !== null && !this.busy);
+    this.payButton?.setEnabled(this.addressId !== null && !this.busy);
   }
 
   private async pay(): Promise<void> {

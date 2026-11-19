@@ -1,6 +1,7 @@
-import { Container, Control, Image, Rectangle, ScrollViewer, StackPanel } from "@babylonjs/gui";
+import { Container, Control, Image, Rectangle, ScrollViewer, StackPanel, type TextBlock } from "@babylonjs/gui";
 import { BoardArt } from "./BoardArt";
 import { BoardTheme as T } from "./BoardTheme";
+import { BabylonUiKit } from "../kit/BabylonUiKit";
 import type { BoardContext, BoardView } from "./BoardView";
 
 /**
@@ -21,8 +22,8 @@ export class BoardSheet {
   private readonly content: Control;
   private fitted = false;
 
-  constructor(view: BoardView, context: BoardContext) {
-    const kit = context.kit;
+  constructor(view: BoardView, kit: BabylonUiKit, close: () => void, closeLabel: string) {
+    const context: BoardContext = { kit, close, closeLabel };
     this.paperWidth = T.width[view.size];
     const paperWidth = T.px(this.paperWidth);
     const inner = paperWidth - T.px(T.size.padding) * 2;
@@ -69,22 +70,25 @@ export class BoardSheet {
     body.spacing = T.px(T.size.gap);
     body.paddingTopInPixels = T.px(T.size.padding) - T.px(T.size.gapSmall);
     body.paddingBottomInPixels = T.px(T.size.padding) - T.px(T.size.gapSmall);
-    const header = view.header(context, inner);
+    kit.contentWidth = inner;
+    const header = view.header(context);
     const side = view.centered ? Control.HORIZONTAL_ALIGNMENT_CENTER : Control.HORIZONTAL_ALIGNMENT_LEFT;
-    if (header) body.addControl(this.lane(header, inner, side));
-    const title = kit.title(view.title, inner);
+    if (header) body.addControl(this.lane(BabylonUiKit.control(header), inner, side));
+    const title = BabylonUiKit.control(kit.title(view.title)) as TextBlock;
+    title.widthInPixels = inner;
     title.textHorizontalAlignment = side;
     body.addControl(title);
 
     this.holder = new Container("boardContent");
     this.holder.widthInPixels = inner;
     this.holder.adaptHeightToChildren = true;
-    this.content = view.content(context, inner);
+    this.content = BabylonUiKit.control(view.content(context));
+    this.content.widthInPixels = inner;
     this.content.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.holder.addControl(this.content);
     body.addControl(this.holder);
 
-    const buttons = this.footer(view, context);
+    const buttons = this.footer(view, context, kit);
     if (buttons) body.addControl(this.lane(buttons, inner, Control.HORIZONTAL_ALIGNMENT_RIGHT));
     this.stack.addControl(body);
     this.paper.addControl(this.stack);
@@ -138,14 +142,13 @@ export class BoardSheet {
     this.holder.addControl(viewer);
   }
 
-  private footer(view: BoardView, context: BoardContext): StackPanel | null {
-    const buttons: Control[] = [];
-    if (view.closable) buttons.push(context.kit.button(context.closeLabel, context.close, "secondary"));
-    buttons.push(...view.actions(context));
+  private footer(view: BoardView, context: BoardContext, kit: BabylonUiKit): Control | null {
+    const buttons = view.actions(context);
+    if (view.closable) buttons.unshift(kit.button(context.closeLabel, context.close, "secondary"));
     if (!buttons.length) return null;
-    const row = context.kit.row(T.size.gapMedium);
-    buttons.forEach((button) => row.addControl(button));
-    return row;
+    const row = kit.row("medium");
+    buttons.forEach((button) => row.add(button));
+    return BabylonUiKit.control(row);
   }
 
   /** Small bronze plates on the four corners of the frame. */

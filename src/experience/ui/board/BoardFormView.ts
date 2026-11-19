@@ -1,6 +1,6 @@
-import type { Button, Control, InputText, TextBlock } from "@babylonjs/gui";
 import type { Localizer } from "../../../i18n/Localizer";
 import { ErrorText } from "../ErrorText";
+import type { UiButton, UiField, UiNode, UiText } from "../kit/UiKit";
 import type { BoardContext } from "./BoardView";
 import { BoardView } from "./BoardView";
 
@@ -13,10 +13,9 @@ export abstract class BoardFormView extends BoardView {
   override readonly closable = false;
   readonly size = "form" as const;
 
-  private error: TextBlock | null = null;
-  private submitButton: Button | null = null;
+  private error: UiText | null = null;
+  private submitButton: UiButton | null = null;
   private busy = false;
-  private kit: BoardContext["kit"] | null = null;
 
   protected constructor(
     protected readonly i18n: Localizer,
@@ -25,7 +24,7 @@ export abstract class BoardFormView extends BoardView {
     super();
   }
 
-  protected abstract fields(context: BoardContext, width: number): Control;
+  protected abstract fields(context: BoardContext): UiNode;
 
   protected abstract submitLabel(): string;
 
@@ -35,53 +34,47 @@ export abstract class BoardFormView extends BoardView {
   }
 
   /** Sends the form; a thrown error is shown on the board. */
-  protected abstract submit(): Promise<void>;
+  protected abstract send(): Promise<void>;
 
-  content(context: BoardContext, width: number): Control {
-    this.kit = context.kit;
+  content(context: BoardContext): UiNode {
     const column = context.kit.column();
-    column.addControl(this.fields(context, width));
-    this.error = context.kit.note("", width, "error");
-    this.error.isVisible = false;
-    column.addControl(this.error);
+    column.add(this.fields(context));
+    this.error = context.kit.note("", "error");
+    this.error.setVisible(false);
+    column.add(this.error);
     return column;
   }
 
-  override actions({ kit }: BoardContext): Control[] {
-    this.submitButton = kit.button(this.submitLabel(), () => void this.send(), "primary");
+  override actions({ kit }: BoardContext): UiButton[] {
+    this.submitButton = kit.button(this.submitLabel(), () => void this.run());
     return [kit.button(this.i18n.t("lobby.back"), () => !this.busy && this.back(), "secondary"), this.submitButton];
   }
 
-  /** Enter in any field sends the form. */
-  protected submitOnEnter(...inputs: InputText[]): void {
-    for (const input of inputs) {
-      input.onKeyboardEventProcessedObservable.add((event) => {
-        if (event.key === "Enter") void this.send();
-      });
-    }
+  /** Enter in any of these fields sends the form. */
+  protected submitOnEnter(...fields: UiField[]): void {
+    fields.forEach((field) => field.onEnter(() => void this.run()));
   }
 
   /** The error line only takes room while it has something to say. */
   protected showError(text: string): void {
-    if (!this.error) return;
-    this.error.text = text;
-    this.error.isVisible = text !== "";
+    this.error?.setText(text);
+    this.error?.setVisible(text !== "");
   }
 
-  private async send(): Promise<void> {
+  private async run(): Promise<void> {
     if (this.busy) return;
     const invalid = this.validate();
     this.showError(invalid ?? "");
     if (invalid) return;
     this.busy = true;
-    if (this.submitButton && this.kit) this.kit.setEnabled(this.submitButton, false);
+    this.submitButton?.setEnabled(false);
     try {
-      await this.submit();
+      await this.send();
     } catch (error) {
       this.showError(ErrorText.of(this.i18n, error));
     } finally {
       this.busy = false;
-      if (this.submitButton && this.kit) this.kit.setEnabled(this.submitButton, true);
+      this.submitButton?.setEnabled(true);
     }
   }
 }

@@ -1,0 +1,733 @@
+/*
+ * Boards and HUD drawn in HTML over the 3D canvas (DomUiKit, DomPanelSurface, DomHud).
+ * Palette of the museum, Fraunces for titles and Figtree for text, sizes in multiples of 8.
+ */
+:root {
+  --mu-ink: #241612;
+  --mu-ink-soft: rgba(36, 22, 18, 0.7);
+  --mu-ink-faint: rgba(36, 22, 18, 0.5);
+  --mu-sheet: #fffdf8;
+  --mu-card: #f8f3ea;
+  --mu-line: #e3d6bd;
+  --mu-line-strong: #cdb894;
+  --mu-red: #b3261e;
+  --mu-red-dark: #8f1d17;
+  --mu-green: #2e7d32;
+  --mu-green-tint: #f1f6ef;
+  --mu-bronze: #b08a3e;
+  --mu-focus: 0 0 0 3px rgba(176, 138, 62, 0.45);
+  --mu-title: "Fraunces", Georgia, serif;
+  --mu-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --mu-radius: 16px;
+  --mu-radius-small: 8px;
+}
+
+/* ------------------------------------------------------------------ board layer */
+
+.mu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  background: rgba(18, 10, 7, 0.45);
+  backdrop-filter: blur(6px) saturate(0.9);
+  -webkit-backdrop-filter: blur(6px) saturate(0.9);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.mu-layer.is-open {
+  opacity: 1;
+}
+
+.mu-sheet {
+  position: relative;
+  width: min(100%, var(--mu-width, 780px));
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--mu-sheet);
+  border-radius: var(--mu-radius);
+  box-shadow:
+    0 24px 64px rgba(18, 10, 7, 0.35),
+    0 2px 8px rgba(18, 10, 7, 0.18);
+  color: var(--mu-ink);
+  font-family: var(--mu-body);
+  font-size: 16px;
+  line-height: 1.5;
+  transform: translateY(8px) scale(0.97);
+  transition: transform 180ms ease;
+}
+
+.mu-layer.is-open .mu-sheet {
+  transform: none;
+}
+
+.mu-sheet[data-size="form"] {
+  --mu-width: 560px;
+}
+
+.mu-sheet[data-size="content"] {
+  --mu-width: 780px;
+}
+
+.mu-sheet[data-size="piece"] {
+  --mu-width: 980px;
+}
+
+/* The only bright element: a thin strip of hand-cut resin on top. */
+.mu-band {
+  flex: none;
+  height: 6px;
+  background-size: 100% 100%;
+}
+
+.mu-sheet-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+}
+
+.mu-sheet-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 32px 40px 8px;
+  overscroll-behavior: contain;
+}
+
+.mu-sheet-header {
+  margin-bottom: 16px;
+}
+
+.mu-sheet[data-centered="true"] .mu-sheet-header,
+.mu-sheet[data-centered="true"] .mu-title {
+  text-align: center;
+  display: flex;
+  justify-content: center;
+}
+
+.mu-sheet-footer {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 16px 40px 32px;
+}
+
+.mu-sheet-footer:empty {
+  padding: 0 0 24px;
+}
+
+/* ------------------------------------------------------------------ type */
+
+.mu-title {
+  margin: 0 0 24px;
+  font-family: var(--mu-title);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.mu-section {
+  margin: 0;
+  font-family: var(--mu-title);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.mu-text {
+  margin: 0;
+  font-size: 16px;
+}
+
+.mu-text.is-muted {
+  color: var(--mu-ink-soft);
+}
+
+.mu-note {
+  margin: 0;
+  font-size: 14px;
+  color: var(--mu-ink-soft);
+}
+
+.mu-note[data-tone="error"] {
+  color: var(--mu-red);
+  font-weight: 600;
+}
+
+.mu-note[data-tone="success"] {
+  color: var(--mu-green);
+  font-weight: 600;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------ layout */
+
+.mu-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mu-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.gap-small {
+  gap: 8px;
+}
+
+.gap-medium {
+  gap: 16px;
+}
+
+.gap-large {
+  gap: 24px;
+}
+
+.mu-column.align-center {
+  align-items: center;
+  text-align: center;
+}
+
+.mu-column.align-end,
+.mu-row.align-end {
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.mu-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 40px;
+  align-items: start;
+}
+
+/* ------------------------------------------------------------------ fields and buttons */
+
+.mu-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mu-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mu-input {
+  height: 48px;
+  padding: 0 16px;
+  border: 1.5px solid var(--mu-line-strong);
+  border-radius: var(--mu-radius-small);
+  background: #fff;
+  color: var(--mu-ink);
+  font: inherit;
+  outline: none;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.mu-input:focus-visible,
+.mu-input:focus {
+  border-color: var(--mu-bronze);
+  box-shadow: var(--mu-focus);
+}
+
+.mu-button {
+  height: 48px;
+  padding: 0 24px;
+  border-radius: var(--mu-radius-small);
+  font: 600 16px/1 var(--mu-body);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    transform 80ms ease;
+}
+
+.mu-button:active {
+  transform: scale(0.98);
+}
+
+.mu-button.is-primary {
+  border: 0;
+  background: var(--mu-red);
+  color: #fffdf8;
+}
+
+.mu-button.is-primary:hover {
+  background: var(--mu-red-dark);
+}
+
+.mu-button.is-secondary {
+  border: 1.5px solid var(--mu-ink);
+  background: transparent;
+  color: var(--mu-ink);
+}
+
+.mu-button.is-secondary:hover {
+  background: rgba(36, 22, 18, 0.05);
+}
+
+.mu-button.is-wide {
+  width: 100%;
+}
+
+.mu-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.mu-button:focus-visible,
+.mu-link:focus-visible,
+.mu-option:focus-visible,
+.mu-add:focus-visible {
+  outline: none;
+  box-shadow: var(--mu-focus);
+}
+
+.mu-link {
+  align-self: flex-start;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font: 600 14px var(--mu-body);
+  cursor: pointer;
+}
+
+.mu-link:hover {
+  text-decoration: underline;
+}
+
+.mu-link.is-accent {
+  color: var(--mu-red);
+}
+
+.mu-link.is-ink {
+  color: var(--mu-ink);
+}
+
+.mu-link.is-muted {
+  color: var(--mu-ink-soft);
+}
+
+/* ------------------------------------------------------------------ option cards */
+
+.mu-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mu-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--mu-line);
+  border-radius: var(--mu-radius-small);
+  background: #fff;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.mu-option:hover {
+  border-color: var(--mu-line-strong);
+}
+
+.mu-option.is-selected {
+  border-color: var(--mu-green);
+  background: var(--mu-green-tint);
+}
+
+.mu-option-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: var(--mu-ink);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mu-option-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mu-option-title {
+  font-weight: 600;
+}
+
+.mu-option-line {
+  font-size: 14px;
+  color: var(--mu-ink-soft);
+}
+
+.mu-check {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--mu-line-strong);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mu-option.is-selected .mu-check {
+  border-color: var(--mu-green);
+  background: var(--mu-green);
+}
+
+.mu-option.is-selected .mu-check::after {
+  content: "✓";
+}
+
+.mu-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 56px;
+  border: 1.5px dashed var(--mu-line-strong);
+  border-radius: var(--mu-radius-small);
+  background: transparent;
+  color: var(--mu-ink);
+  font: 600 16px var(--mu-body);
+  cursor: pointer;
+}
+
+.mu-add:hover {
+  border-color: var(--mu-ink);
+}
+
+.mu-add-icon,
+.mu-note-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mu-note-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-top: 3px;
+}
+
+/* ------------------------------------------------------------------ steps */
+
+.mu-steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--mu-ink-soft);
+}
+
+.mu-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mu-steps li + li::before {
+  content: "";
+  width: 32px;
+  height: 2px;
+  background: var(--mu-line);
+}
+
+.mu-steps li.is-done + li::before {
+  background: var(--mu-green);
+}
+
+.mu-step-dot {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--mu-line-strong);
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mu-steps .is-done .mu-step-dot,
+.mu-steps .is-current .mu-step-dot {
+  border-color: var(--mu-green);
+  background: var(--mu-green);
+  color: #fff;
+}
+
+.mu-steps .is-current .mu-step-label {
+  color: var(--mu-ink);
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------------ order summary */
+
+.mu-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  border: 1px solid var(--mu-line);
+  border-radius: 12px;
+  background: var(--mu-card);
+}
+
+.mu-item {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.mu-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border: 1px solid var(--mu-line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.mu-item-texts {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mu-item-detail {
+  font-size: 14px;
+  color: var(--mu-ink-soft);
+}
+
+.mu-item-price {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mu-amount {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mu-amount-value {
+  white-space: nowrap;
+}
+
+.mu-amount.is-total {
+  font-family: var(--mu-title);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.mu-divider {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--mu-line);
+}
+
+.mu-icon-note {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--mu-ink-soft);
+}
+
+/* ------------------------------------------------------------------ confirmation */
+
+.mu-big-check {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--mu-green);
+  color: #fff;
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.mu-highlight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 40px;
+  border: 1.5px solid var(--mu-green);
+  border-radius: 12px;
+  background: var(--mu-green-tint);
+}
+
+.mu-highlight-label {
+  font-size: 14px;
+  color: var(--mu-ink-soft);
+}
+
+.mu-highlight-value {
+  font-family: var(--mu-title);
+  font-size: 26px;
+  color: var(--mu-green);
+  letter-spacing: 0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mu-layer,
+  .mu-sheet {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ HUD over the canvas */
+
+.mu-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  font-family: var(--mu-body);
+}
+
+.mu-hud-toolbar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.mu-hud-button {
+  position: relative;
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 253, 248, 0.18);
+  border-radius: 999px;
+  background: rgba(26, 16, 12, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fffdf8;
+  font: 600 15px var(--mu-body);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.mu-hud-button:hover {
+  background: rgba(58, 36, 25, 0.88);
+}
+
+.mu-hud-button:focus-visible {
+  outline: none;
+  box-shadow: var(--mu-focus);
+}
+
+.mu-hud-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mu-hud-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--mu-red);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mu-hud-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border: 2px solid rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.mu-hud-prompt,
+.mu-hud-bar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(26, 16, 12, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fffdf8;
+  font: 600 17px var(--mu-body);
+}
+
+.mu-hud-prompt {
+  bottom: 88px;
+  padding: 12px 24px;
+}
+
+.mu-hud-hint {
+  position: absolute;
+  bottom: 32px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #fffdf8;
+  font-size: 16px;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+
+.mu-hud-bar {
+  z-index: 20;
+  bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 8px 8px 28px;
+  white-space: nowrap;
+}
+
+.mu-hud-bar .mu-button {
+  height: 44px;
+  border-radius: 999px;
+}

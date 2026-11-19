@@ -1,10 +1,11 @@
 import { Color3, MeshBuilder, StandardMaterial, TransformNode, type Mesh, type Observer, type Scene } from "@babylonjs/core";
 import { AdvancedDynamicTexture } from "@babylonjs/gui";
 import { Signal } from "../../core/Signal";
-import { BoardKit } from "./board/BoardKit";
 import { BoardSheet } from "./board/BoardSheet";
 import { BoardTheme } from "./board/BoardTheme";
 import { BoardView } from "./board/BoardView";
+import { DomPanelSurface } from "./dom/DomPanelSurface";
+import { BabylonUiKit } from "./kit/BabylonUiKit";
 import { TextureFactory } from "../world/TextureFactory";
 import type { PanelView } from "./PanelView";
 import { UiKit } from "./UiKit";
@@ -38,7 +39,10 @@ export class PanelSurface {
   private readonly meshes: Mesh[];
   private readonly texture: AdvancedDynamicTexture;
   private readonly kit = new UiKit();
-  private readonly boardKit = new BoardKit();
+  private readonly boardKit = new BabylonUiKit();
+  /** Redesigned views are drawn in HTML over the canvas (with ?ui=babylon, on the 3D board). */
+  private readonly dom: DomPanelSurface;
+  private static readonly HTML_BOARDS = new URLSearchParams(window.location.search).get("ui") !== "babylon";
   private readonly sheetPlane: Mesh;
   private readonly sheetTexture: AdvancedDynamicTexture;
   private sheet: BoardSheet | null = null;
@@ -87,11 +91,14 @@ export class PanelSurface {
     }
     this.root.setEnabled(false);
 
+    this.dom = new DomPanelSurface(closeLabel);
+    this.dom.closed.subscribe(() => this.closed.emit());
     this.frameObserver = scene.onBeforeRenderObservable.add(() => this.animate(scene.getEngine().getDeltaTime() / 1000));
     window.addEventListener("keydown", (event) => this.onKeyDown(event), { signal: this.listeners.signal });
   }
 
   get isOpen(): boolean {
+    if (this.dom.isOpen) return true;
     return this.target === 1;
   }
 
@@ -101,13 +108,20 @@ export class PanelSurface {
 
   /** Shows a view; if the board is already open, the sheet changes without the animation. */
   open(view: PanelView | BoardView): void {
+    if (view instanceof BoardView && PanelSurface.HTML_BOARDS) {
+      this.hideBoard();
+      this.view = view;
+      this.dom.open(view);
+      return;
+    }
+    if (this.dom.isOpen) this.dom.dismiss();
     this.view = view;
     this.clearSheet();
     const board = view instanceof BoardView;
     this.meshes.forEach((mesh) => mesh.setEnabled(!board));
     this.sheetPlane.setEnabled(board);
     if (board) {
-      this.sheet = new BoardSheet(view, { kit: this.boardKit, close: () => this.close(), closeLabel: this.closeLabel });
+      this.sheet = new BoardSheet(view, this.boardKit, () => this.close(), this.closeLabel);
       // Tall enough to lay the whole content out once; `fitSheet` then trims it.
       this.resizeSheet(this.sheet.textureWidth, BoardTheme.px(2200));
       this.sheetTexture.addControl(this.sheet.root);
@@ -123,8 +137,20 @@ export class PanelSurface {
   }
 
   close(): void {
+    if (this.dom.isOpen) {
+      this.dom.close();
+      return;
+    }
     if (this.target === 0) return;
     this.target = 0;
+  }
+
+  /** Takes the 3D board away at once, without the closing animation or the closed event. */
+  private hideBoard(): void {
+    this.target = 0;
+    this.progress = 0;
+    this.root.setEnabled(false);
+    this.clearSheet();
   }
 
   dispose(): void {
@@ -132,6 +158,7 @@ export class PanelSurface {
     this.scene.onBeforeRenderObservable.remove(this.frameObserver);
     this.texture.dispose();
     this.sheetTexture.dispose();
+    this.dom.dispose();
     this.root.dispose();
   }
 
