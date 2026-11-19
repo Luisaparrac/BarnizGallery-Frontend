@@ -1,27 +1,36 @@
 import { VisitorSetupStore } from "../core/VisitorSetupStore";
+import type { Catalogs } from "../domain/catalog";
 import type { Language } from "../domain/common";
 import { Localizer } from "../i18n/Localizer";
 import { services } from "../services/ServiceRegistry";
 import { Formatter } from "../utils/Formatter";
-import { ExperienceUi, type UiSampleData } from "./ui/ExperienceUi";
-import { World } from "./world/World";
+import { LobbyStage } from "./lobby/LobbyStage";
+import type { LobbyAvatar, LobbyResult } from "./lobby/LobbyTypes";
+import { PlazaStage } from "./plaza/PlazaStage";
+import type { Stage } from "./Stage";
+import type { UiSampleData } from "./ui/ExperienceUi";
+import { AvatarFactory } from "./world/AvatarFactory";
+import type { World } from "./world/World";
 import { WorldRoomsLoader } from "./world/WorldRoomsLoader";
 
 /**
- * Entry point of the immersive 3D experience (index.html), without React.
- * For now it opens the plaza directly with the controls board; the lobby comes in a later step.
+ * Entry point of the immersive 3D experience (index.html), without React. It shows the lobby
+ * first and, when the doors open, fades to the plaza (each one is a Stage with its own scene).
  */
 export class Experience {
-  private readonly i18n: Localizer;
-  private readonly format: Formatter;
-  private world: World | null = null;
-  private ui: ExperienceUi | null = null;
+  private static readonly FADE_MS = 700;
+
+  private i18n: Localizer;
+  private stage: Stage | null = null;
+  private readonly fade: HTMLDivElement;
+  private readonly params = new URLSearchParams(window.location.search);
 
   constructor(private readonly root: HTMLElement) {
     const language = Experience.initialLanguage();
     document.documentElement.lang = language;
     this.i18n = new Localizer(language);
-    this.format = new Formatter(language);
+    this.fade = document.createElement("div");
+    this.fade.className = "experience-fade";
   }
 
   async start(): Promise<void> {
@@ -34,33 +43,80 @@ export class Experience {
     await Promise.all([document.fonts.load('500 16px "Figtree"'), document.fonts.load('700 16px "Bricolage Grotesque"')]).catch(() => undefined);
 
     const session = await services.auth.restore().catch(() => null);
-    const data = await new WorldRoomsLoader(this.i18n, this.format).load(session?.user ?? null);
+    const catalogs = await services.catalog.getCatalogs().catch(() => null);
+
+    const lobbyCanvas = this.createCanvas();
+    let lobby: LobbyStage;
+    try {
+      lobby = new LobbyStage(lobbyCanvas, { i18n: this.i18n, user: session?.user ?? null, avatars: this.lobbyAvatars(catalogs), quality: this.params.get("quality") });
+    } catch {
+      this.showNotice(this.i18n.t("world.noWebgl"));
+      return;
+    }
+    this.stage = lobby;
+    const result = await lobby.run();
+
+    await this.setFaded(true);
+    lobby.dispose();
+    this.stage = null;
+    await this.enterPlaza(result, catalogs);
+  }
+
+  private async enterPlaza(result: LobbyResult, catalogs: Catalogs | null): Promise<void> {
+    this.i18n = new Localizer(result.language);
+    const format = new Formatter(result.language);
+    const data = await new WorldRoomsLoader(this.i18n, format).load(result.user);
     if (!data.rooms.length) {
       this.showNotice(this.i18n.t("world.empty"), this.i18n.t("world.emptyText"));
       return;
     }
 
-    const canvas = document.createElement("canvas");
-    canvas.className = "experience-canvas";
-    canvas.tabIndex = 0;
-    canvas.setAttribute("aria-label", this.i18n.t("world.title"));
-    this.root.replaceChildren(canvas);
+    const debug = this.params.has("debug");
+    const sample: UiSampleData | null = debug ? { catalogs, photoUrl: data.rooms[0]?.pieces[0]?.photoUrl ?? null } : null;
+    const canvas = this.createCanvas();
+    let plaza: PlazaStage;
     try {
-      this.world = new World(canvas, data.rooms, new URLSearchParams(window.location.search).get("quality"));
+      plaza = new PlazaStage(canvas, { i18n: this.i18n, user: result.user, rooms: data.rooms, avatarCode: result.avatar?.code ?? null, quality: this.params.get("quality"), sample });
     } catch {
       this.showNotice(this.i18n.t("world.noWebgl"));
       return;
     }
-    const debug = new URLSearchParams(window.location.search).has("debug");
-    if (debug) (window as unknown as { museo?: World }).museo = this.world;
-    const sample: UiSampleData | null = debug
-      ? { catalogs: await services.catalog.getCatalogs().catch(() => null), photoUrl: data.rooms[0]?.pieces[0]?.photoUrl ?? null }
-      : null;
-    this.ui = new ExperienceUi(this.world, this.i18n, session?.user ?? null, sample);
-    this.ui.start();
+    this.stage = plaza;
+    if (debug) (window as unknown as { museo?: World }).museo = plaza.world;
+    await plaza.start();
+    await this.setFaded(false);
+  }
+
+  /** The catalog avatars, or the five default codes when the catalog cannot be loaded. */
+  private lobbyAvatars(catalogs: Catalogs | null): LobbyAvatar[] {
+    const active = (catalogs?.avatars ?? []).filter((avatar) => avatar.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+    if (active.length) return active.map(({ id, code, nameEs, nameEn }) => ({ id, code, nameEs, nameEn }));
+    return AvatarFactory.CODES.map((code) => {
+      const name = code.charAt(0).toUpperCase() + code.slice(1);
+      return { id: null, code, nameEs: name, nameEn: name };
+    });
+  }
+
+  /** A new canvas for each stage (each one has its own engine), under the fade layer. */
+  private createCanvas(): HTMLCanvasElement {
+    const canvas = document.createElement("canvas");
+    canvas.className = "experience-canvas";
+    canvas.tabIndex = 0;
+    canvas.setAttribute("aria-label", this.i18n.t("world.title"));
+    this.root.replaceChildren(canvas, this.fade);
+    canvas.focus();
+    return canvas;
+  }
+
+  /** Fades the screen to dark (true) or back to the scene (false). */
+  private setFaded(faded: boolean): Promise<void> {
+    this.fade.classList.toggle("is-on", faded);
+    return new Promise((resolve) => window.setTimeout(resolve, Experience.FADE_MS));
   }
 
   private showNotice(title: string, text?: string): void {
+    this.stage?.dispose();
+    this.stage = null;
     this.root.replaceChildren(this.notice(title, text));
   }
 

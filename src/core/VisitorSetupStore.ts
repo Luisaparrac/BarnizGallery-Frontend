@@ -3,6 +3,7 @@ import type { VisitorSetup } from "../domain/taste";
 
 const KEY = "museo.visitor";
 const LANG_KEY = "museo.language";
+const CONTROLS_KEY = "museo.controlsSeen";
 
 /** What a visitor chose before creating an account: language, avatar and questionnaire. */
 export class VisitorSetupStore {
@@ -36,6 +37,23 @@ export class VisitorSetupStore {
   static saveLanguage(language: Language): void {
     try {
       localStorage.setItem(LANG_KEY, language);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** True after the controls board was shown once in this browser (the first visit to the plaza). */
+  static controlsSeen(): boolean {
+    try {
+      return localStorage.getItem(CONTROLS_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  static markControlsSeen(): void {
+    try {
+      localStorage.setItem(CONTROLS_KEY, "1");
     } catch {
       /* ignore */
     }

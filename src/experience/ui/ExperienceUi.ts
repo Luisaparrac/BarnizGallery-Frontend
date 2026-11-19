@@ -58,9 +58,13 @@ export class ExperienceUi {
     this.watchCart();
   }
 
-  /** First screen of the plaza: the controls with the Enter button. */
-  start(): void {
-    this.open(this.controlsView(true));
+  /**
+   * Arrival at the plaza: the first time, the controls with the Enter button; after that the walk
+   * starts right away (the HUD asks for a click to capture the mouse).
+   */
+  start(showControls: boolean): void {
+    if (showControls) this.open(this.controlsView(true));
+    else this.onPanelClosed();
   }
 
   open(view: PanelView): void {

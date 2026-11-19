@@ -53,3 +53,18 @@ body {
 .experience-card p {
   margin: 0 0 18px;
 }
+
+/* Fade between the lobby and the plaza. */
+.experience-fade {
+  position: fixed;
+  inset: 0;
+  background: #120a07;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.7s ease;
+}
+
+.experience-fade.is-on {
+  opacity: 1;
+  pointer-events: auto;
+}
