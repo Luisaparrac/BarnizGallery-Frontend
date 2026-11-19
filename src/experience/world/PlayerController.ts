@@ -1,7 +1,7 @@
 import { MeshBuilder, Vector3, type Mesh, type Scene } from "@babylonjs/core";
 import { Signal } from "../../core/Signal";
 import type { CameraMode } from "./WorldTypes";
-import type { ArtisanAvatar } from "./ArtisanAvatar";
+import type { AvatarModel } from "./AvatarModel";
 import type { CameraRig } from "./CameraRig";
 import type { InputController } from "./InputController";
 
@@ -19,7 +19,7 @@ export class PlayerController {
   constructor(
     scene: Scene,
     private readonly input: InputController,
-    private readonly avatar: ArtisanAvatar,
+    private avatar: AvatarModel,
     private readonly cameraRig: CameraRig,
     spawn: Vector3,
   ) {
@@ -59,6 +59,15 @@ export class PlayerController {
 
   toggleMode(): void {
     this.setMode(this.mode === "FIRST_PERSON" ? "THIRD_PERSON" : "FIRST_PERSON");
+  }
+
+  /** Swaps the avatar (the procedural one is replaced when the .glb finishes loading). */
+  setAvatar(avatar: AvatarModel): void {
+    const rotation = this.avatar.root.rotation.y;
+    this.avatar.dispose();
+    this.avatar = avatar;
+    this.avatar.root.rotation.y = rotation;
+    this.applyMode();
   }
 
   teleport(x: number, z: number): void {

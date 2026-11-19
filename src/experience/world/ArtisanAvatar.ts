@@ -1,12 +1,13 @@
 import { Mesh, MeshBuilder, TransformNode, type Material, type Scene } from "@babylonjs/core";
+import type { AvatarModel } from "./AvatarModel";
 import type { MaterialLibrary } from "./MaterialLibrary";
 import type { ShadowRig } from "./ShadowRig";
 
 /**
  * The visitor's avatar: a Pasto artisan in a striped wool ruana and a straw hat, built from primitives.
- * Local +z is "forward" and the node origin sits at the feet.
+ * Local +z is "forward" and the node origin sits at the feet. It is the fallback when there is no .glb.
  */
-export class ArtisanAvatar {
+export class ArtisanAvatar implements AvatarModel {
   readonly root: TransformNode;
   private readonly meshes: Mesh[] = [];
   private readonly legs: TransformNode[] = [];
@@ -36,6 +37,10 @@ export class ArtisanAvatar {
 
   setVisible(visible: boolean): void {
     this.root.setEnabled(visible);
+  }
+
+  dispose(): void {
+    this.root.dispose(false, false);
   }
 
   /** Advances the walk cycle. `speed` is 0 (idle), 1 (walking) or ~1.8 (running). */

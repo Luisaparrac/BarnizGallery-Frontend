@@ -1,6 +1,6 @@
 import { Color3, Engine, Scene, Vector3, type FreeCamera } from "@babylonjs/core";
 import { Signal } from "../../core/Signal";
-import { ArtisanAvatar } from "./ArtisanAvatar";
+import { AvatarFactory } from "./AvatarFactory";
 import { CameraRig } from "./CameraRig";
 import { QualityManager } from "./core/QualityManager";
 import { Fountain } from "./Fountain";
@@ -51,6 +51,7 @@ export class World {
   private readonly components: SceneComponent[] = [];
   private readonly pieces = new Map<number, WorldPiece>();
   private readonly quality: QualityManager;
+  private readonly avatars: AvatarFactory;
   private readonly onResize = () => this.engine.resize();
   private time = 0;
 
@@ -76,8 +77,8 @@ export class World {
     this.buildComponents(context, rooms);
 
     this.input = new InputController(canvas);
-    const avatar = new ArtisanAvatar(this.scene, materials, shadows);
-    this.player = new PlayerController(this.scene, this.input, avatar, cameraRig, PlazaLayout.spawn);
+    this.avatars = new AvatarFactory({ scene: this.scene, materials, shadows });
+    this.player = new PlayerController(this.scene, this.input, this.avatars.procedural(), cameraRig, PlazaLayout.spawn);
     this.player.lookAt(0, 0);
 
     new PostProcessing(this.scene, cameraRig.camera, this.quality, sky.sunDisc);
@@ -97,6 +98,12 @@ export class World {
   /** Lets the visitor move and look around, or freezes the world while a panel is open. */
   setPlaying(playing: boolean): void {
     this.player.setEnabled(playing);
+  }
+
+  /** Loads the visitor's avatar by its catalog code; the procedural one stays if there is no .glb. */
+  async useAvatar(code: string | null): Promise<void> {
+    if (!code) return;
+    this.player.setAvatar(await this.avatars.create(code));
   }
 
   /** Stops rendering and frees the GPU and every listener. */
