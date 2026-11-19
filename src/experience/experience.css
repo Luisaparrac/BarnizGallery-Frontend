@@ -68,3 +68,9 @@ body {
   opacity: 1;
   pointer-events: auto;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .experience-fade {
+    transition-duration: 0.3s;
+  }
+}

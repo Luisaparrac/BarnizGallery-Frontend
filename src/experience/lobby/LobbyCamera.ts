@@ -1,4 +1,5 @@
 import { FreeCamera, Vector3, type Scene } from "@babylonjs/core";
+import { MotionPreference } from "../MotionPreference";
 
 /** A fixed point of view of the lobby: where the camera stands and what it looks at. */
 export interface CameraShot {
@@ -29,12 +30,12 @@ export class LobbyCamera {
     this.from = this.to = LobbyCamera.copy(shot);
   }
 
-  /** Glides to a shot; resolves when it gets there. */
+  /** Glides to a shot; resolves when it gets there. With reduced motion it cuts to it. */
   moveTo(shot: CameraShot, seconds: number): Promise<void> {
     this.arrived?.();
     this.from = { position: this.camera.position.clone(), target: this.target.clone() };
     this.to = LobbyCamera.copy(shot);
-    this.seconds = Math.max(0.01, seconds);
+    this.seconds = MotionPreference.reduced ? 0.01 : Math.max(0.01, seconds);
     this.progress = 0;
     return new Promise((resolve) => (this.arrived = resolve));
   }

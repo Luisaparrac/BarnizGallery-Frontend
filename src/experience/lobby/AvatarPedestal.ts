@@ -1,4 +1,5 @@
 import { Color3, MeshBuilder, PBRMaterial, TransformNode, Vector3, type AbstractMesh, type Mesh, type Scene } from "@babylonjs/core";
+import { MotionPreference } from "../MotionPreference";
 import type { AvatarModel } from "../world/AvatarModel";
 import type { MaterialLibrary } from "../world/MaterialLibrary";
 import type { ShadowRig } from "../world/ShadowRig";
@@ -112,22 +113,25 @@ export class AvatarPedestal {
 
     if (!this.avatar) return;
     const root = this.avatar.root;
+    // With reduced motion the avatar only turns, at once, and neither steps nor waves.
+    const still = MotionPreference.reduced;
+    const move = still ? 1 : ease;
     // Direction of the viewer in the pedestal's own space (its +z already faces the hall's center).
     const local = Vector3.TransformCoordinates(viewer, this.root.getWorldMatrix().clone().invert());
     const towards = Math.atan2(local.x, local.z);
     const yaw = this.selected ? towards : 0;
     const difference = Math.atan2(Math.sin(yaw - root.rotation.y), Math.cos(yaw - root.rotation.y));
-    root.rotation.y += difference * ease;
+    root.rotation.y += difference * move;
 
     const before = this.step;
-    this.step += ((this.selected ? AvatarPedestal.STEP : 0) - this.step) * ease;
+    this.step += ((this.selected && !still ? AvatarPedestal.STEP : 0) - this.step) * move;
     root.position.set(Math.sin(towards) * this.step, AvatarPedestal.HEIGHT, Math.cos(towards) * this.step);
     // A few walking frames while it steps forward or back.
-    const speed = Math.min(1, (Math.abs(this.step - before) / Math.max(deltaSeconds, 0.001)) * 2.5);
+    const speed = still ? 0 : Math.min(1, (Math.abs(this.step - before) / Math.max(deltaSeconds, 0.001)) * 2.5);
 
     if (this.waveDelay >= 0) {
       this.waveDelay -= deltaSeconds;
-      if (this.waveDelay < 0) this.avatar.wave();
+      if (this.waveDelay < 0 && !still) this.avatar.wave();
     }
     this.avatar.animate(deltaSeconds, speed);
   }
