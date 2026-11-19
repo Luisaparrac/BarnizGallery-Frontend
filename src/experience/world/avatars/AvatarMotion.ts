@@ -11,11 +11,14 @@ export class AvatarMotion {
   private static readonly BLEND_PER_SECOND = 6;
   private static readonly WALK_CYCLES = 0.9;
   private static readonly RUN_CYCLES = 1.35;
+  private static readonly WAVE_SECONDS = 1.9;
 
   private readonly rest: Record<JointName, Vector3>;
   private gait = 0;
   private phase = 0;
   private time = 0;
+  /** Seconds since the wave started, or -1 when not waving. */
+  private waveTime = -1;
 
   constructor(
     private readonly skeleton: AvatarSkeleton,
@@ -23,6 +26,11 @@ export class AvatarMotion {
   ) {
     const names = Object.keys(skeleton.joints) as JointName[];
     this.rest = Object.fromEntries(names.map((name) => [name, skeleton.restOffset(name)])) as Record<JointName, Vector3>;
+  }
+
+  /** Starts a short wave of the right hand (it restarts if already waving). */
+  wave(): void {
+    this.waveTime = 0;
   }
 
   /** `speed` is 0 (idle), 1 (walking) or ~1.8 (running). */
@@ -73,5 +81,30 @@ export class AvatarMotion {
 
     // The head keeps looking ahead and, when standing, looks around a little.
     j.head.rotation.set(-j.spine.rotation.x * 0.7 - breath * 0.008 * idle, -j.spine.rotation.y * 0.8 + Math.sin(this.time * 0.31) * 0.14 * idle, 0);
+
+    this.applyWave(deltaSeconds);
+  }
+
+  /** Raises the right arm, waves the forearm a few times and lowers it, over the current pose. */
+  private applyWave(deltaSeconds: number): void {
+    if (this.waveTime < 0) return;
+    this.waveTime += deltaSeconds;
+    const t = this.waveTime;
+    if (t >= AvatarMotion.WAVE_SECONDS) {
+      this.waveTime = -1;
+      return;
+    }
+    const smooth = (edge0: number, edge1: number, x: number) => {
+      const k = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+      return k * k * (3 - 2 * k);
+    };
+    const e = smooth(0, 0.4, t) * (1 - smooth(AvatarMotion.WAVE_SECONDS - 0.45, AvatarMotion.WAVE_SECONDS, t));
+    const mix = (from: number, to: number) => from + (to - from) * e;
+    const j = this.skeleton.joints;
+    j.shoulderR.rotation.x = mix(j.shoulderR.rotation.x, -0.45);
+    j.shoulderR.rotation.z = mix(j.shoulderR.rotation.z, 2.25);
+    j.elbowR.rotation.x = mix(j.elbowR.rotation.x, -0.2);
+    j.elbowR.rotation.z = mix(0, 0.55 + Math.sin(t * 11) * 0.38);
+    j.head.rotation.z = mix(j.head.rotation.z, -0.07);
   }
 }

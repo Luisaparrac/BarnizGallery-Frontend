@@ -44,6 +44,9 @@ export class GltfAvatar implements AvatarModel {
     });
   }
 
+  /** The .glb models only bring Idle, Walk and Run, so they do not wave. */
+  wave(): void {}
+
   dispose(): void {
     this.groups.forEach((group) => group.dispose());
     this.root.dispose(false, true);

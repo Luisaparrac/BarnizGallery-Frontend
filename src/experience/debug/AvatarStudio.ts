@@ -75,6 +75,7 @@ export class AvatarStudio implements Stage {
 
     (window as unknown as { museoAvatars?: unknown }).museoAvatars = {
       setSpeed: (speed: number) => (this.speed = speed),
+      wave: () => this.avatars.forEach((avatar) => avatar.wave()),
       portraits: () => this.portraits(),
       camera: this.camera,
     };
@@ -116,6 +117,7 @@ export class AvatarStudio implements Stage {
 
   private key(event: KeyboardEvent): void {
     if (event.key === "0" || event.key === "1" || event.key === "2") this.speed = [0, 1, 1.8][Number(event.key)];
+    if (event.key.toLowerCase() === "w") this.avatars.forEach((avatar) => avatar.wave());
     if (event.key.toLowerCase() === "p") void this.download();
   }
 

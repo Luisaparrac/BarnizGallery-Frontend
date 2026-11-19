@@ -9,5 +9,7 @@ export interface AvatarModel {
   setVisible(visible: boolean): void;
   /** Advances the animation. `speed` is 0 (idle), 1 (walking) or ~1.8 (running). */
   animate(deltaSeconds: number, speed: number): void;
+  /** A short wave of the right hand (when the avatar is chosen in the lobby). */
+  wave(): void;
   dispose(): void;
 }

@@ -96,6 +96,10 @@ export abstract class ProceduralAvatar implements AvatarModel {
     this.motion.update(deltaSeconds, speed);
   }
 
+  wave(): void {
+    this.motion.wave();
+  }
+
   dispose(): void {
     // The atlas and its material belong to this avatar only.
     this.root.dispose(false, true);
