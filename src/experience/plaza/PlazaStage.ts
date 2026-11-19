@@ -1,4 +1,5 @@
 import { VisitorSetupStore } from "../../core/VisitorSetupStore";
+import type { Scene } from "@babylonjs/core";
 import type { User } from "../../domain/user";
 import type { Localizer } from "../../i18n/Localizer";
 import type { Stage } from "../Stage";
@@ -31,6 +32,10 @@ export class PlazaStage implements Stage {
     this.world.setPlaying(false);
     this.ui = new ExperienceUi(this.world, options.i18n, options.user, options.sample);
     this.avatarCode = options.avatarCode;
+  }
+
+  get scene(): Scene {
+    return this.world.scene;
   }
 
   /** Swaps in the avatar's .glb if there is one and gives the plaza to the visitor. */

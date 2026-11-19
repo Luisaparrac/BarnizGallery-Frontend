@@ -69,7 +69,7 @@ export class LobbyStage implements Stage {
   private static readonly FILL_DIMMED = 0.6;
 
   private readonly engine: Engine;
-  private readonly scene: Scene;
+  readonly scene: Scene;
   private readonly camera: LobbyCamera;
   private readonly hall: LobbyHall;
   private readonly materials: MaterialLibrary;

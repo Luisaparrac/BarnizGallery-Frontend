@@ -5,6 +5,7 @@ import { Localizer } from "../i18n/Localizer";
 import { services } from "../services/ServiceRegistry";
 import { Formatter } from "../utils/Formatter";
 import { AvatarStudio } from "./debug/AvatarStudio";
+import { DebugStats } from "./debug/DebugStats";
 import { LobbyStage } from "./lobby/LobbyStage";
 import type { LobbyAvatar, LobbyResult } from "./lobby/LobbyTypes";
 import { PlazaStage } from "./plaza/PlazaStage";
@@ -23,6 +24,8 @@ export class Experience {
 
   private i18n: Localizer;
   private stage: Stage | null = null;
+  /** FPS and draw-call counter, only with ?debug. */
+  private stats: DebugStats | null = null;
   private readonly fade: HTMLDivElement;
   private readonly params = new URLSearchParams(window.location.search);
 
@@ -44,7 +47,7 @@ export class Experience {
     await Promise.all([document.fonts.load('500 16px "Figtree"'), document.fonts.load('700 16px "Bricolage Grotesque"')]).catch(() => undefined);
 
     if (this.params.get("debug") === "avatars") {
-      this.stage = new AvatarStudio(this.createCanvas());
+      this.show(new AvatarStudio(this.createCanvas()));
       return;
     }
 
@@ -59,12 +62,11 @@ export class Experience {
       this.showNotice(this.i18n.t("world.noWebgl"));
       return;
     }
-    this.stage = lobby;
+    this.show(lobby);
     const result = await lobby.run();
 
     await this.setFaded(true);
-    lobby.dispose();
-    this.stage = null;
+    this.hide();
     await this.enterPlaza(result, catalogs);
   }
 
@@ -87,7 +89,7 @@ export class Experience {
       this.showNotice(this.i18n.t("world.noWebgl"));
       return;
     }
-    this.stage = plaza;
+    this.show(plaza);
     if (debug) (window as unknown as { museo?: World }).museo = plaza.world;
     await plaza.start();
     await this.setFaded(false);
@@ -101,6 +103,20 @@ export class Experience {
       const name = code.charAt(0).toUpperCase() + code.slice(1);
       return { id: null, code, nameEs: name, nameEn: name };
     });
+  }
+
+  /** Makes a stage the current one (and measures it with ?debug). */
+  private show(stage: Stage): void {
+    this.stage = stage;
+    this.stats?.dispose();
+    this.stats = this.params.has("debug") ? new DebugStats(stage.scene) : null;
+  }
+
+  private hide(): void {
+    this.stats?.dispose();
+    this.stats = null;
+    this.stage?.dispose();
+    this.stage = null;
   }
 
   /** A new canvas for each stage (each one has its own engine), under the fade layer. */
@@ -121,8 +137,7 @@ export class Experience {
   }
 
   private showNotice(title: string, text?: string): void {
-    this.stage?.dispose();
-    this.stage = null;
+    this.hide();
     this.root.replaceChildren(this.notice(title, text));
   }
 

@@ -29,7 +29,7 @@ export class AvatarStudio implements Stage {
   private static readonly PORTRAIT_SIZE = 512;
 
   private readonly engine: Engine;
-  private readonly scene: Scene;
+  readonly scene: Scene;
   private readonly camera: ArcRotateCamera;
   private readonly avatars = new Map<string, AvatarModel>();
   private readonly floor: Mesh;
