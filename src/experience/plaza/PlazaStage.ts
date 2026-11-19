@@ -3,7 +3,7 @@ import type { Scene } from "@babylonjs/core";
 import type { User } from "../../domain/user";
 import type { Localizer } from "../../i18n/Localizer";
 import type { Stage } from "../Stage";
-import { ExperienceUi, type UiSampleData } from "../ui/ExperienceUi";
+import { ExperienceUi } from "../ui/ExperienceUi";
 import { World } from "../world/World";
 import type { WorldRoom } from "../world/WorldTypes";
 
@@ -13,8 +13,6 @@ export interface PlazaOptions {
   rooms: readonly WorldRoom[];
   avatarCode: string | null;
   quality: string | null;
-  /** Only with ?debug: data of the UiKit sample. */
-  sample: UiSampleData | null;
 }
 
 /**
@@ -30,7 +28,7 @@ export class PlazaStage implements Stage {
   constructor(canvas: HTMLCanvasElement, options: PlazaOptions) {
     this.world = new World(canvas, options.rooms, options.quality, options.avatarCode);
     this.world.setPlaying(false);
-    this.ui = new ExperienceUi(this.world, options.i18n, options.user, options.sample);
+    this.ui = new ExperienceUi(this.world, options.i18n, options.user);
     this.avatarCode = options.avatarCode;
   }
 

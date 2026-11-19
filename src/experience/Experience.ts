@@ -10,7 +10,6 @@ import { LobbyStage } from "./lobby/LobbyStage";
 import type { LobbyAvatar, LobbyResult } from "./lobby/LobbyTypes";
 import { PlazaStage } from "./plaza/PlazaStage";
 import type { Stage } from "./Stage";
-import type { UiSampleData } from "./ui/ExperienceUi";
 import { AvatarFactory } from "./world/AvatarFactory";
 import type { World } from "./world/World";
 import { WorldRoomsLoader } from "./world/WorldRoomsLoader";
@@ -67,10 +66,10 @@ export class Experience {
 
     await this.setFaded(true);
     this.hide();
-    await this.enterPlaza(result, catalogs);
+    await this.enterPlaza(result);
   }
 
-  private async enterPlaza(result: LobbyResult, catalogs: Catalogs | null): Promise<void> {
+  private async enterPlaza(result: LobbyResult): Promise<void> {
     this.i18n = new Localizer(result.language);
     const format = new Formatter(result.language);
     const data = await new WorldRoomsLoader(this.i18n, format).load(result.user);
@@ -80,11 +79,10 @@ export class Experience {
     }
 
     const debug = this.params.has("debug");
-    const sample: UiSampleData | null = debug ? { catalogs, photoUrl: data.rooms[0]?.pieces[0]?.photoUrl ?? null } : null;
     const canvas = this.createCanvas();
     let plaza: PlazaStage;
     try {
-      plaza = new PlazaStage(canvas, { i18n: this.i18n, user: result.user, rooms: data.rooms, avatarCode: result.avatar?.code ?? null, quality: this.params.get("quality"), sample });
+      plaza = new PlazaStage(canvas, { i18n: this.i18n, user: result.user, rooms: data.rooms, avatarCode: result.avatar?.code ?? null, quality: this.params.get("quality") });
     } catch {
       this.showNotice(this.i18n.t("world.noWebgl"));
       return;

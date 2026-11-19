@@ -1,5 +1,4 @@
 import { AppEvents } from "../../core/AppEvents";
-import type { Catalogs } from "../../domain/catalog";
 import type { User } from "../../domain/user";
 import type { Localizer } from "../../i18n/Localizer";
 import { services } from "../../services/ServiceRegistry";
@@ -11,13 +10,6 @@ import { PurchaseFlow } from "./PurchaseFlow";
 import { UiLayer } from "./UiLayer";
 import { VisitorSession } from "./VisitorSession";
 import { ControlsView } from "./views/ControlsView";
-import { UiKitSampleView } from "./views/UiKitSampleView";
-
-/** Only with ?debug: what the UiKit sample needs. */
-export interface UiSampleData {
-  catalogs: Catalogs | null;
-  photoUrl: string | null;
-}
 
 /**
  * Mediator between the world, the HUD and the board: opening a panel freezes the walk and hides
@@ -42,7 +34,6 @@ export class ExperienceUi {
     private readonly world: World,
     private readonly i18n: Localizer,
     user: User | null,
-    private readonly sample: UiSampleData | null,
   ) {
     this.layer = new UiLayer(world.scene, world.camera);
     this.surface = new PanelSurface(world.scene, this.layer, i18n.t("ui.close"));
@@ -115,7 +106,6 @@ export class ExperienceUi {
             this.world.input.requestPointerLock();
           }
         : undefined,
-      openSample: this.sample ? () => this.surface.open(new UiKitSampleView(this.i18n, this.sample!.catalogs, this.sample!.photoUrl)) : undefined,
     });
   }
 

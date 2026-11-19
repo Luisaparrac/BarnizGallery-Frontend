@@ -1,17 +1,15 @@
-import { Control, Rectangle } from "@babylonjs/gui";
 import type { Localizer } from "../../../i18n/Localizer";
-import { PanelView, type PanelContext } from "../PanelView";
-import { UiTheme } from "../UiTheme";
+import { BoardView, type BoardContext } from "../board/BoardView";
+import type { UiButton, UiNode } from "../kit/UiKit";
 
 export interface ControlsActions {
   /** Shown at the start: closes the board and captures the mouse to walk. */
   enter?(): void;
-  /** Only with ?debug: opens the UiKit sample. */
-  openSample?(): void;
 }
 
 /** How to move around the museum; it is also the start screen of the plaza. */
-export class ControlsView extends PanelView {
+export class ControlsView extends BoardView {
+  readonly size = "content" as const;
   readonly title: string;
 
   constructor(
@@ -22,50 +20,29 @@ export class ControlsView extends PanelView {
     this.title = callbacks.enter ? i18n.t("world.introTitle") : i18n.t("world.controls");
   }
 
-  protected content({ kit }: PanelContext, width: number): Control {
-    const column = kit.column();
-    // At the start the title is the plaza's, so the controls get their own subtitle.
+  content({ kit }: BoardContext): UiNode {
+    const column = kit.column("large");
+    // At the start the title is the plaza's, so the controls get their own section.
     if (this.callbacks.enter) {
-      column.addControl(kit.text(this.i18n.t("world.introText"), { muted: true }));
-      column.addControl(kit.subtitle(this.i18n.t("world.controls")));
+      column.add(kit.text(this.i18n.t("world.introText"), true));
+      column.add(kit.section(this.i18n.t("world.controls")));
     }
-    const keys: [string, string][] = [
+    const keys = kit.column("small");
+    const hints: [string, string][] = [
       ["W A S D", this.i18n.t("world.control.move")],
       ["Shift", this.i18n.t("world.control.run")],
-      ["Mouse", this.i18n.t("world.control.look")],
+      [this.i18n.t("world.control.mouseKey"), this.i18n.t("world.control.look")],
       ["E", this.i18n.t("world.control.use")],
       ["V", this.i18n.t("world.control.camera")],
       [this.i18n.t("world.control.pieceKey"), this.i18n.t("world.control.piece")],
       ["Esc", this.i18n.t("ui.control.close")],
     ];
-    const keyWidth = 300;
-    for (const [key, action] of keys) {
-      const row = kit.row(28);
-      row.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-      const cap = new Rectangle(`key-${key}`);
-      cap.widthInPixels = keyWidth;
-      cap.heightInPixels = 52;
-      cap.cornerRadius = 10;
-      cap.thickness = 3;
-      cap.color = UiTheme.color.line;
-      cap.background = UiTheme.color.white;
-      const label = kit.text(key, { small: true });
-      label.fontWeight = "700";
-      label.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-      cap.addControl(label);
-      const text = kit.text(action);
-      text.widthInPixels = width - keyWidth - 28;
-      row.addControl(cap);
-      row.addControl(text);
-      column.addControl(row);
-    }
+    hints.forEach(([key, action]) => keys.add(kit.keyHint(key, action)));
+    column.add(keys);
     return column;
   }
 
-  protected actions({ kit }: PanelContext): Control[] {
-    const buttons: Control[] = [];
-    if (this.callbacks.openSample) buttons.push(kit.button(this.i18n.t("uiDemo.open"), this.callbacks.openSample, "quiet", 380));
-    if (this.callbacks.enter) buttons.push(kit.button(this.i18n.t("world.enter"), this.callbacks.enter, "primary", 380));
-    return buttons;
+  override actions({ kit }: BoardContext): UiButton[] {
+    return this.callbacks.enter ? [kit.button(this.i18n.t("world.enter"), this.callbacks.enter)] : [];
   }
 }
