@@ -1,266 +1,58 @@
-import { Color3, MeshBuilder, StandardMaterial, TransformNode, type Mesh, type Observer, type Scene } from "@babylonjs/core";
-import { AdvancedDynamicTexture } from "@babylonjs/gui";
+import type { Scene } from "@babylonjs/core";
 import { Signal } from "../../core/Signal";
-import { BoardSheet } from "./board/BoardSheet";
-import { BoardTheme } from "./board/BoardTheme";
-import { BoardView } from "./board/BoardView";
+import { BabylonPanelSurface } from "./BabylonPanelSurface";
+import type { BoardView } from "./board/BoardView";
 import { DomPanelSurface } from "./dom/DomPanelSurface";
-import { BabylonUiKit } from "./kit/BabylonUiKit";
-import { TextureFactory } from "../world/TextureFactory";
-import type { PanelView } from "./PanelView";
-import { UiKit } from "./UiKit";
 import type { UiLayer } from "./UiLayer";
-import { UiTheme } from "./UiTheme";
 
-/** A view the board can show: redesigned (BoardView) or not migrated yet (PanelView). */
-export type SurfaceView = PanelView | BoardView;
+/** What the experience needs from a board surface, whatever draws it. */
+interface BoardSurface {
+  readonly closed: Signal<void>;
+  readonly isOpen: boolean;
+  readonly currentView: BoardView | null;
+  open(view: BoardView): void;
+  close(): void;
+  dispose(): void;
+}
 
 /**
- * The board every panel is shown on, floating in front of the UI camera. It rises into view with
- * a short animation and closes with Esc.
- *
- * Redesigned views (BoardView) get a board that fits their content: a plane whose texture is
- * resized after the first layout and scaled so it measures on screen the pixels of the design.
- * Views not migrated yet (PanelView) keep the former fixed wooden board.
+ * Where the boards are shown (the implementation side of the UiKit Bridge): in HTML over the
+ * canvas (DomPanelSurface, the default) or, with ?ui=babylon, on a board in the 3D world
+ * (BabylonPanelSurface). The views are the same for both.
  */
 export class PanelSurface {
-  /** Size of the paper texture; views lay out their controls in these pixels. */
-  static readonly PAPER_WIDTH = 1600;
-  static readonly PAPER_HEIGHT = 1100;
+  /** True unless the page was opened with ?ui=babylon. */
+  static readonly HTML_BOARDS = new URLSearchParams(window.location.search).get("ui") !== "babylon";
 
-  private static readonly DISTANCE = 2;
-  private static readonly FRAME = 0.07;
-  private static readonly ANIMATION_SECONDS = 0.22;
-
-  /** The board finished closing (Esc, the close button or `close()`). */
+  /** The board finished closing (Esc, a button or `close()`). */
   readonly closed = new Signal<void>();
+  private readonly surface: BoardSurface;
 
-  private readonly root: TransformNode;
-  private readonly meshes: Mesh[];
-  private readonly texture: AdvancedDynamicTexture;
-  private readonly kit = new UiKit();
-  private readonly boardKit = new BabylonUiKit();
-  /** Redesigned views are drawn in HTML over the canvas (with ?ui=babylon, on the 3D board). */
-  private readonly dom: DomPanelSurface;
-  private static readonly HTML_BOARDS = new URLSearchParams(window.location.search).get("ui") !== "babylon";
-  private readonly sheetPlane: Mesh;
-  private readonly sheetTexture: AdvancedDynamicTexture;
-  private sheet: BoardSheet | null = null;
-  /** Size of the board's texture in texture pixels; it changes with every board. */
-  private sheetSize = { width: 1, height: 1 };
-  /** False while a new board waits for its first layout to know its height. */
-  private ready = true;
-  private readonly listeners = new AbortController();
-  private readonly frameObserver: Observer<Scene>;
-  private view: PanelView | BoardView | null = null;
-  /** 0 = hidden, 1 = fully open. */
-  private progress = 0;
-  private target = 0;
-
-  constructor(
-    private readonly scene: Scene,
-    private readonly layer: UiLayer,
-    private readonly closeLabel: string,
-  ) {
-    this.root = new TransformNode("panelBoard", scene);
-    this.root.parent = layer.camera;
-
-    const height = 1;
-    const width = PanelSurface.PAPER_WIDTH / PanelSurface.PAPER_HEIGHT;
-    const frame = PanelSurface.FRAME;
-    const board = MeshBuilder.CreatePlane("panelWood", { width: width + frame * 2, height: height + frame * 2 }, scene);
-    board.material = this.woodMaterial();
-    board.isPickable = false;
-    board.position.z = 0.004;
-
-    const paper = MeshBuilder.CreatePlane("panelPaper", { width, height }, scene);
-    this.texture = AdvancedDynamicTexture.CreateForMesh(paper, PanelSurface.PAPER_WIDTH, PanelSurface.PAPER_HEIGHT, true, false);
-    this.texture.background = UiTheme.color.paper;
-    const paperMaterial = paper.material as StandardMaterial;
-    paperMaterial.disableLighting = true;
-
-    this.meshes = [board, paper];
-    this.sheetPlane = MeshBuilder.CreatePlane("boardSheet", { width: 1, height: 1 }, scene);
-    this.sheetTexture = AdvancedDynamicTexture.CreateForMesh(this.sheetPlane, 1024, 1024, true, false);
-    (this.sheetPlane.material as StandardMaterial).disableLighting = true;
-    this.sheetTexture.onEndLayoutObservable.add(() => this.fitSheet());
-    for (const mesh of [...this.meshes, this.sheetPlane]) {
-      mesh.parent = this.root;
-      mesh.layerMask = UiTheme.LAYER_MASK;
-      mesh.applyFog = false;
-    }
-    this.root.setEnabled(false);
-
-    this.dom = new DomPanelSurface(closeLabel);
-    this.dom.closed.subscribe(() => this.closed.emit());
-    this.frameObserver = scene.onBeforeRenderObservable.add(() => this.animate(scene.getEngine().getDeltaTime() / 1000));
-    window.addEventListener("keydown", (event) => this.onKeyDown(event), { signal: this.listeners.signal });
+  constructor(scene: Scene, layer: UiLayer, closeLabel: string) {
+    this.surface = PanelSurface.HTML_BOARDS ? new DomPanelSurface(closeLabel) : new BabylonPanelSurface(scene, layer, closeLabel);
+    this.surface.closed.subscribe(() => this.closed.emit());
   }
 
   get isOpen(): boolean {
-    if (this.dom.isOpen) return true;
-    return this.target === 1;
+    return this.surface.isOpen;
   }
 
-  get currentView(): PanelView | BoardView | null {
-    return this.view;
+  get currentView(): BoardView | null {
+    return this.surface.currentView;
   }
 
-  /** Shows a view; if the board is already open, the sheet changes without the animation. */
-  open(view: PanelView | BoardView): void {
-    if (view instanceof BoardView && PanelSurface.HTML_BOARDS) {
-      this.hideBoard();
-      this.view = view;
-      this.dom.open(view);
-      return;
-    }
-    if (this.dom.isOpen) this.dom.dismiss();
-    this.view = view;
-    this.clearSheet();
-    const board = view instanceof BoardView;
-    this.meshes.forEach((mesh) => mesh.setEnabled(!board));
-    this.sheetPlane.setEnabled(board);
-    if (board) {
-      this.sheet = new BoardSheet(view, this.boardKit, () => this.close(), this.closeLabel);
-      // Tall enough to lay the whole content out once; `fitSheet` then trims it.
-      this.resizeSheet(this.sheet.textureWidth, BoardTheme.px(2200));
-      this.sheetTexture.addControl(this.sheet.root);
-      this.ready = false;
-    } else {
-      const context = { kit: this.kit, close: () => this.close(), closeLabel: this.closeLabel };
-      this.texture.addControl(view.render(context, PanelSurface.PAPER_WIDTH, PanelSurface.PAPER_HEIGHT));
-      this.ready = true;
-    }
-    this.target = 1;
-    this.root.setEnabled(true);
-    this.place();
+  open(view: BoardView): void {
+    this.surface.open(view);
   }
 
   close(): void {
-    if (this.dom.isOpen) {
-      this.dom.close();
-      return;
-    }
-    if (this.target === 0) return;
-    this.target = 0;
-  }
-
-  /** Takes the 3D board away at once, without the closing animation or the closed event. */
-  private hideBoard(): void {
-    this.target = 0;
-    this.progress = 0;
-    this.root.setEnabled(false);
-    this.clearSheet();
+    this.surface.close();
   }
 
   dispose(): void {
-    this.listeners.abort();
-    this.scene.onBeforeRenderObservable.remove(this.frameObserver);
-    this.texture.dispose();
-    this.sheetTexture.dispose();
-    this.dom.dispose();
-    this.root.dispose();
-  }
-
-  private animate(delta: number): void {
-    if (!this.ready) return;
-    if (this.progress === this.target) {
-      if (this.sheet && this.target === 1) this.place();
-      return;
-    }
-    const step = Math.min(delta, 0.05) / PanelSurface.ANIMATION_SECONDS;
-    this.progress = this.target > this.progress ? Math.min(1, this.progress + step) : Math.max(0, this.progress - step);
-    this.place();
-    if (this.target === 0 && this.progress === 0) {
-      this.root.setEnabled(false);
-      this.clearSheet();
-      this.view = null;
-      this.closed.emit();
-    }
-  }
-
-  /** Fits the board in the view and applies the animation (it rises and grows a little). */
-  private place(): void {
-    const eased = 1 - Math.pow(1 - this.progress, 3);
-    const camera = this.layer.camera;
-    const distance = PanelSurface.DISTANCE;
-    const visibleHeight = 2 * distance * Math.tan(camera.fov / 2);
-    const visibleWidth = visibleHeight * this.scene.getEngine().getAspectRatio(camera);
-    if (this.sheet) {
-      this.placeSheet(eased, visibleWidth, visibleHeight);
-      return;
-    }
-    const boardWidth = PanelSurface.PAPER_WIDTH / PanelSurface.PAPER_HEIGHT + PanelSurface.FRAME * 2;
-    const boardHeight = 1 + PanelSurface.FRAME * 2;
-    const fit = Math.min((visibleHeight * 0.88) / boardHeight, (visibleWidth * 0.94) / boardWidth);
-    const scale = fit * (0.92 + 0.08 * eased);
-    this.root.scaling.setAll(scale);
-    this.root.position.set(0, -(1 - eased) * visibleHeight * 0.18, distance);
-    for (const mesh of this.meshes) mesh.visibility = eased;
-  }
-
-  /**
-   * The redesigned board measures on screen what the design says: a texture pixel is
-   * 1/SCALE screen pixels. A board wider or taller than the window shrinks to fit.
-   */
-  private placeSheet(eased: number, visibleWidth: number, visibleHeight: number): void {
-    const screenHeight = this.screenHeight();
-    const perPixel = visibleHeight / screenHeight / BoardTheme.SCALE;
-    let width = this.sheetSize.width * perPixel;
-    let height = this.sheetSize.height * perPixel;
-    const shrink = Math.min(1, (visibleWidth * 0.98) / width, (visibleHeight * 0.98) / height);
-    width *= shrink;
-    height *= shrink;
-    this.sheetPlane.scaling.set(width, height, 1);
-    this.root.scaling.setAll(0.94 + 0.06 * eased);
-    this.root.position.set(0, -(1 - eased) * visibleHeight * 0.12, PanelSurface.DISTANCE);
-    this.sheetPlane.visibility = this.ready ? eased : 0;
-  }
-
-  /** After the first layout of a new board: trims it to its content and shows it. */
-  private fitSheet(): void {
-    if (!this.sheet || this.ready) return;
-    const maxPaper = this.screenHeight() * BoardTheme.size.maxScreenHeight - BoardTheme.size.frame * 2;
-    const height = this.sheet.fit(maxPaper);
-    if (height === null) return;
-    this.resizeSheet(this.sheet.textureWidth, height);
-    this.ready = true;
-    this.place();
-  }
-
-  private resizeSheet(width: number, height: number): void {
-    this.sheetSize = { width, height };
-    this.sheetTexture.scaleTo(width, height);
-  }
-
-  /** Height of the canvas in CSS pixels. */
-  private screenHeight(): number {
-    return this.scene.getEngine().getRenderingCanvasClientRect()?.height || window.innerHeight;
-  }
-
-  private onKeyDown(event: KeyboardEvent): void {
-    if (event.code !== "Escape" || !this.isOpen || !this.view?.closable) return;
-    event.preventDefault();
-    this.close();
-  }
-
-  private clearSheet(): void {
-    for (const control of [...this.texture.rootContainer.children]) control.dispose();
-    for (const control of [...this.sheetTexture.rootContainer.children]) control.dispose();
-    this.sheet = null;
-  }
-
-  /** Unlit wood, so the board looks the same in the sun and inside the salas. */
-  private woodMaterial(): StandardMaterial {
-    const material = new StandardMaterial("panelWood", this.scene);
-    const textures = new TextureFactory(this.scene).wood("#5e3822", 23);
-    textures.normal.dispose();
-    const wood = textures.albedo;
-    wood.uScale = 2;
-    material.emissiveTexture = wood;
-    material.diffuseColor = Color3.Black();
-    material.specularColor = Color3.Black();
-    material.disableLighting = true;
-    return material;
+    this.surface.dispose();
   }
 }
+
+/** A view the board can show. */
+export type SurfaceView = BoardView;
