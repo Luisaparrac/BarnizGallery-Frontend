@@ -110,6 +110,8 @@ export class Experience {
     this.stage = stage;
     this.stats?.dispose();
     this.stats = this.params.has("debug") ? new DebugStats(stage.scene) : null;
+    // With ?debug the current scene is reachable from the console (and the visual tests).
+    if (this.params.has("debug")) (window as unknown as { museoScene?: unknown }).museoScene = stage.scene;
   }
 
   private hide(): void {

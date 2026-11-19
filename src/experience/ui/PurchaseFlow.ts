@@ -6,7 +6,7 @@ import { services } from "../../services/ServiceRegistry";
 import { Formatter } from "../../utils/Formatter";
 import type { WorldPiece } from "../world/WorldTypes";
 import { ErrorText } from "./ErrorText";
-import type { PanelView } from "./PanelView";
+import type { SurfaceView } from "./PanelSurface";
 import type { VisitorSession } from "./VisitorSession";
 import { AddressFormView } from "./views/AddressFormView";
 import { CartView } from "./views/CartView";
@@ -20,7 +20,7 @@ import { PieceView } from "./views/PieceView";
 
 /** Where the purchase boards are shown (the experience's board). */
 export interface PurchaseHost {
-  show(view: PanelView): void;
+  show(view: SurfaceView): void;
   /** Closes the board and gives the walk back. */
   close(): void;
 }

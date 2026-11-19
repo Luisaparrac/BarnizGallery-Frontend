@@ -6,9 +6,8 @@ import { services } from "../../services/ServiceRegistry";
 import { DoorInteractable, PieceInteractable, StallInteractable, type Interactable } from "../world/Interactable";
 import type { World } from "../world/World";
 import { Hud } from "./Hud";
-import { PanelSurface } from "./PanelSurface";
+import { PanelSurface, type SurfaceView } from "./PanelSurface";
 import { PurchaseFlow } from "./PurchaseFlow";
-import type { PanelView } from "./PanelView";
 import { UiLayer } from "./UiLayer";
 import { VisitorSession } from "./VisitorSession";
 import { ControlsView } from "./views/ControlsView";
@@ -85,7 +84,7 @@ export class ExperienceUi {
     else this.onPanelClosed();
   }
 
-  open(view: PanelView): void {
+  open(view: SurfaceView): void {
     this.world.setPlaying(false);
     this.hud.setVisible(false);
     this.layer.usePanelPointer(true);
