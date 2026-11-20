@@ -120,6 +120,8 @@ export class PhotoPass {
       this.active = room ?? null;
       this.setCameraOn(!!room);
     }
+    // A photo may be hidden (an empty frame of the design wall): its copy follows it.
+    this.active?.overlays.forEach((overlay, index) => overlay.setEnabled(this.active!.photos[index].mesh.isEnabled()));
     this.avatarProxy.setEnabled(!!room && thirdPerson);
     this.avatarProxy.position.set(avatar.x, 0.88, avatar.z);
   }

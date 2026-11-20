@@ -30,14 +30,21 @@ export class PhotoTexture {
   constructor(
     private readonly scene: Scene,
     private readonly name: string,
-    url: string,
+    url: string | null,
   ) {
     this.image.crossOrigin = "anonymous";
     this.image.onload = () => {
       this.loaded = true;
       this.backdrop = PhotoTexture.edgeColor(this.image);
-      this.apply();
+      this.apply(true);
     };
+    if (url) this.image.src = url;
+  }
+
+  /** Shows another image (the design wall changes with the visitor's commissions). */
+  setUrl(url: string): void {
+    if (this.image.src === url || this.image.getAttribute("src") === url) return;
+    this.loaded = false;
     this.image.src = url;
   }
 
@@ -62,8 +69,9 @@ export class PhotoTexture {
     this.current = null;
   }
 
-  private apply(): void {
-    if (this.wanted === this.detail || (this.wanted !== 0 && !this.loaded)) return;
+  /** Draws the texture for the wanted detail; `redraw` also repaints it when only the image changed. */
+  private apply(redraw = false): void {
+    if ((this.wanted === this.detail && !(redraw && this.detail)) || (this.wanted !== 0 && !this.loaded)) return;
     const previous = this.current;
     this.detail = this.wanted;
     this.current = this.detail ? this.draw(this.detail) : null;
@@ -100,7 +108,13 @@ export class PhotoTexture {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return "#e7e1d6";
     ctx.drawImage(image, 0, 0, sample, sample);
-    const { data } = ctx.getImageData(0, 0, sample, sample);
+    let data: Uint8ClampedArray;
+    try {
+      data = ctx.getImageData(0, 0, sample, sample).data;
+    } catch {
+      // An image from another site without CORS cannot be read: use the neutral backdrop.
+      return "#e7e1d6";
+    }
     let r = 0;
     let g = 0;
     let b = 0;
