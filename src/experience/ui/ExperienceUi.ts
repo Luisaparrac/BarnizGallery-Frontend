@@ -187,7 +187,7 @@ export class ExperienceUi {
       return design.requestId ? this.i18n.t("hall.promptDesign", { title: design.label }) : this.i18n.t("hall.promptExample");
     }
     if (item instanceof StallInteractable) return this.i18n.t(ExperienceUi.STALL_PROMPTS[item.kind]);
-    if (item instanceof PieceInteractable) return this.i18n.t("world.promptPiece", { title: item.vitrina.piece.title });
+    if (item instanceof PieceInteractable) return this.i18n.t("world.promptPiece", { title: item.frame.piece.title });
     if (item instanceof DoorInteractable) {
       const { room } = item.sala;
       const text = this.i18n.t("world.promptDoor", { name: room.masterName, count: room.pieces.length });

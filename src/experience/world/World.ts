@@ -6,6 +6,7 @@ import { QualityManager } from "./core/QualityManager";
 import { Fountain } from "./Fountain";
 import { InputController } from "./InputController";
 import { CashierStall } from "./CashierStall";
+import type { PieceMetadata } from "./ArtworkFrame";
 import { CommissionHall } from "./CommissionHall";
 import type { HallMetadata } from "./CommissionHallInterior";
 import { DesignFrameInteractable, DoorInteractable, HallDoorInteractable, OffersBoardInteractable, PieceInteractable, StallInteractable, type Interactable } from "./Interactable";
@@ -29,7 +30,6 @@ import { SkyDome } from "./SkyDome";
 import { StreetFurniture } from "./StreetFurniture";
 import { Terrain } from "./Terrain";
 import { Vegetation } from "./Vegetation";
-import type { PieceMetadata } from "./Vitrina";
 import type { CameraMode, HallBoard, HallDesign, HallTexts, StallKind, WorldPiece, WorldRoom } from "./WorldTypes";
 
 /**
@@ -45,7 +45,7 @@ export class World {
   readonly input: InputController;
   readonly interactions = new InteractionSystem();
   readonly salas = new Map<string, SalaBuilding>();
-  /** The visitor chose a piece (E in front of a case, or a click on it). */
+  /** The visitor chose a piece (E in front of its frame, or a click on it). */
   readonly pieceSelected = new Signal<WorldPiece>();
   /** The visitor used a counter (the welcome kiosk, the cashier or the commissions hall's front desk). */
   readonly stallUsed = new Signal<StallKind>();
@@ -155,9 +155,9 @@ export class World {
     this.salas.forEach((sala) => {
       sala.setRecommended(sala.room.recommended);
       this.interactions.register(new DoorInteractable(sala.doorPoint, sala));
-      for (const vitrina of sala.interior.vitrinas) {
-        this.pieces.set(vitrina.piece.id, vitrina.piece);
-        this.interactions.register(new PieceInteractable(vitrina.viewPoint, vitrina));
+      for (const frame of sala.interior.frames) {
+        this.pieces.set(frame.piece.id, frame.piece);
+        this.interactions.register(new PieceInteractable(frame.viewPoint, frame));
       }
     });
     stalls.forEach((stall) => this.interactions.register(new StallInteractable(stall.standPoint, stall.kind)));
@@ -179,7 +179,7 @@ export class World {
   }
 
   private activate(item: Interactable): void {
-    if (item instanceof PieceInteractable) this.pieceSelected.emit(item.vitrina.piece);
+    if (item instanceof PieceInteractable) this.pieceSelected.emit(item.frame.piece);
     else if (item instanceof StallInteractable) this.stallUsed.emit(item.kind);
     else if (item instanceof DesignFrameInteractable) this.designPicked.emit(item.index);
     else if (item instanceof OffersBoardInteractable) this.offersPicked.emit();

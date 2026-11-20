@@ -5,14 +5,20 @@ export type CameraMode = "FIRST_PERSON" | "THIRD_PERSON";
 /** The counters of the plaza: the welcome kiosk (tastes), the cashier and the front desk of the commissions hall. */
 export type StallKind = "welcome" | "cashier" | "commissions";
 
-/** One piece shown inside a sala: a 2D photo in a glass display case. Texts arrive already translated. */
+/** One piece shown in a sala: its main photo, framed on the wall. Texts arrive already translated. */
 export interface WorldPiece {
   id: Id;
   slug: string;
   title: string;
   /** Usable image source (real URL or resolved demo picture). */
   photoUrl: string;
-  /** Short line under the title on the plaque: price, "exhibition only", "in auction"... */
+  /** Width / height of the photo, so the frame keeps its real proportion. */
+  photoAspect: number;
+  masterName: string;
+  technique: string;
+  /** "40 × 20 × 14 cm", or empty when the measures are unknown. */
+  dimensions: string;
+  /** Last line of the plaque: price, "exhibition only", "in auction"... */
   caption: string;
 }
 

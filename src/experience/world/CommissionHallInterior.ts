@@ -372,12 +372,13 @@ export class CommissionHallInterior {
   private imageMaterial(name: string, texture: PhotoTexture): StandardMaterial {
     const material = new StandardMaterial(name, this.ctx.scene);
     material.disableLighting = true;
+    material.diffuseColor = Color3.Black();
     material.specularColor = Color3.Black();
     const placeholder = Color3.FromHexString("#e7e1d6");
-    material.diffuseColor = placeholder;
+    material.emissiveColor = placeholder;
     texture.changed.subscribe((value) => {
-      material.diffuseTexture = value;
-      material.diffuseColor = value ? new Color3(0.8, 0.8, 0.8) : placeholder;
+      material.emissiveTexture = value;
+      material.emissiveColor = value ? Color3.Black() : placeholder;
     });
     return material;
   }

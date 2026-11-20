@@ -1,6 +1,6 @@
 import type { Vector3 } from "@babylonjs/core";
 import type { SalaBuilding } from "./SalaBuilding";
-import type { Vitrina } from "./Vitrina";
+import type { ArtworkFrame } from "./ArtworkFrame";
 import type { StallKind } from "./WorldTypes";
 
 /** Something the visitor can use with the E key when standing close enough. */
@@ -33,12 +33,12 @@ export class DoorInteractable extends Interactable {
   }
 }
 
-/** A display case inside a sala. */
+/** A framed piece on the wall of a sala. */
 export class PieceInteractable extends Interactable {
   constructor(
     position: Vector3,
-    readonly vitrina: Vitrina,
-    radius = 1.3,
+    readonly frame: ArtworkFrame,
+    radius = 1.6,
   ) {
     super(position, radius);
   }

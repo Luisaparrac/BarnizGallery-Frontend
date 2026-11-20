@@ -1,8 +1,8 @@
 import { MeshBuilder, Vector3, type Material, type Mesh, type TransformNode } from "@babylonjs/core";
+import { ArtworkFrame, type WallSpot } from "./ArtworkFrame";
 import { MeshBatcher } from "./MeshBatcher";
 import { MeshFactory } from "./MeshFactory";
 import type { SceneContext } from "./SceneContext";
-import { Vitrina } from "./Vitrina";
 import type { WorldRoom } from "./WorldTypes";
 
 /** Inner size of a sala, in the building's local frame (door on the -Z side). */
@@ -14,27 +14,17 @@ export interface SalaFrame {
   doorHeight: number;
 }
 
-/** Spots for display cases: x, z and the Y rotation that turns the case front towards the room. */
-const CASE_SPOTS: readonly [number, number, number][] = [
-  [0, 4.2, 0],
-  [-3.9, 4.2, 0],
-  [3.9, 4.2, 0],
-  [-6.25, 1.9, -Math.PI / 2],
-  [6.25, 1.9, Math.PI / 2],
-  [-6.25, -1.7, -Math.PI / 2],
-  [6.25, -1.7, Math.PI / 2],
-  [-2.3, 0.2, 0],
-  [2.3, 0.2, 0],
-];
-
-/** Inside of a master's sala: wooden floor, beamed ceiling, painted walls, a name sign and the display cases. */
+/**
+ * Inside of a master's sala: wooden floor, beamed ceiling, painted walls, a name sign, a bench in the
+ * middle and the pieces framed on the left, right and back walls, each under its own spot.
+ */
 export class SalaInterior {
   static readonly CEILING = 4.4;
   /** Most pieces one sala can show. */
-  static readonly CAPACITY = CASE_SPOTS.length;
+  static readonly CAPACITY = 6;
 
-  readonly vitrinas: Vitrina[] = [];
-  /** Static parts of the room and of its cases, merged per material at the end of `build()`. */
+  readonly frames: ArtworkFrame[] = [];
+  /** Static parts of the room and of its frames, merged per material at the end of `build()`. */
   private readonly batcher = new MeshBatcher();
 
   constructor(
@@ -47,16 +37,18 @@ export class SalaInterior {
   build(): void {
     this.buildRoom();
     this.buildSign();
-    this.room.pieces.slice(0, SalaInterior.CAPACITY).forEach((piece, index) => {
-      const [x, z, facing] = CASE_SPOTS[index];
-      const vitrina = new Vitrina(this.ctx, this.root, piece, x, z, facing, this.batcher);
-      vitrina.build();
-      this.vitrinas.push(vitrina);
-      this.ceilingLamp(x, z);
+    this.buildBench();
+    const pieces = this.room.pieces.slice(0, SalaInterior.CAPACITY);
+    const spots = this.wallSpots(pieces.length);
+    pieces.forEach((piece, index) => {
+      const frame = new ArtworkFrame(this.ctx, this.root, piece, spots[index], this.batcher, SalaInterior.CEILING);
+      frame.build();
+      this.frames.push(frame);
     });
-    // The merge bakes world positions, so the case roots must be up to date first.
+    for (const [x, z] of [[0, -2.6], [0, 1.6]] as const) this.ceilingLamp(x, z);
+    // The merge bakes world positions, so the frame roots must be up to date first.
     this.root.computeWorldMatrix(true);
-    this.vitrinas.forEach((vitrina) => vitrina.root.computeWorldMatrix(true));
+    this.frames.forEach((frame) => frame.root.computeWorldMatrix(true));
     const merged = this.batcher.merge(`${this.room.key}-interior`);
     for (const mesh of merged) {
       mesh.isPickable = false;
@@ -67,8 +59,9 @@ export class SalaInterior {
       world: this.root.getWorldMatrix(),
       min: new Vector3(-hw, 0, fz),
       max: new Vector3(hw, SalaInterior.CEILING, bz),
-      photos: this.vitrinas.flatMap((vitrina) => (vitrina.photo ? [vitrina.photo] : [])),
-      occluders: merged,
+      photos: this.frames.flatMap((frame) => (frame.photo ? [frame.photo] : [])),
+      // The spot beams and halos are see-through: they must not hide the photos.
+      occluders: merged.filter((mesh) => !mesh.material?.needAlphaBlending()),
     });
   }
 
@@ -104,7 +97,44 @@ export class SalaInterior {
     this.part("railRight", 0.08, 0.06, depth, hw - 0.06, wain + 0.03, midZ, m.brass);
   }
 
-  /** Board above the back cases with the master's name and workshop. */
+  /**
+   * Where the pictures hang, well spaced, by how many there are: the back wall first, then the side
+   * walls (the front wall has the door). The frames face the middle of the room.
+   */
+  private wallSpots(count: number): WallSpot[] {
+    const { innerHalfWidth: hw, innerBackZ: bz } = this.frame;
+    const skin = 0.02;
+    const back = (x: number): WallSpot => ({ x, z: bz - skin, facing: 0 });
+    const left = (z: number): WallSpot => ({ x: -hw + skin, z, facing: -Math.PI / 2 });
+    const right = (z: number): WallSpot => ({ x: hw - skin, z, facing: Math.PI / 2 });
+    const layouts: WallSpot[][] = [
+      [],
+      [back(0)],
+      [back(-3.4), back(3.4)],
+      [back(0), left(0.4), right(0.4)],
+      [back(-3.4), back(3.4), left(0.4), right(0.4)],
+      [back(0), left(-2.3), left(2.3), right(-2.3), right(2.3)],
+      [back(-3.4), back(3.4), left(-2.3), left(2.3), right(-2.3), right(2.3)],
+    ];
+    return layouts[Math.min(count, layouts.length - 1)];
+  }
+
+  /** A wooden bench in the middle, facing the back wall. */
+  private buildBench(): void {
+    const m = this.ctx.materials;
+    const z = -0.6;
+    this.part("benchSeat", 2.6, 0.08, 0.55, 0, 0.46, z, m.woodWarm, 2);
+    this.part("benchApron", 2.5, 0.12, 0.5, 0, 0.36, z, m.woodDark, 2);
+    for (const side of [-1, 1]) this.part("benchLeg", 0.1, 0.42, 0.48, side * 1.1, 0.21, z, m.woodDark, 2);
+    const collider = MeshBuilder.CreateBox(`${this.room.key}-benchCollider`, { width: 2.7, height: 0.9, depth: 0.7 }, this.ctx.scene);
+    collider.parent = this.root;
+    collider.position.set(0, 0.45, z);
+    collider.isVisible = false;
+    collider.isPickable = false;
+    collider.checkCollisions = true;
+  }
+
+  /** Board above the back pictures with the master's name and workshop. */
   private buildSign(): void {
     const sign = MeshBuilder.CreatePlane(`${this.room.key}-insideSign`, { width: 6.4, height: 0.9 }, this.ctx.scene);
     sign.material = this.ctx.materials.signBoard([this.room.masterName, this.room.insideSign], 1536, 216);

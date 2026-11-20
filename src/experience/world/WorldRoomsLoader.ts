@@ -37,6 +37,8 @@ export class WorldRoomsLoader {
         pieces.forEach((piece) => slugs.set(piece.id, piece.slug));
         return this.room(summary, pieces, recommended.has(summary.store.id));
       });
+    // The frames are built with the photos' real proportions, so those are read first.
+    await Promise.all(rooms.flatMap((room) => room.pieces).map(async (piece) => (piece.photoAspect = await WorldRoomsLoader.aspectOf(piece.photoUrl))));
     return { rooms, slugs };
   }
 
@@ -61,8 +63,25 @@ export class WorldRoomsLoader {
       slug: artwork.slug,
       title: this.i18n.pick(artwork.titleEs, artwork.titleEn),
       photoUrl: ArtworkImageFactory.resolve(photo?.url),
+      photoAspect: 1,
+      masterName: row.masterName,
+      technique: artwork.technique,
+      dimensions: artwork.widthCm || artwork.heightCm ? this.format.centimeters(artwork.widthCm, artwork.heightCm, artwork.depthCm) : "",
       caption: this.caption(artwork),
     };
+  }
+
+  /** Width / height of an image (1 when it cannot be read). */
+  static async aspectOf(url: string): Promise<number> {
+    if (!url) return 1;
+    try {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      return image.naturalWidth && image.naturalHeight ? image.naturalWidth / image.naturalHeight : 1;
+    } catch {
+      return 1;
+    }
   }
 
   private caption(artwork: Artwork): string {

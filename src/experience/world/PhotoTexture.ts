@@ -13,6 +13,8 @@ type Detail = 0 | 1024 | 2048;
 export class PhotoTexture {
   /** Margin around the photo, so the piece never touches the frame. */
   private static readonly MARGIN = 0.03;
+  /** Backdrop under transparent photos. */
+  private static readonly STUDIO = "#f1ece2";
   private static readonly LOAD_DISTANCE = 30;
   private static readonly DROP_DISTANCE = 40;
   private static readonly SHARP_DISTANCE = 4.5;
@@ -31,6 +33,11 @@ export class PhotoTexture {
     private readonly scene: Scene,
     private readonly name: string,
     url: string | null,
+    /**
+     * "square": the photo fits a square texture over a backdrop of its edge colour (design frames).
+     * "exact": the texture has the photo's own proportions, with nothing added (framed pictures).
+     */
+    private readonly fit: "square" | "exact" = "square",
   ) {
     this.image.crossOrigin = "anonymous";
     this.image.onload = () => {
@@ -80,21 +87,34 @@ export class PhotoTexture {
   }
 
   private draw(size: number): DynamicTexture {
-    const texture = new DynamicTexture(`${this.name}-${size}`, { width: size, height: size }, this.scene, true, Texture.TRILINEAR_SAMPLINGMODE);
+    const natural = { width: this.image.naturalWidth || 1, height: this.image.naturalHeight || 1 };
+    const exact = this.fit === "exact";
+    // In "exact" mode the longest side gets the full resolution and the other keeps the proportion.
+    const longest = Math.max(natural.width, natural.height);
+    const width = exact ? Math.max(1, Math.round((size * natural.width) / longest)) : size;
+    const height = exact ? Math.max(1, Math.round((size * natural.height) / longest)) : size;
+    const texture = new DynamicTexture(`${this.name}-${size}`, { width, height }, this.scene, true, Texture.TRILINEAR_SAMPLINGMODE);
     texture.anisotropicFilteringLevel = this.scene.getEngine().getCaps().maxAnisotropy || 16;
     texture.wrapU = texture.wrapV = Texture.CLAMP_ADDRESSMODE;
     const ctx = texture.getContext() as CanvasRenderingContext2D;
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    // Fit the whole photo (tall vases and masks keep their top and base) and fill the rest with the
-    // colour of the photo's edges, so it reads as one backdrop.
-    ctx.fillStyle = this.backdrop;
-    ctx.fillRect(0, 0, size, size);
-    const inner = size * (1 - PhotoTexture.MARGIN * 2);
-    const scale = Math.min(inner / this.image.naturalWidth, inner / this.image.naturalHeight);
-    const width = this.image.naturalWidth * scale;
-    const height = this.image.naturalHeight * scale;
-    ctx.drawImage(this.image, (size - width) / 2, (size - height) / 2, width, height);
+    if (exact) {
+      // Photos with a transparent background (some PNG) sit on a light studio backdrop, not black.
+      ctx.fillStyle = PhotoTexture.STUDIO;
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(this.image, 0, 0, width, height);
+    } else {
+      // Fit the whole photo (tall vases and masks keep their top and base) and fill the rest with the
+      // colour of the photo's edges, so it reads as one backdrop.
+      ctx.fillStyle = this.backdrop;
+      ctx.fillRect(0, 0, size, size);
+      const inner = size * (1 - PhotoTexture.MARGIN * 2);
+      const scale = Math.min(inner / natural.width, inner / natural.height);
+      const drawnWidth = natural.width * scale;
+      const drawnHeight = natural.height * scale;
+      ctx.drawImage(this.image, (size - drawnWidth) / 2, (size - drawnHeight) / 2, drawnWidth, drawnHeight);
+    }
     texture.update();
     return texture;
   }
@@ -123,9 +143,11 @@ export class PhotoTexture {
       for (let x = 0; x < sample; x++) {
         if (x > 0 && y > 0 && x < sample - 1 && y < sample - 1) continue;
         const i = (y * sample + x) * 4;
-        r += data[i];
-        g += data[i + 1];
-        b += data[i + 2];
+        // Transparent pixels count as the studio backdrop.
+        const alpha = data[i + 3] / 255;
+        r += data[i] * alpha + 241 * (1 - alpha);
+        g += data[i + 1] * alpha + 236 * (1 - alpha);
+        b += data[i + 2] * alpha + 226 * (1 - alpha);
         count++;
       }
     }
