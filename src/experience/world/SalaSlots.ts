@@ -14,11 +14,11 @@ export interface SalaSlot {
 export class SalaSlots {
   static readonly slots: readonly SalaSlot[] = [
     { x: -14, z: 40, facing: 0, preferredKey: "valderrama" },
-    { x: 14, z: 40, facing: 0, preferredKey: "naria" },
+    { x: 14, z: 40, facing: 0, preferredKey: "granja" },
     { x: 42, z: 11, facing: Math.PI / 2, preferredKey: "cabrera" },
-    { x: 42, z: -11, facing: Math.PI / 2, preferredKey: "hernaza" },
-    { x: -42, z: 11, facing: -Math.PI / 2, preferredKey: "uzcategui" },
-    { x: -42, z: -11, facing: -Math.PI / 2, preferredKey: "chavez" },
+    { x: 42, z: -11, facing: Math.PI / 2, preferredKey: "lasso" },
+    { x: -42, z: 11, facing: -Math.PI / 2, preferredKey: "caguasongo" },
+    { x: -42, z: -11, facing: -Math.PI / 2, preferredKey: "castrillon" },
   ];
 
   static get capacity(): number {
