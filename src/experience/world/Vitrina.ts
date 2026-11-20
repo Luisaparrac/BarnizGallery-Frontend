@@ -19,6 +19,8 @@ export interface PieceMetadata {
 export class Vitrina {
   static readonly PLINTH_HEIGHT = 1.0;
   static readonly SIZE = 0.95;
+  /** Beyond this distance the glass, photo and plaque are a few pixels through the door: not drawn (LOD). */
+  static readonly DETAIL_DISTANCE = 22;
 
   readonly root: TransformNode;
   private readonly meshes: Mesh[] = [];
@@ -97,7 +99,10 @@ export class Vitrina {
 
   private register(mesh: Mesh, pickable: boolean): Mesh {
     mesh.isPickable = pickable;
-    if (pickable) mesh.metadata = { pieceId: this.piece.id } satisfies PieceMetadata;
+    if (pickable) {
+      mesh.metadata = { pieceId: this.piece.id } satisfies PieceMetadata;
+      mesh.addLODLevel(Vitrina.DETAIL_DISTANCE, null);
+    }
     this.ctx.interior.add(mesh);
     this.meshes.push(mesh);
     return mesh;
