@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "import:obras": "node scripts/import-obras.ts"
+    "import:obras": "node scripts/import-obras.ts",
+    "seed:obras": "node scripts/generate-seed.ts"
   },
   "dependencies": {
     "@babylonjs/core": "^8.56.2",
