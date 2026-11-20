@@ -97,20 +97,30 @@ export class BabylonPanelSurface {
   }
 
   private animate(delta: number): void {
-    if (!this.ready) return;
+    // Still waiting for its first layout: if it was closed meanwhile, it goes away at once.
+    if (!this.ready) {
+      if (this.target === 0) this.finishClosing();
+      return;
+    }
     if (this.progress === this.target) {
       if (this.target === 1) this.place();
+      // Closed before it was ever shown: nothing to animate, but the board must still go away.
+      else if (this.view) this.finishClosing();
       return;
     }
     const step = Math.min(delta, 0.05) / BabylonPanelSurface.ANIMATION_SECONDS;
     this.progress = this.target > this.progress ? Math.min(1, this.progress + step) : Math.max(0, this.progress - step);
     this.place();
-    if (this.target === 0 && this.progress === 0) {
-      this.root.setEnabled(false);
-      this.clear();
-      this.view = null;
-      this.closed.emit();
-    }
+    if (this.target === 0 && this.progress === 0) this.finishClosing();
+  }
+
+  private finishClosing(): void {
+    this.progress = 0;
+    this.ready = true;
+    this.root.setEnabled(false);
+    this.clear();
+    this.view = null;
+    this.closed.emit();
   }
 
   /**
