@@ -3,6 +3,7 @@ import "./kit/dom-ui.css";
 
 export interface HudLabels {
   cart: string;
+  notifications: string;
   account: string;
   controls: string;
   clickToLook: string;
@@ -11,10 +12,11 @@ export interface HudLabels {
 /**
  * What stays on screen while walking, in HTML over the canvas so it is always crisp: the
  * interaction prompt, the crosshair, a hint to capture the mouse and the Cart (with its
- * counter), Account and Controls buttons.
+ * counter), notifications bell (with the unread count), Account and Controls buttons.
  */
 export class Hud {
   readonly cartPressed = new Signal();
+  readonly notificationsPressed = new Signal();
   readonly accountPressed = new Signal();
   readonly controlsPressed = new Signal();
 
@@ -25,6 +27,7 @@ export class Hud {
   private readonly cart: HTMLButtonElement;
   private readonly account: HTMLButtonElement;
   private readonly badge: HTMLSpanElement;
+  private readonly bellBadge: HTMLSpanElement;
   private locked = false;
   private firstPerson = false;
 
@@ -36,8 +39,17 @@ export class Hud {
     this.badge = this.element("span", "mu-hud-badge");
     this.badge.hidden = true;
     this.cart.append(this.badge);
+    const bell = this.button("", this.notificationsPressed);
+    bell.classList.add("is-icon");
+    bell.setAttribute("aria-label", labels.notifications);
+    bell.title = labels.notifications;
+    bell.innerHTML =
+      '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3a6 6 0 0 0-6 6v3.6l-1.6 2.7A1 1 0 0 0 5.3 17h13.4a1 1 0 0 0 .9-1.7L18 12.6V9a6 6 0 0 0-6-6Zm-2.5 15.5a2.5 2.5 0 0 0 5 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    this.bellBadge = this.element("span", "mu-hud-badge");
+    this.bellBadge.hidden = true;
+    bell.append(this.bellBadge);
     this.account = this.button(labels.account, this.accountPressed);
-    toolbar.append(this.cart, this.account, this.button(labels.controls, this.controlsPressed));
+    toolbar.append(this.cart, bell, this.account, this.button(labels.controls, this.controlsPressed));
 
     this.crosshair = this.element("div", "mu-hud-crosshair");
     this.prompt = this.element("div", "mu-hud-prompt");
@@ -73,6 +85,12 @@ export class Hud {
   setCartCount(count: number | null): void {
     this.badge.hidden = count === null || count <= 0;
     this.badge.textContent = count !== null && count > 9 ? "9+" : String(count ?? 0);
+  }
+
+  /** Number of unread notifications; null or 0 hides the counter. */
+  setNotificationCount(count: number | null): void {
+    this.bellBadge.hidden = count === null || count <= 0;
+    this.bellBadge.textContent = count !== null && count > 9 ? "9+" : String(count ?? 0);
   }
 
   /** Buttons without a board yet stay visible but cannot be pressed. */

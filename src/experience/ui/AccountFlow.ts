@@ -42,7 +42,8 @@ export class AccountFlow {
     );
   }
 
-  private async showOrders(): Promise<void> {
+  /** My orders (also opened from a notification about an order). */
+  async showOrders(): Promise<void> {
     try {
       const orders = await services.commerce.listMyOrders();
       this.host.show(new OrdersView(this.i18n, new Formatter(this.i18n.language), orders, { pay: (order) => void this.purchase.payOrder(order.id), back: () => this.show() }));

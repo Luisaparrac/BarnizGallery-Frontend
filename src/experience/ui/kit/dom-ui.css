@@ -660,6 +660,81 @@
   cursor: default;
 }
 
+.mu-hud-button.is-icon {
+  width: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+/* Pop-up notifications, under the toolbar; they stay visible while a board is open. */
+.mu-toasts {
+  position: fixed;
+  top: 68px;
+  right: 16px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(360px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.mu-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid rgba(201, 162, 39, 0.55);
+  border-radius: 14px;
+  background: rgba(26, 16, 12, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fffdf8;
+  font: 500 14px var(--mu-body);
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  animation: mu-toast-in 220ms ease-out;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.mu-toast.is-leaving {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+.mu-toast-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.mu-toast-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mu-toast-text strong {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+@keyframes mu-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mu-toast {
+    animation: none;
+    transition: none;
+  }
+}
+
 .mu-hud-badge {
   position: absolute;
   top: -6px;

@@ -4,6 +4,12 @@ import type { Localizer } from "../../i18n/Localizer";
 import { services } from "../../services/ServiceRegistry";
 import { CommissionHallInterior } from "../world/CommissionHallInterior";
 import { WhatsAppLink } from "./WhatsAppLink";
+import { NotificationCenter } from "./NotificationCenter";
+import { ToastStack } from "./ToastStack";
+import { MessageView } from "./views/MessageView";
+import { NotificationsView } from "./views/NotificationsView";
+import type { AppNotification } from "../../domain/messaging";
+import { Formatter } from "../../utils/Formatter";
 import { ContactInteractable, DesignFrameInteractable, DoorInteractable, HallDoorInteractable, OffersBoardInteractable, PieceInteractable, StallInteractable, type Interactable } from "../world/Interactable";
 import type { World } from "../world/World";
 import { Hud } from "./Hud";
@@ -37,6 +43,8 @@ export class ExperienceUi {
   private readonly tastes: TasteFlow;
   private readonly commissions: CommissionFlow;
   private readonly account: AccountFlow;
+  private readonly notifications: NotificationCenter;
+  private readonly toasts = new ToastStack();
   private stopWatchingCart: (() => void) | null = null;
   private readonly hallLoader: CommissionHallLoader;
   private hallData: HallData | null = null;
@@ -52,6 +60,7 @@ export class ExperienceUi {
     this.surface = new PanelSurface(world.scene, this.layer, i18n.t("ui.close"));
     this.hud = new Hud({
       cart: i18n.t("hud.cart"),
+      notifications: i18n.t("notifications.title"),
       account: i18n.t("hud.account"),
       controls: i18n.t("hud.controls"),
       clickToLook: i18n.t("world.clickToLook"),
@@ -63,6 +72,7 @@ export class ExperienceUi {
     this.tastes = new TasteFlow(i18n, this.session, world, host);
     this.commissions = new CommissionFlow(i18n, this.session, host, this.purchase);
     this.account = new AccountFlow(i18n, this.session, host, this.purchase, this.commissions);
+    this.notifications = new NotificationCenter(this.session);
     this.hallLoader = new CommissionHallLoader(i18n, CommissionHallInterior.FRAMES);
     this.hud.setFirstPerson(world.cameraMode === "FIRST_PERSON");
     world.pointerBlocked = () => this.layer.pointerOverHud;
@@ -73,6 +83,11 @@ export class ExperienceUi {
       world.player.modeChanged.subscribe((mode) => this.hud.setFirstPerson(mode === "FIRST_PERSON")),
       this.hud.controlsPressed.subscribe(() => this.open(this.controlsView(false))),
       this.hud.cartPressed.subscribe(() => void this.purchase.showCart()),
+      this.hud.notificationsPressed.subscribe(() => void this.showNotifications()),
+      this.notifications.countChanged.subscribe((count) => this.hud.setNotificationCount(count)),
+      this.notifications.arrived.subscribe((item) =>
+        this.toasts.show({ icon: NotificationsView.iconOf(item.type), title: item.title, body: item.body, open: () => void this.openNotification(item) }),
+      ),
       this.hud.accountPressed.subscribe(() => this.account.show()),
       world.pieceSelected.subscribe((piece) => void this.purchase.showPiece(piece)),
       world.stallUsed.subscribe((kind) => {
@@ -118,14 +133,17 @@ export class ExperienceUi {
   dispose(): void {
     this.unsubscribe.forEach((stop) => stop());
     this.stopWatchingCart?.();
+    this.notifications.dispose();
+    this.toasts.dispose();
     this.hud.dispose();
     this.surface.dispose();
     this.layer.dispose();
   }
 
   private onPanelClosed(): void {
-    // A board may have created a commission, generated designs or accepted an offer.
+    // A board may have created a commission, generated designs, accepted an offer or paid.
     this.refreshHall();
+    void this.notifications.check();
     this.layer.usePanelPointer(false);
     this.hud.setVisible(true);
     this.world.setPlaying(true);
@@ -161,6 +179,49 @@ export class ExperienceUi {
         .catch(() => this.hud.setCartCount(null));
     refresh();
     this.stopWatchingCart = AppEvents.cartChanged.subscribe(refresh);
+  }
+
+  /** The notifications board; without a session it asks to sign in first. */
+  private async showNotifications(): Promise<void> {
+    if (!this.session.user) {
+      this.open(
+        new MessageView(this.i18n.t("notifications.title"), this.i18n.t("notifications.signIn"), {
+          label: this.i18n.t("shop.signIn"),
+          run: () => this.purchase.requireSignIn(() => void this.showNotifications()),
+        }),
+      );
+      return;
+    }
+    try {
+      const list = await this.notifications.list();
+      this.open(
+        new NotificationsView(this.i18n, new Formatter(this.i18n.language), list, {
+          open: (item) => void this.openNotification(item),
+          markAllRead: async () => {
+            await this.notifications.markAllRead();
+            await this.showNotifications();
+          },
+        }),
+      );
+    } catch {
+      this.open(new MessageView(this.i18n.t("notifications.title"), this.i18n.t("shop.errorTitle")));
+    }
+  }
+
+  /**
+   * Marks a notification as read and opens what it is about: an order, a commission or an auction
+   * in 3D; the artisan and admin pages in the panel (new tab).
+   */
+  private async openNotification(item: AppNotification): Promise<void> {
+    if (!item.readAt) await this.notifications.markRead(item.id).catch(() => undefined);
+    const link = item.link ?? "";
+    const id = Number(/\/(\d+)$/.exec(link)?.[1]);
+    if (link.startsWith("/account/orders")) await this.account.showOrders();
+    else if (link.startsWith("/account/custom/") && id) await this.commissions.showRequest(id);
+    else if (/^\/(artisan|admin|messages)/.test(link)) {
+      window.open(`panel.html#${link}`, "_blank", "noopener");
+      this.surface.close();
+    } else this.surface.close();
   }
 
   /** Reloads what the commissions hall shows: the design wall and the offers board. */
