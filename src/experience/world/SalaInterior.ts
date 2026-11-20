@@ -3,7 +3,7 @@ import { ArtworkFrame, type WallSpot } from "./ArtworkFrame";
 import { MeshBatcher } from "./MeshBatcher";
 import { MeshFactory } from "./MeshFactory";
 import type { SceneContext } from "./SceneContext";
-import type { WorldRoom } from "./WorldTypes";
+import type { WorldPiece, WorldRoom } from "./WorldTypes";
 
 /** Inner size of a sala, in the building's local frame (door on the -Z side). */
 export interface SalaFrame {
@@ -22,6 +22,8 @@ export class SalaInterior {
   static readonly CEILING = 4.4;
   /** Most pieces one sala can show. */
   static readonly CAPACITY = 6;
+  /** Least distance from a picture (with its plaque) to a corner, door or window. */
+  private static readonly WALL_MARGIN = 0.8;
 
   readonly frames: ArtworkFrame[] = [];
   /** Where the visitor stands at the WhatsApp lectern (world), or null when the master has no number. */
@@ -42,7 +44,7 @@ export class SalaInterior {
     this.buildBench();
     if (this.room.whatsapp) this.buildContactLectern();
     const pieces = this.room.pieces.slice(0, SalaInterior.CAPACITY);
-    const spots = this.wallSpots(pieces.length);
+    const spots = this.wallSpots(pieces);
     pieces.forEach((piece, index) => {
       const frame = new ArtworkFrame(this.ctx, this.root, piece, spots[index], this.batcher, SalaInterior.CEILING);
       frame.build();
@@ -101,25 +103,45 @@ export class SalaInterior {
   }
 
   /**
-   * Where the pictures hang, well spaced, by how many there are: the back wall first, then the side
-   * walls (the front wall has the door). The frames face the middle of the room.
+   * Where the pictures hang: the back wall first, then the side walls (the front wall has the door).
+   * On each wall the pictures, each with its plaque, are centred with equal gaps and keep at least
+   * 0.8 m from the corners. The frames face the middle of the room.
    */
-  private wallSpots(count: number): WallSpot[] {
-    const { innerHalfWidth: hw, innerBackZ: bz } = this.frame;
+  private wallSpots(pieces: readonly WorldPiece[]): WallSpot[] {
+    const { innerHalfWidth: hw, innerFrontZ: fz, innerBackZ: bz } = this.frame;
     const skin = 0.02;
-    const back = (x: number): WallSpot => ({ x, z: bz - skin, facing: 0 });
-    const left = (z: number): WallSpot => ({ x: -hw + skin, z, facing: -Math.PI / 2 });
-    const right = (z: number): WallSpot => ({ x: hw - skin, z, facing: Math.PI / 2 });
-    const layouts: WallSpot[][] = [
-      [],
-      [back(0)],
-      [back(-3.4), back(3.4)],
-      [back(0), left(0.4), right(0.4)],
-      [back(-3.4), back(3.4), left(0.4), right(0.4)],
-      [back(0), left(-2.3), left(2.3), right(-2.3), right(2.3)],
-      [back(-3.4), back(3.4), left(-2.3), left(2.3), right(-2.3), right(2.3)],
+    const margin = SalaInterior.WALL_MARGIN;
+    // How many pictures go on the back, left and right walls, by how many there are.
+    const counts: [number, number, number] = ([
+      [0, 0, 0],
+      [1, 0, 0],
+      [2, 0, 0],
+      [1, 1, 1],
+      [2, 1, 1],
+      [1, 2, 2],
+      [2, 2, 2],
+    ] as const)[Math.min(pieces.length, 6)].slice() as [number, number, number];
+    // Each wall: the stretch it offers along the frame's own x, and how a position on it becomes a spot.
+    const walls = [
+      { from: -hw + margin, to: hw - margin, spot: (u: number): WallSpot => ({ x: u, z: bz - skin, facing: 0 }) },
+      { from: fz + margin, to: bz - margin, spot: (u: number): WallSpot => ({ x: -hw + skin, z: u, facing: -Math.PI / 2 }) },
+      { from: -(bz - margin), to: -(fz + margin), spot: (u: number): WallSpot => ({ x: hw - skin, z: -u, facing: Math.PI / 2 }) },
     ];
-    return layouts[Math.min(count, layouts.length - 1)];
+    const spots: WallSpot[] = [];
+    let next = 0;
+    walls.forEach((wall, index) => {
+      const hung = pieces.slice(next, next + counts[index]);
+      next += hung.length;
+      if (!hung.length) return;
+      const widths = hung.map((piece) => ArtworkFrame.unitWidth(piece));
+      const gap = Math.max(0.3, (wall.to - wall.from - widths.reduce((sum, width) => sum + width, 0)) / (hung.length + 1));
+      let u = wall.from + gap;
+      widths.forEach((width) => {
+        spots.push(wall.spot(u + width / 2 + ArtworkFrame.frameOffsetInUnit()));
+        u += width + gap;
+      });
+    });
+    return spots;
   }
 
   /**
@@ -221,10 +243,11 @@ export class SalaInterior {
 
   /** Board above the back pictures with the master's name and workshop. */
   private buildSign(): void {
-    const sign = MeshBuilder.CreatePlane(`${this.room.key}-insideSign`, { width: 6.4, height: 0.9 }, this.ctx.scene);
-    sign.material = this.ctx.materials.signBoard([this.room.masterName, this.room.insideSign], 1536, 216);
+    // High on the wall, above the picture lights, so no beam crosses it.
+    const sign = MeshBuilder.CreatePlane(`${this.room.key}-insideSign`, { width: 6.0, height: 0.62 }, this.ctx.scene);
+    sign.material = this.ctx.materials.signBoard([this.room.masterName, this.room.insideSign], 1600, 166);
     sign.parent = this.root;
-    sign.position.set(0, 3.35, this.frame.innerBackZ - 0.05);
+    sign.position.set(0, 3.88, this.frame.innerBackZ - 0.05);
     sign.isPickable = false;
     this.ctx.interior.add(sign);
   }

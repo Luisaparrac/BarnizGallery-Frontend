@@ -36,7 +36,12 @@ export class ArtworkFrame {
   private static readonly MOLDING = 0.05;
   /** The frame stands off the wall so it clears the wainscot rail. */
   private static readonly BACK_Z = -0.12;
-  private static readonly PLAQUE = { width: 0.46, height: 0.34 };
+  /** The plaque beside the picture: 60 × 42 cm, readable from 2 m. */
+  private static readonly PLAQUE = { width: 0.6, height: 0.42 };
+  /** Space between the frame and its plaque. */
+  private static readonly PLAQUE_GAP = 0.14;
+  /** Height of the spot that lights the picture; it stays below the master's sign. */
+  static readonly LAMP_HEIGHT = 3.15;
 
   readonly root: TransformNode;
   private photoMesh: Mesh | null = null;
@@ -61,9 +66,33 @@ export class ArtworkFrame {
 
   /** Width and height of the photo itself. */
   get pictureSize(): { width: number; height: number } {
-    const aspect = this.piece.photoAspect > 0 ? this.piece.photoAspect : 1;
+    return ArtworkFrame.pictureOf(this.piece);
+  }
+
+  static pictureOf(piece: WorldPiece): { width: number; height: number } {
+    const aspect = piece.photoAspect > 0 ? piece.photoAspect : 1;
     const L = ArtworkFrame.PICTURE_SIZE;
     return aspect >= 1 ? { width: L, height: L / aspect } : { width: L * aspect, height: L };
+  }
+
+  /** Outer size of the frame (photo, mat and moulding). */
+  static outerOf(piece: WorldPiece): { width: number; height: number } {
+    const { width, height } = ArtworkFrame.pictureOf(piece);
+    const border = (ArtworkFrame.MAT + ArtworkFrame.MOLDING) * 2;
+    return { width: width + border, height: height + border };
+  }
+
+  /** Width along the wall of the frame plus its plaque: what the room lays out. */
+  static unitWidth(piece: WorldPiece): number {
+    return ArtworkFrame.outerOf(piece).width + ArtworkFrame.PLAQUE_GAP + ArtworkFrame.PLAQUE.width;
+  }
+
+  /**
+   * Where the frame's centre sits from the centre of its unit, along the frame's own x (the plaque
+   * is on the visitor's right, so the frame moves left).
+   */
+  static frameOffsetInUnit(): number {
+    return -(ArtworkFrame.PLAQUE_GAP + ArtworkFrame.PLAQUE.width) / 2;
   }
 
   /** World point in front of the picture where the visitor stands to look at it. */
@@ -114,8 +143,9 @@ export class ArtworkFrame {
 
   private buildPlaque(outerW: number): void {
     const { width, height } = ArtworkFrame.PLAQUE;
-    const x = outerW / 2 + 0.12 + width / 2;
-    const y = ArtworkFrame.EYE_HEIGHT - 0.22;
+    const x = outerW / 2 + ArtworkFrame.PLAQUE_GAP + width / 2;
+    // Centred on the picture's height.
+    const y = ArtworkFrame.EYE_HEIGHT;
     this.box("plaqueBoard", width + 0.03, height + 0.03, 0.02, x, y, -0.03, this.ctx.materials.brass);
     const plaque = MeshBuilder.CreatePlane(`plaque-${this.piece.id}`, { width, height }, this.ctx.scene);
     plaque.parent = this.root;
@@ -124,45 +154,42 @@ export class ArtworkFrame {
     this.register(plaque);
   }
 
-  /** Texture of 1380 × 1020 px for a 46 × 34 cm plaque: sharp from up close. */
+  /** Texture of 1500 × 1050 px for a 60 × 42 cm plaque: the text reads from 2 m. */
   private plaqueMaterial(): StandardMaterial {
-    const width = 1380;
-    const height = 1020;
+    const width = 1500;
+    const height = 1050;
     const texture = new DynamicTexture(`plaqueTex-${this.piece.id}`, { width, height }, this.ctx.scene, true);
     texture.anisotropicFilteringLevel = this.ctx.scene.getEngine().getCaps().maxAnisotropy || 8;
     const ctx = texture.getContext() as CanvasRenderingContext2D;
     ctx.fillStyle = "#f6efe1";
     ctx.fillRect(0, 0, width, height);
-    const pad = 80;
+    const pad = 76;
     const maxWidth = width - pad * 2;
     ctx.textBaseline = "alphabetic";
-    let y = pad + 100;
+    let y = pad + 118;
     ctx.fillStyle = "#1e130e";
-    ctx.font = "700 118px 'Bricolage Grotesque', Figtree, Arial, sans-serif";
+    ctx.font = "700 132px 'Bricolage Grotesque', Figtree, Arial, sans-serif";
     for (const line of ArtworkFrame.wrap(ctx, this.piece.title, maxWidth, 2)) {
       ctx.fillText(line, pad, y);
-      y += 128;
+      y += 140;
     }
-    y += 4;
+    y += 2;
     ctx.fillStyle = "#6b4f3a";
-    ctx.font = "italic 500 82px Figtree, Arial, sans-serif";
+    ctx.font = "italic 600 96px Figtree, Arial, sans-serif";
     ctx.fillText(ArtworkFrame.wrap(ctx, this.piece.masterName, maxWidth, 1)[0] ?? "", pad, y);
-    y += 44;
+    y += 38;
     ctx.fillStyle = "#c9a227";
-    ctx.fillRect(pad, y, 160, 6);
-    y += 108;
+    ctx.fillRect(pad, y, 180, 7);
+    y += 110;
     ctx.fillStyle = "#3d2a20";
-    ctx.font = "500 72px Figtree, Arial, sans-serif";
+    ctx.font = "500 90px Figtree, Arial, sans-serif";
     for (const line of ArtworkFrame.wrap(ctx, this.piece.technique, maxWidth, 2)) {
       ctx.fillText(line, pad, y);
-      y += 88;
+      y += 102;
     }
-    if (this.piece.dimensions) {
-      ctx.fillText(this.piece.dimensions, pad, y);
-      y += 88;
-    }
+    if (this.piece.dimensions) ctx.fillText(this.piece.dimensions, pad, y);
     ctx.fillStyle = "#7a1f1a";
-    ctx.font = "700 100px Figtree, Arial, sans-serif";
+    ctx.font = "700 118px Figtree, Arial, sans-serif";
     ctx.fillText(ArtworkFrame.wrap(ctx, this.piece.caption, maxWidth, 1)[0] ?? "", pad, height - pad);
     texture.update();
 
@@ -200,33 +227,38 @@ export class ArtworkFrame {
 
   // ---------------------------------------------------------------- spot
 
-  /** A ceiling spot aimed at the picture, its visible beam and the halo it leaves on the wall. */
+  /**
+   * A spot on a short wall arm above the picture, its visible beam and the halo it leaves on the wall.
+   * The lamp hangs below the master's sign, so the beam never crosses a sign or another picture.
+   */
   private buildSpot(outerW: number, outerH: number): void {
     const m = this.ctx.materials;
     const lights = GalleryLights.for(this.ctx.scene);
-    const H = this.ceiling;
-    const lamp = new Vector3(0, H - 0.32, -1.25);
-    const target = new Vector3(0, ArtworkFrame.EYE_HEIGHT + 0.12, ArtworkFrame.BACK_Z);
+    const lampY = Math.min(ArtworkFrame.LAMP_HEIGHT, this.ceiling - 0.9);
+    const lamp = new Vector3(0, lampY, -0.7);
+    const target = new Vector3(0, ArtworkFrame.EYE_HEIGHT + 0.15, ArtworkFrame.BACK_Z);
 
-    this.box("spotCanopy", 0.16, 0.04, 0.16, lamp.x, H - 0.02, lamp.z, m.iron, 0);
-    this.box("spotStem", 0.025, 0.24, 0.025, lamp.x, H - 0.16, lamp.z, m.iron, 0);
+    // Wall plate and arm.
+    this.box("spotPlate", 0.14, 0.2, 0.03, 0, lampY + 0.12, -0.015, m.iron, 0);
+    this.box("spotArm", 0.035, 0.035, 0.66, 0, lampY + 0.12, -0.36, m.iron, 0);
+    this.box("spotDrop", 0.03, 0.12, 0.03, 0, lampY + 0.06, lamp.z, m.iron, 0);
     const toWall = target.subtract(lamp);
     const tilt = Math.atan2(-toWall.z, -toWall.y);
-    const head = MeshBuilder.CreateCylinder(`spotHead-${this.piece.id}`, { diameterTop: 0.1, diameterBottom: 0.16, height: 0.2, tessellation: 16 }, this.ctx.scene);
+    const head = MeshBuilder.CreateCylinder(`spotHead-${this.piece.id}`, { diameterTop: 0.09, diameterBottom: 0.15, height: 0.18, tessellation: 16 }, this.ctx.scene);
     head.material = m.iron;
     this.place(head, lamp.x, lamp.y, lamp.z).rotation.x = tilt;
     this.batcher.add(head);
-    const bulb = MeshBuilder.CreateDisc(`spotBulb-${this.piece.id}`, { radius: 0.07, tessellation: 16 }, this.ctx.scene);
+    const bulb = MeshBuilder.CreateDisc(`spotBulb-${this.piece.id}`, { radius: 0.065, tessellation: 16 }, this.ctx.scene);
     bulb.material = m.glowLamp;
-    const bulbPoint = lamp.add(toWall.normalize().scale(0.105));
+    const bulbPoint = lamp.add(toWall.normalize().scale(0.095));
     this.place(bulb, bulbPoint.x, bulbPoint.y, bulbPoint.z).rotation.x = tilt - Math.PI / 2;
     this.batcher.add(bulb);
 
-    // The beam: an open cone from the lamp to the picture, a little wider than the frame.
+    // The beam: an open cone from the lamp to the picture, about as wide as the frame.
     const length = toWall.length();
     const beam = MeshBuilder.CreateCylinder(
       `spotBeam-${this.piece.id}`,
-      { diameterTop: 0.14, diameterBottom: Math.max(outerW, outerH) * 1.05, height: length, tessellation: 28, cap: 0 },
+      { diameterTop: 0.12, diameterBottom: Math.min(outerW, outerH) * 0.95, height: length, tessellation: 28, cap: 0 },
       this.ctx.scene,
     );
     beam.material = lights.beam;
@@ -234,11 +266,11 @@ export class ArtworkFrame {
     this.place(beam, middle.x, middle.y, middle.z).rotation.x = Math.atan2(lamp.z - target.z, lamp.y - target.y);
     this.batcher.add(beam);
 
-    // The warm pool of light on the wall around the frame.
-    const size = Math.max(outerW, outerH) * 2.1;
-    const halo = MeshBuilder.CreatePlane(`spotHalo-${this.piece.id}`, { size }, this.ctx.scene);
+    // The warm pool of light on the wall around the frame (it ends below the lamp).
+    const size = Math.min(Math.max(outerW, outerH) * 1.8, (lampY - ArtworkFrame.EYE_HEIGHT) * 2);
+    const halo = MeshBuilder.CreatePlane(`spotHalo-${this.piece.id}`, { width: Math.max(outerW * 1.6, size), height: size }, this.ctx.scene);
     halo.material = lights.halo;
-    this.place(halo, 0, ArtworkFrame.EYE_HEIGHT + 0.15, -0.025);
+    this.place(halo, 0, ArtworkFrame.EYE_HEIGHT + 0.1, -0.025);
     this.batcher.add(halo);
   }
 
