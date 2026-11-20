@@ -7,6 +7,7 @@ import type { World } from "../world/World";
 import { Hud } from "./Hud";
 import { PanelSurface, type SurfaceView } from "./PanelSurface";
 import { PurchaseFlow } from "./PurchaseFlow";
+import { TasteFlow } from "./TasteFlow";
 import { UiLayer } from "./UiLayer";
 import { VisitorSession } from "./VisitorSession";
 import { ControlsView } from "./views/ControlsView";
@@ -28,6 +29,7 @@ export class ExperienceUi {
   private readonly unsubscribe: (() => void)[] = [];
   private readonly session: VisitorSession;
   private readonly purchase: PurchaseFlow;
+  private readonly tastes: TasteFlow;
   private stopWatchingCart: (() => void) | null = null;
 
   constructor(
@@ -46,7 +48,9 @@ export class ExperienceUi {
     // Account gets its board in a later step.
     this.hud.setEnabled("account", false);
     this.session = new VisitorSession(user);
-    this.purchase = new PurchaseFlow(i18n, this.session, { show: (view) => this.open(view), close: () => this.surface.close() });
+    const host = { show: (view: SurfaceView) => this.open(view), close: () => this.surface.close() };
+    this.purchase = new PurchaseFlow(i18n, this.session, host);
+    this.tastes = new TasteFlow(i18n, this.session, world, host);
     this.hud.setFirstPerson(world.cameraMode === "FIRST_PERSON");
     world.pointerBlocked = () => this.layer.pointerOverHud;
 
@@ -59,6 +63,7 @@ export class ExperienceUi {
       world.pieceSelected.subscribe((piece) => void this.purchase.showPiece(piece)),
       world.stallUsed.subscribe((kind) => {
         if (kind === "cashier") void this.purchase.showCart();
+        if (kind === "welcome") void this.tastes.open();
       }),
       this.session.changed.subscribe(() => this.watchCart()),
       this.surface.closed.subscribe(() => this.onPanelClosed()),

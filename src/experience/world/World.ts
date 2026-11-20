@@ -186,6 +186,14 @@ export class World {
     this.scene.render();
   }
 
+  /** Lights up the salas of these rooms (by key) as recommended and turns the others off. */
+  setRecommendedRooms(keys: Set<string>): void {
+    this.salas.forEach((sala, key) => {
+      sala.room.recommended = keys.has(key);
+      sala.setRecommended(keys.has(key));
+    });
+  }
+
   /** Used by the debug console and the automated tour to place the visitor. */
   teleportPlayer(position: Vector3, lookAt?: Vector3): void {
     this.player.teleport(position.x, position.z);
