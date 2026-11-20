@@ -6,6 +6,7 @@ import { DoorInteractable, PieceInteractable, StallInteractable, type Interactab
 import type { World } from "../world/World";
 import { Hud } from "./Hud";
 import { PanelSurface, type SurfaceView } from "./PanelSurface";
+import { AccountFlow } from "./AccountFlow";
 import { CommissionFlow } from "./CommissionFlow";
 import { PurchaseFlow } from "./PurchaseFlow";
 import { TasteFlow } from "./TasteFlow";
@@ -32,6 +33,7 @@ export class ExperienceUi {
   private readonly purchase: PurchaseFlow;
   private readonly tastes: TasteFlow;
   private readonly commissions: CommissionFlow;
+  private readonly account: AccountFlow;
   private stopWatchingCart: (() => void) | null = null;
 
   constructor(
@@ -48,12 +50,12 @@ export class ExperienceUi {
       clickToLook: i18n.t("world.clickToLook"),
     });
     // Account gets its board in a later step.
-    this.hud.setEnabled("account", false);
     this.session = new VisitorSession(user);
     const host = { show: (view: SurfaceView) => this.open(view), close: () => this.surface.close() };
     this.purchase = new PurchaseFlow(i18n, this.session, host);
     this.tastes = new TasteFlow(i18n, this.session, world, host);
     this.commissions = new CommissionFlow(i18n, this.session, host, this.purchase);
+    this.account = new AccountFlow(i18n, this.session, host, this.purchase, this.commissions);
     this.hud.setFirstPerson(world.cameraMode === "FIRST_PERSON");
     world.pointerBlocked = () => this.layer.pointerOverHud;
 
@@ -63,6 +65,7 @@ export class ExperienceUi {
       world.player.modeChanged.subscribe((mode) => this.hud.setFirstPerson(mode === "FIRST_PERSON")),
       this.hud.controlsPressed.subscribe(() => this.open(this.controlsView(false))),
       this.hud.cartPressed.subscribe(() => void this.purchase.showCart()),
+      this.hud.accountPressed.subscribe(() => this.account.show()),
       world.pieceSelected.subscribe((piece) => void this.purchase.showPiece(piece)),
       world.stallUsed.subscribe((kind) => {
         if (kind === "cashier") void this.purchase.showCart();
