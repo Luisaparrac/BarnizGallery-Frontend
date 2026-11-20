@@ -3,8 +3,9 @@ import type { AppSetting } from "../../domain/admin";
 import type { Catalogs, SectionType, StoreTemplate } from "../../domain/catalog";
 import type { Id } from "../../domain/common";
 import type { OrderItem, Payment } from "../../domain/commerce";
-import type { Master, Photo, SaleMode, ArtworkStatus, Store, StoreSection, VerificationStep } from "../../domain/gallery";
+import type { Master, Photo, Store, StoreSection, VerificationStep } from "../../domain/gallery";
 import type { ArtworkRow, MockTables, OrderRow, UserRow } from "./MockTables";
+import { RealInventory, type RealMaster } from "./RealInventory";
 
 /** SHA-256 of "museo:museo123": every demo account uses the password museo123. */
 const DEMO_PASSWORD_HASH = "e44382dafd6b4c136f69cdddd082e972a5f63caeebdf641390c269ba09a23f42";
@@ -26,20 +27,13 @@ const SECTION_TEXT: Record<SectionType, { titleEs: string; titleEn: string; cont
   FREE_TEXT: { titleEs: "", titleEn: "", contentEs: "", contentEn: "" },
 };
 
-interface ArtworkSeed {
-  es: string;
-  en: string;
-  shape: number;
-  style: number;
-  colors: number[];
-  motifs: number[];
-  mode: SaleMode;
-  status: ArtworkStatus;
-  price: number | null;
-  size: [number, number, number];
-}
+/** First user id of the real masters: user 1 is the admin, then one user per master in RealInventory order. */
+const FIRST_MASTER_USER = 2;
 
-/** Demo data: catalogs, six master stores with works, customers, orders, auctions and custom orders. */
+/**
+ * Demo data: catalogs, the real masters with their stores and works (RealInventory, generated from
+ * the CSV files in data/), customers, orders, auctions and custom orders.
+ */
 export class SeedData {
   static build(): MockTables {
     const tables: MockTables = {
@@ -100,6 +94,7 @@ export class SeedData {
         ["bandeja", "Bandeja", "Tray"], ["caja", "Caja / cofre", "Box / chest"], ["jarron", "Jarrón", "Vase"], ["plato", "Plato", "Plate"],
         ["cuenco", "Cuenco / totuma", "Bowl"], ["joyero", "Joyero", "Jewelry box"], ["mascara", "Máscara", "Mask"], ["escultura", "Escultura / figura", "Sculpture"],
         ["marco", "Marco / espejo", "Frame / mirror"], ["cuadro", "Cuadro decorativo", "Wall panel"], ["mueble", "Mueble", "Furniture"], ["accesorio", "Accesorio / joya", "Accessory"],
+        ["banco", "Banco", "Stool"],
       ].map(([code, es, en], index) => item(index + 1, code, es, en)),
       motifs: [
         ["floral", "Floral", "Floral"], ["zoomorfo", "Animales (zoomorfo)", "Animals (zoomorphic)"], ["precolombino", "Precolombino", "Pre-Columbian"],
@@ -163,24 +158,18 @@ export class SeedData {
 
   private static people(t: MockTables): void {
     t.users.push(SeedData.user(1, "Administración MUSEO", "admin@museo.co", "ADMIN", { avatarId: 3 }));
-    const masters: [string, string, string, number][] = [
-      ["Richard Valderrama", "valderrama", "Taller Valderrama", 1],
-      ["José Naria", "naria", "Taller Naria", 1],
-      ["María Cabrera", "cabrera", "Taller Cabrera", 2],
-      ["Ricardo Hernaza", "hernaza", "Taller Hernaza", 1],
-      ["David Uzcátegui", "uzcategui", "Taller Uzcátegui", 1],
-      ["Wilson Chávez", "chavez", "Taller Chávez", 1],
-    ];
-    masters.forEach(([name, key, workshop, avatarId], index) => {
-      const userId = index + 2;
+    const avatarId = (code: string) => t.catalogs.avatars.find((avatar) => avatar.code === code)?.id ?? null;
+    RealInventory.masters.forEach((real, index) => {
+      const userId = FIRST_MASTER_USER + index;
       const masterId = index + 1;
-      t.users.push(SeedData.user(userId, name, `${key}@museo.co`, "ARTISAN", { avatarId }));
-      t.masters.push(SeedData.master(masterId, userId, name, key, workshop, "APPROVED"));
+      t.users.push(SeedData.user(userId, real.name, `${real.key}@museo.co`, "ARTISAN", { avatarId: avatarId(real.avatar) }));
+      t.masters.push(SeedData.realMaster(masterId, userId, real));
       SeedData.steps(t, masterId, "APPROVED");
     });
+    const pendingMasterId = t.masters.length + 1;
     t.users.push(SeedData.user(8, "Carolina Benavides", "nueva@museo.co", "ARTISAN", { status: "PENDING", avatarId: 2, createdAt: at(-3) }));
-    t.masters.push(SeedData.master(7, 8, "Carolina Benavides", "benavides", "Taller Benavides", "IN_REVIEW"));
-    SeedData.steps(t, 7, "MIXED");
+    t.masters.push(SeedData.master(pendingMasterId, 8, "Carolina Benavides", "benavides", "Taller Benavides", "IN_REVIEW"));
+    SeedData.steps(t, pendingMasterId, "MIXED");
 
     t.users.push(SeedData.user(9, "Ana Collins", "ana@example.com", "CUSTOMER", { avatarId: 4, preferredLanguage: "en", countryCode: "US", createdAt: at(-40) }));
     t.users.push(SeedData.user(10, "Kenji Morita", "kenji@example.com", "CUSTOMER", { avatarId: 3, preferredLanguage: "en", countryCode: "JP", createdAt: at(-25) }));
@@ -190,7 +179,16 @@ export class SeedData {
       { id: 1, userId: 9, recipientName: "Ana Collins", line1: "245 Hudson St, Apt 3B", line2: null, city: "New York", region: "NY", postalCode: "10013", countryCode: "US", phone: "+1 212 555 0148", isDefault: true },
       { id: 2, userId: 10, recipientName: "Kenji Morita", line1: "2-11-3 Meguro", line2: null, city: "Tokyo", region: null, postalCode: "153-0063", countryCode: "JP", phone: null, isDefault: true },
     );
-    t.tastes.push({ userId: 9, profile: { colorIds: [1, 11], shapeIds: [1, 6], styleIds: [1], motifIds: [2], budgetRangeId: 2 }, updatedAt: at(-40) });
+    // Ana likes red and gold vases and plates with animals.
+    t.tastes.push({ userId: 9, profile: { colorIds: [1, 11], shapeIds: [3, 4], styleIds: [1], motifIds: [2], budgetRangeId: 3 }, updatedAt: at(-40) });
+  }
+
+  private static realMaster(id: Id, userId: Id, real: RealMaster): Master {
+    return {
+      id, userId, name: real.name, slug: real.key, city: real.city, workshop: real.storeEs,
+      biographyEs: real.biographyEs, biographyEn: real.biographyEn,
+      profilePhotoUrl: null, verificationStatus: "APPROVED", verifiedAt: at(-100),
+    };
   }
 
   private static master(id: Id, userId: Id, name: string, key: string, workshop: string, status: Master["verificationStatus"]): Master {
@@ -222,24 +220,30 @@ export class SeedData {
   private static stores(t: MockTables): void {
     const templates = [1, 2, 4, 3, 1, 3];
     t.masters.forEach((master, index) => {
-      const templateId = master.id === 7 ? 1 : templates[index];
+      const real = RealInventory.masters.find((entry) => entry.key === master.slug);
+      const templateId = real ? templates[index % templates.length] : 1;
       const template = t.catalogs.templates.find((item) => item.id === templateId)!;
+      const sections = SeedData.sections(template.defaultLayout, master.id * 100).map((section) =>
+        section.type === "STORY" && real ? { ...section, contentEs: real.biographyEs, contentEn: real.biographyEn } : section,
+      );
+      const firstWork = RealInventory.works.find((work) => work.masterKey === master.slug);
+      const published = master.verificationStatus === "APPROVED";
       const store: Store = {
         id: master.id,
         masterId: master.id,
         slug: master.slug,
-        nameEs: `Taller ${master.name}`,
-        nameEn: `${master.name} Workshop`,
-        descriptionEs: `Barniz de Pasto del taller de ${master.name}.`,
-        descriptionEn: `Barniz de Pasto from ${master.name}'s workshop.`,
+        nameEs: real?.storeEs ?? `Taller ${master.name}`,
+        nameEn: real?.storeEn ?? `${master.name} Workshop`,
+        descriptionEs: `Barniz de Pasto del maestro ${master.name}, en ${master.city}.`,
+        descriptionEn: `Barniz de Pasto by master ${master.name}, in ${master.city}.`,
         templateId,
-        status: master.verificationStatus === "APPROVED" ? "PUBLISHED" : "DRAFT",
+        status: published ? "PUBLISHED" : "DRAFT",
         logoUrl: null,
-        bannerUrl: ArtImageCodec.encode({ shape: "bandeja", motif: ["floral", "precolombino", "zoomorfo", "geometrico", "paisaje", "abstracto", "floral"][index], colors: [], seed: 500 + master.id, view: "detail" }),
+        bannerUrl: firstWork?.photos[0] ?? ArtImageCodec.encode({ shape: "bandeja", motif: "floral", colors: [], seed: 500 + master.id, view: "detail" }),
         theme: {},
         acceptsCustomOrders: true,
-        sections: SeedData.sections(template.defaultLayout, master.id * 100),
-        publishedAt: master.verificationStatus === "APPROVED" ? at(-90) : null,
+        sections,
+        publishedAt: published ? at(-90) : null,
       };
       t.stores.push(store);
     });
@@ -249,94 +253,74 @@ export class SeedData {
     return layout.map((type, index) => ({ id: firstId + index, type, ...SECTION_TEXT[type], imageUrl: null, sortOrder: index, isVisible: true }));
   }
 
+  /** The real works, in RealInventory order (that order gives the ids). Catalog codes become ids here. */
   private static works(t: MockTables): void {
-    const seeds: ArtworkSeed[][] = [
-      [
-        { es: "Bandeja de colibríes", en: "Hummingbird tray", shape: 1, style: 1, colors: [1, 2, 11], motifs: [2, 1], mode: "SALE", status: "EXHIBITED", price: 240, size: [42, 30, 3] },
-        { es: "Cofre de la cosecha", en: "Harvest chest", shape: 2, style: 1, colors: [1, 3, 9], motifs: [1], mode: "SALE", status: "EXHIBITED", price: 310, size: [28, 18, 16] },
-        { es: "Plato del sol de los pastos", en: "Plate of the Pasto sun", shape: 4, style: 1, colors: [3, 4, 1], motifs: [3], mode: "AUCTION", status: "IN_AUCTION", price: null, size: [36, 36, 3] },
-        { es: "Joyero de flores rojas", en: "Red flower jewelry box", shape: 6, style: 1, colors: [1, 10, 2], motifs: [1], mode: "SALE", status: "EXHIBITED", price: 150, size: [16, 10, 9] },
-      ],
-      [
-        { es: "Jarrón de la laguna", en: "Lagoon vase", shape: 3, style: 2, colors: [5, 2, 10], motifs: [5], mode: "SALE", status: "SOLD", price: 420, size: [18, 34, 18] },
-        { es: "Cuenco de geometrías", en: "Bowl of geometries", shape: 5, style: 2, colors: [9, 11], motifs: [4], mode: "SALE", status: "EXHIBITED", price: 180, size: [24, 12, 24] },
-        { es: "Panel de montañas", en: "Mountain panel", shape: 10, style: 2, colors: [5, 2, 8], motifs: [5], mode: "EXHIBITION", status: "EXHIBITED", price: null, size: [40, 60, 2] },
-        { es: "Caja negra y oro", en: "Black and gold box", shape: 2, style: 2, colors: [9, 11], motifs: [4], mode: "SALE", status: "EXHIBITED", price: 260, size: [22, 12, 12] },
-      ],
-      [
-        { es: "Máscara del carnaval", en: "Carnival mask", shape: 7, style: 1, colors: [13], motifs: [6, 1], mode: "SALE", status: "EXHIBITED", price: 340, size: [22, 30, 10] },
-        { es: "Bandeja de la abuela", en: "Grandmother's tray", shape: 1, style: 1, colors: [1, 2, 3], motifs: [1], mode: "SALE", status: "EXHIBITED", price: 210, size: [38, 26, 3] },
-        { es: "Escultura de cóndor", en: "Condor sculpture", shape: 8, style: 3, colors: [9, 10, 1], motifs: [2], mode: "EXHIBITION", status: "EXHIBITED", price: null, size: [20, 32, 14] },
-        { es: "Espejo dorado", en: "Golden mirror", shape: 9, style: 1, colors: [11, 1], motifs: [1, 7], mode: "SALE", status: "EXHIBITED", price: 380, size: [40, 50, 3] },
-      ],
-      [
-        { es: "Gran cuadro de la plaza", en: "Large plaza panel", shape: 10, style: 2, colors: [13], motifs: [6, 5], mode: "AUCTION", status: "RESERVED", price: null, size: [80, 60, 3] },
-        { es: "Totuma de pájaros", en: "Bird bowl", shape: 5, style: 1, colors: [2, 3, 1], motifs: [2], mode: "SALE", status: "EXHIBITED", price: 120, size: [20, 10, 20] },
-        { es: "Arete de mopa-mopa", en: "Mopa-mopa earring", shape: 12, style: 2, colors: [1, 11], motifs: [4], mode: "SALE", status: "EXHIBITED", price: 60, size: [4, 6, 1] },
-        { es: "Mesa auxiliar de grecas", en: "Fretwork side table", shape: 11, style: 3, colors: [9, 1, 11], motifs: [3], mode: "SALE", status: "EXHIBITED", price: 950, size: [45, 55, 45] },
-      ],
-      [
-        { es: "Cofre de los astros", en: "Chest of the stars", shape: 2, style: 1, colors: [5, 11, 10], motifs: [7, 4], mode: "AUCTION", status: "EXHIBITED", price: null, size: [30, 20, 18] },
-        { es: "Plato de venados", en: "Deer plate", shape: 4, style: 1, colors: [8, 3, 2], motifs: [2], mode: "SALE", status: "EXHIBITED", price: 190, size: [32, 32, 3] },
-        { es: "Jarrón de espirales", en: "Spiral vase", shape: 3, style: 1, colors: [1, 9, 3], motifs: [3], mode: "SALE", status: "EXHIBITED", price: 360, size: [16, 30, 16] },
-        { es: "Bandeja abstracta", en: "Abstract tray", shape: 1, style: 2, colors: [6, 7, 4], motifs: [8], mode: "SALE", status: "EXHIBITED", price: 230, size: [40, 28, 3] },
-      ],
-      [
-        { es: "Marco de colibríes", en: "Hummingbird frame", shape: 9, style: 1, colors: [2, 1, 11], motifs: [2, 1], mode: "SALE", status: "EXHIBITED", price: 270, size: [30, 36, 3] },
-        { es: "Joyero azul", en: "Blue jewelry box", shape: 6, style: 2, colors: [5, 12], motifs: [4], mode: "SALE", status: "EXHIBITED", price: 140, size: [15, 10, 8] },
-        { es: "Figura del danzante", en: "Dancer figure", shape: 8, style: 3, colors: [1, 3, 5], motifs: [6], mode: "EXHIBITION", status: "EXHIBITED", price: null, size: [14, 28, 10] },
-        { es: "Cuadro del volcán", en: "Volcano panel", shape: 10, style: 2, colors: [4, 1, 8], motifs: [5], mode: "SALE", status: "DRAFT", price: 520, size: [50, 40, 2] },
-      ],
-    ];
-    const colorHex = (id: Id) => t.catalogs.colors.find((color) => color.id === id)?.hex ?? null;
-    const code = (list: { id: Id; code: string }[], id: Id) => list.find((entry) => entry.id === id)?.code ?? "";
-    let artworkId = 0;
+    const idOf = (list: { id: Id; code: string }[], code: string, kind: string): Id => {
+      const found = list.find((entry) => entry.code === code);
+      if (!found) throw new Error(`Unknown ${kind} code "${code}" in RealInventory`);
+      return found.id;
+    };
     let photoId = 0;
-    seeds.forEach((works, storeIndex) => {
-      works.forEach((seed) => {
-        artworkId++;
-        const colors = seed.colors.map(colorHex).filter((hex): hex is string => !!hex);
-        const shape = code(t.catalogs.shapes, seed.shape);
-        const motif = code(t.catalogs.motifs, seed.motifs[0]);
-        const photos: Photo[] = (["front", "side", "detail"] as const).map((view, index) => ({
-          id: ++photoId,
-          url: ArtImageCodec.encode({ shape, motif, colors, seed: artworkId * 7 + index, view }),
-          altEs: `${seed.es}, ${view === "front" ? "vista frontal" : view === "side" ? "vista lateral" : "detalle del barniz"}`,
-          altEn: `${seed.en}, ${view === "front" ? "front view" : view === "side" ? "side view" : "varnish detail"}`,
-          angle: view === "front" ? "frente" : view === "side" ? "lado" : "detalle",
-          sortOrder: index,
-          isPrimary: index === 0,
-        }));
-        const row: ArtworkRow = {
-          id: artworkId,
-          storeId: storeIndex + 1,
-          slug: `${SeedData.slug(seed.es)}-${artworkId}`,
-          titleEs: seed.es,
-          titleEn: seed.en,
-          historyEs: `Historia de ejemplo de «${seed.es}». Aquí el maestro cuenta de dónde salió la idea, qué figuras usó y cuánto tiempo tomó.`,
-          historyEn: `Sample story of “${seed.en}”. Here the master tells where the idea came from, which figures were used and how long it took.`,
-          technique: "Barniz de Pasto (mopa-mopa) sobre madera",
-          widthCm: seed.size[0],
-          heightCm: seed.size[1],
-          depthCm: seed.size[2],
-          weightG: Math.round(seed.size[0] * seed.size[1] * 1.2),
-          shapeId: seed.shape,
-          styleId: seed.style,
-          colorIds: seed.colors,
-          motifIds: seed.motifs,
-          saleMode: seed.mode,
-          status: seed.status,
-          price: seed.price,
-          currency: "USD",
-          stock: seed.status === "SOLD" ? 0 : 1,
-          photos,
-          publishedAt: seed.status === "DRAFT" ? null : at(-80 + artworkId),
-          createdAt: at(-85 + artworkId),
-          deletedAt: null,
-        };
-        t.artworks.push(row);
-      });
+    RealInventory.works.forEach((work, index) => {
+      const id = index + 1;
+      const store = t.stores.find((entry) => entry.slug === work.masterKey)!;
+      const photos: Photo[] = work.photos.map((url, position) => ({
+        id: ++photoId,
+        url,
+        altEs: position === 0 ? work.titleEs : `${work.titleEs}, foto ${position + 1}`,
+        altEn: position === 0 ? work.titleEn : `${work.titleEn}, photo ${position + 1}`,
+        angle: position === 0 ? "frente" : null,
+        sortOrder: position,
+        isPrimary: position === 0,
+      }));
+      const row: ArtworkRow = {
+        id,
+        storeId: store.id,
+        slug: `${work.slug}-${id}`,
+        titleEs: work.titleEs,
+        titleEn: work.titleEn,
+        historyEs: work.descriptionEs,
+        historyEn: work.descriptionEn,
+        technique: "Barniz de Pasto (mopa-mopa) sobre madera",
+        widthCm: work.widthCm,
+        heightCm: work.heightCm,
+        depthCm: work.depthCm,
+        weightG: null,
+        shapeId: idOf(t.catalogs.shapes, work.shape, "shape"),
+        styleId: idOf(t.catalogs.styles, work.style, "style"),
+        colorIds: work.colors.map((code) => idOf(t.catalogs.colors, code, "color")),
+        motifIds: work.motifs.map((code) => idOf(t.catalogs.motifs, code, "motif")),
+        saleMode: work.saleMode,
+        status: "EXHIBITED",
+        // Auction works have no fixed price: their CSV price is the auction's base price.
+        price: work.saleMode === "SALE" ? work.price : null,
+        currency: work.currency,
+        stock: work.stock,
+        photos,
+        publishedAt: at(-80 + id),
+        createdAt: at(-85 + id),
+        deletedAt: null,
+      };
+      t.artworks.push(row);
     });
+  }
+
+  /** A seeded work by its inventory slug (without the "-id" suffix). */
+  private static work(t: MockTables, slug: string): ArtworkRow {
+    const found = t.artworks.find((artwork) => artwork.slug === `${slug}-${artwork.id}`);
+    if (!found) throw new Error(`The demo data needs the work "${slug}" in data/obras.csv`);
+    return found;
+  }
+
+  /** CSV price of a work (the base price of auction works). */
+  private static listPrice(slug: string): number {
+    return RealInventory.works.find((work) => work.slug === slug)?.price ?? 100;
+  }
+
+  /** User id of the master who made a work. */
+  private static makerOf(t: MockTables, artwork: ArtworkRow): Id {
+    const store = t.stores.find((entry) => entry.id === artwork.storeId)!;
+    return t.masters.find((master) => master.id === store.masterId)!.userId!;
   }
 
   static slug(text: string): string {
@@ -364,11 +348,17 @@ export class SeedData {
       code: `MUS-2026-${String(row.id).padStart(6, "0")}`, currency: "USD", shippingCost: 25, platformFee: Math.round(row.subtotal * 10) / 100,
       total: row.subtotal + 25, shippingAddress: null, notes: null, history: [], paymentDueAt: null, paidAt: null, createdAt: at(-1), balanceOfOrderId: null, ...row,
     });
+    const sell = (artwork: ArtworkRow) => {
+      artwork.status = "SOLD";
+      artwork.stock = 0;
+    };
 
-    // Delivered purchase: "Jarrón de la laguna" (Naria) bought by Ana.
+    // Delivered purchase: Gilberto Granja's "Jarrón Flora Azul" bought by Ana.
+    const vase = SeedData.work(t, "jarron-flora-azul");
+    const vasePrice = vase.price!;
     t.orders.push(order({
-      id: 1, buyerId: 9, type: "PURCHASE", status: "DELIVERED", subtotal: 420, shippingAddress: address(1), paidAt: at(-20), createdAt: at(-20, -1),
-      items: [SeedData.item(1, 1, 2, 5, "Jarrón de la laguna", 420, { fulfillmentStatus: "DELIVERED", carrier: "DHL", trackingNumber: "DHL4471200931", shippedAt: at(-17), deliveredAt: at(-12) })],
+      id: 1, buyerId: 9, type: "PURCHASE", status: "DELIVERED", subtotal: vasePrice, shippingAddress: address(1), paidAt: at(-20), createdAt: at(-20, -1),
+      items: [SeedData.item(1, 1, vase.storeId, vase.id, vase.titleEs, vasePrice, { fulfillmentStatus: "DELIVERED", carrier: "DHL", trackingNumber: "DHL4471200931", shippedAt: at(-17), deliveredAt: at(-12) })],
       history: [
         { fromStatus: null, toStatus: "PENDING_PAYMENT", changedAt: at(-20, -1), note: null },
         { fromStatus: "PENDING_PAYMENT", toStatus: "PAID", changedAt: at(-20), note: null },
@@ -376,40 +366,50 @@ export class SeedData {
         { fromStatus: "SHIPPED", toStatus: "DELIVERED", changedAt: at(-12), note: null },
       ],
     }));
-    // Paid purchase that Valderrama still has to ship: "Joyero de flores rojas" for Kenji.
+    sell(vase);
+
+    // Paid purchase that Valderrama still has to ship: "Jarrón Colibrí" for Kenji.
+    const hummingbird = SeedData.work(t, "jarron-colibri");
+    const hummingbirdPrice = hummingbird.price!;
     t.orders.push(order({
-      id: 2, buyerId: 10, type: "PURCHASE", status: "PAID", subtotal: 150, shippingAddress: address(2), paidAt: at(-1), createdAt: at(-1, -1),
-      items: [SeedData.item(2, 2, 1, 4, "Joyero de flores rojas", 150)],
+      id: 2, buyerId: 10, type: "PURCHASE", status: "PAID", subtotal: hummingbirdPrice, shippingAddress: address(2), paidAt: at(-1), createdAt: at(-1, -1),
+      items: [SeedData.item(2, 2, hummingbird.storeId, hummingbird.id, hummingbird.titleEs, hummingbirdPrice)],
       history: [
         { fromStatus: null, toStatus: "PENDING_PAYMENT", changedAt: at(-1, -1), note: null },
         { fromStatus: "PENDING_PAYMENT", toStatus: "PAID", changedAt: at(-1), note: null },
       ],
     }));
-    const joyero = t.artworks.find((artwork) => artwork.id === 4)!;
-    joyero.status = "SOLD";
-    joyero.stock = 0;
+    sell(hummingbird);
 
     const payment = (id: Id, orderId: Id, amount: number, approvedAt: string): Payment => ({
       id, orderId, gateway: "SIMULATED", reference: `MUS-PAY-${id}`, method: "CARD", status: "APPROVED", amount, currency: "USD", checkoutUrl: `/pay/${id}`, createdAt: approvedAt, approvedAt,
     });
-    t.payments.push(payment(1, 1, 445, at(-20)), payment(2, 2, 175, at(-1)));
+    t.payments.push(payment(1, 1, vasePrice + 25, at(-20)), payment(2, 2, hummingbirdPrice + 25, at(-1)));
 
-    // Finished auction won by Ana: order waiting for payment.
+    // The two auction works of the inventory: a finished auction won by Ana (order waiting for
+    // payment) and an active one with a suspicious bid for the admin to review.
+    const cabinet = SeedData.work(t, "bargueno-colonial");
+    const plate = SeedData.work(t, "plato-decorado");
+    const cabinetBase = SeedData.listPrice("bargueno-colonial");
+    const plateBase = SeedData.listPrice("plato-decorado");
     t.auctions.push(
-      { id: 1, artworkId: 13, basePrice: 150, reservePrice: 600, minIncrement: 10, currency: "USD", startDate: at(-6), endDate: at(-1, -6), status: "FINISHED", createdBy: 5, winningBidId: 3, orderId: 3 },
-      { id: 2, artworkId: 3, basePrice: 180, reservePrice: null, minIncrement: 5, currency: "USD", startDate: at(-2), endDate: at(2, 4), status: "ACTIVE", createdBy: 2, winningBidId: null, orderId: null },
-      { id: 3, artworkId: 17, basePrice: 220, reservePrice: 300, minIncrement: 10, currency: "USD", startDate: at(1, 2), endDate: at(5), status: "SCHEDULED", createdBy: 6, winningBidId: null, orderId: null },
+      { id: 1, artworkId: cabinet.id, basePrice: cabinetBase, reservePrice: cabinetBase + 200, minIncrement: 20, currency: "USD", startDate: at(-6), endDate: at(-1, -6), status: "FINISHED", createdBy: SeedData.makerOf(t, cabinet), winningBidId: 3, orderId: 3 },
+      { id: 2, artworkId: plate.id, basePrice: plateBase, reservePrice: null, minIncrement: 10, currency: "USD", startDate: at(-2), endDate: at(2, 4), status: "ACTIVE", createdBy: SeedData.makerOf(t, plate), winningBidId: null, orderId: null },
     );
+    cabinet.status = "RESERVED";
+    plate.status = "IN_AUCTION";
+    const winningBid = cabinetBase + 250;
+    const firstPlateBid = plateBase + 10;
     t.bids.push(
-      { id: 1, auctionId: 1, userId: 11, amount: 200, currency: "USD", bidDate: at(-5), reviewStatus: "VALID", reviewReason: null },
-      { id: 2, auctionId: 1, userId: 10, amount: 2100, currency: "USD", bidDate: at(-3), reviewStatus: "SUSPICIOUS", reviewReason: "El monto es más de 10 veces la referencia (200)" },
-      { id: 3, auctionId: 1, userId: 9, amount: 2150, currency: "USD", bidDate: at(-2), reviewStatus: "VALID", reviewReason: null },
-      { id: 4, auctionId: 2, userId: 11, amount: 190, currency: "USD", bidDate: at(-1, -5), reviewStatus: "VALID", reviewReason: null },
-      { id: 5, auctionId: 2, userId: 10, amount: 210, currency: "USD", bidDate: at(-1, -2), reviewStatus: "VALID", reviewReason: null },
+      { id: 1, auctionId: 1, userId: 11, amount: cabinetBase + 50, currency: "USD", bidDate: at(-5), reviewStatus: "VALID", reviewReason: null },
+      { id: 2, auctionId: 1, userId: 10, amount: cabinetBase + 120, currency: "USD", bidDate: at(-3), reviewStatus: "VALID", reviewReason: null },
+      { id: 3, auctionId: 1, userId: 9, amount: winningBid, currency: "USD", bidDate: at(-2), reviewStatus: "VALID", reviewReason: null },
+      { id: 4, auctionId: 2, userId: 11, amount: firstPlateBid, currency: "USD", bidDate: at(-1, -5), reviewStatus: "VALID", reviewReason: null },
+      { id: 5, auctionId: 2, userId: 10, amount: firstPlateBid * 11, currency: "USD", bidDate: at(-1, -2), reviewStatus: "SUSPICIOUS", reviewReason: `El monto es más de 10 veces la referencia (${firstPlateBid})` },
     );
     t.orders.push(order({
-      id: 3, buyerId: 9, type: "AUCTION", status: "PENDING_PAYMENT", subtotal: 2150, shippingAddress: address(1), createdAt: at(-1, -6), paymentDueAt: at(1, 18),
-      items: [SeedData.item(3, 3, 4, 13, "Gran cuadro de la plaza (subasta)", 2150, { auctionId: 1 })],
+      id: 3, buyerId: 9, type: "AUCTION", status: "PENDING_PAYMENT", subtotal: winningBid, shippingAddress: address(1), createdAt: at(-1, -6), paymentDueAt: at(1, 18),
+      items: [SeedData.item(3, 3, cabinet.storeId, cabinet.id, `${cabinet.titleEs} (subasta)`, winningBid, { auctionId: 1 })],
       history: [{ fromStatus: null, toStatus: "PENDING_PAYMENT", changedAt: at(-1, -6), note: "Subasta ganada" }],
     }));
   }
@@ -443,31 +443,38 @@ export class SeedData {
   }
 
   private static conversations(t: MockTables): void {
+    const panel = SeedData.work(t, "cuadro-mujer-y-tradicion");
     t.conversations.push(
-      { id: 1, customerId: 9, masterId: 1, artworkId: 1, customRequestId: null, orderId: null, subject: "Bandeja de colibríes", status: "OPEN", createdAt: at(-6), lastMessageAt: at(-5) },
+      { id: 1, customerId: 9, masterId: 1, artworkId: panel.id, customRequestId: null, orderId: null, subject: panel.titleEs, status: "OPEN", createdAt: at(-6), lastMessageAt: at(-5) },
       { id: 2, customerId: 10, masterId: 1, artworkId: null, customRequestId: null, orderId: 2, subject: "Envío a Japón", status: "OPEN", createdAt: at(-1), lastMessageAt: at(-1) },
     );
     t.messages.push(
-      { id: 1, conversationId: 1, senderId: 9, content: "Hola, ¿la bandeja se puede colgar en la pared?", readAt: at(-6), createdAt: at(-6) },
-      { id: 2, conversationId: 1, senderId: 2, content: "Sí, le pongo un soporte atrás sin costo.", readAt: null, createdAt: at(-5) },
+      { id: 1, conversationId: 1, senderId: 9, content: "Hola, ¿el cuadro trae soporte para colgarlo en la pared?", readAt: at(-6), createdAt: at(-6) },
+      { id: 2, conversationId: 1, senderId: SeedData.makerOf(t, panel), content: "Sí, ya viene con su soporte atrás, listo para colgar.", readAt: null, createdAt: at(-5) },
       { id: 3, conversationId: 2, senderId: 10, content: "¿Cuánto tarda el envío a Tokio?", readAt: null, createdAt: at(-1) },
     );
   }
 
   private static activity(t: MockTables): void {
-    t.favorites.push({ userId: 9, artworkId: 1, createdAt: at(-6) }, { userId: 9, artworkId: 12, createdAt: at(-5) }, { userId: 10, artworkId: 8, createdAt: at(-3) });
+    const panel = SeedData.work(t, "cuadro-mujer-y-tradicion");
+    const sun = SeedData.work(t, "sol-de-los-pastos");
+    const mask = SeedData.work(t, "mascara-musico");
+    const cabinet = SeedData.work(t, "bargueno-colonial");
+    const hummingbird = SeedData.work(t, "jarron-colibri");
+    const galeras = SeedData.work(t, "galeras");
+    t.favorites.push({ userId: 9, artworkId: panel.id, createdAt: at(-6) }, { userId: 9, artworkId: sun.id, createdAt: at(-5) }, { userId: 10, artworkId: mask.id, createdAt: at(-3) });
     t.notifications.push(
-      { id: 1, userId: 9, type: "AUCTION_WON", title: "Ganaste la subasta de «Gran cuadro de la plaza»", body: "Tienes 48 horas para pagar.", link: "/account/orders/3", readAt: null, createdAt: at(-1, -6) },
+      { id: 1, userId: 9, type: "AUCTION_WON", title: `Ganaste la subasta de «${cabinet.titleEs}»`, body: "Tienes 48 horas para pagar.", link: "/account/orders/3", readAt: null, createdAt: at(-1, -6) },
       { id: 2, userId: 9, type: "NEW_CUSTOM_OFFER", title: "Nueva oferta para tu encargo", body: "María Cabrera envió una contraoferta.", link: "/account/custom/1", readAt: null, createdAt: at(-2) },
       { id: 3, userId: 9, type: "NEW_MESSAGE", title: "Richard Valderrama te respondió", body: null, link: "/messages/1", readAt: null, createdAt: at(-5) },
-      { id: 4, userId: 2, type: "NEW_ORDER", title: "Nuevo pedido MUS-2026-000002", body: "Joyero de flores rojas", link: "/artisan/orders", readAt: null, createdAt: at(-1) },
+      { id: 4, userId: SeedData.makerOf(t, hummingbird), type: "NEW_ORDER", title: "Nuevo pedido MUS-2026-000002", body: hummingbird.titleEs, link: "/artisan/orders", readAt: null, createdAt: at(-1) },
       { id: 5, userId: 1, type: "SYSTEM", title: "Carolina Benavides envió documentos para verificación", body: null, link: "/admin/verifications", readAt: null, createdAt: at(-1) },
     );
-    t.reports.push({ id: 1, reporterId: 11, entityType: "ARTWORK", entityId: 14, reason: "La descripción dice totuma pero en la foto parece un plato.", status: "OPEN", createdAt: at(-2), resolvedAt: null });
+    t.reports.push({ id: 1, reporterId: 11, entityType: "ARTWORK", entityId: galeras.id, reason: "La foto es pequeña y no deja ver bien los detalles del plato.", status: "OPEN", createdAt: at(-2), resolvedAt: null });
     t.interactions.push(
-      { id: 1, userId: 9, artworkId: 1, storeId: null, action: "VIEW", durationSeconds: 45, date: at(-6) },
-      { id: 2, userId: 9, artworkId: 1, storeId: null, action: "ZOOM", durationSeconds: null, date: at(-6) },
-      { id: 3, userId: 9, artworkId: 12, storeId: null, action: "FAVORITE", durationSeconds: null, date: at(-5) },
+      { id: 1, userId: 9, artworkId: panel.id, storeId: null, action: "VIEW", durationSeconds: 45, date: at(-6) },
+      { id: 2, userId: 9, artworkId: panel.id, storeId: null, action: "ZOOM", durationSeconds: null, date: at(-6) },
+      { id: 3, userId: 9, artworkId: sun.id, storeId: null, action: "FAVORITE", durationSeconds: null, date: at(-5) },
     );
     t.audit.push(
       { id: 1, tableName: "masters", rowId: "7", operation: "I", userId: 8, summary: "Registro de artesana Carolina Benavides", changedAt: at(-3) },
