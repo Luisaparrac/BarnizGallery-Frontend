@@ -87,7 +87,7 @@ export class RealInventory {
     "avatar": "artesano",
     "biographyEs": "“Yo tengo 60 años y toda mi vida he trabajado en el Barniz de Pasto. Comencé desde los 12 años y aún lo sigo ejerciendo. Llegar a este oficio fue una casualidad porque quería estudiar, pero como no se pudo, decidí buscar trabajo. En el barrio en el que vivía trabajaban maestros que practicaban la técnica en blanco y negro. Así que comencé a pasar de taller en taller para aprender a hacer las momias, las coronas y las guardas. Seguí trabajando en blanco y negro por 20 años y luego comencé a hacer productos a color porque esto es como la televisión, comenzamos en blanco y negro y terminamos a color.”",
     "biographyEn": "“I am 60 years old and I have worked in Barniz de Pasto all my life. I started when I was 12 and I still do it. I came to this craft by chance: I wanted to study, but since that was not possible, I decided to look for work. In my neighborhood there were masters who practiced the technique in black and white. So I went from workshop to workshop to learn how to make the mummies, the crowns and the borders. I kept working in black and white for 20 years and then I started making pieces in color, because this is like television: we started in black and white and ended up in color.”",
-    "whatsapp": null
+    "whatsapp": "573174682959"
   },
   {
     "key": "caguasongo",
@@ -98,7 +98,7 @@ export class RealInventory {
     "avatar": "artesano",
     "biographyEs": "Con más de cincuenta años de trayectoria, el maestro artesano Jesús Ceballos Caguasango es uno de los grandes guardianes del Barniz de Pasto o Mopa-Mopa, técnica declarada Patrimonio Cultural Inmaterial de la Humanidad. Su obra une el saber ancestral de la resina vegetal con el arte precolombino, el modernismo y la identidad cultural de Nariño.",
     "biographyEn": "With more than fifty years in the craft, master artisan Jesús Ceballos Caguasango is one of the great guardians of Barniz de Pasto or Mopa-Mopa, a technique declared Intangible Cultural Heritage of Humanity. His work brings together the ancestral knowledge of the plant resin with pre-Columbian art, modernism and the cultural identity of Nariño.",
-    "whatsapp": "573174682959"
+    "whatsapp": "573006925650"
   },
   {
     "key": "castrillon",
