@@ -20,4 +20,8 @@ export interface CustomOrderService {
   withdrawOffer(id: Id, offerId: Id): Promise<CustomRequest>;
   /** Artisan: requests the artisan has sent offers to, with their current status. */
   listAccepted(): Promise<CustomRequest[]>;
+  /** Artisan: declines a request addressed to them or open to all (it leaves their "new" list). */
+  decline(id: Id, reason: string | null): Promise<void>;
+  /** Artisan: the requests the artisan declined, with the reason. */
+  listDeclined(): Promise<CustomRequest[]>;
 }

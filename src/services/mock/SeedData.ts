@@ -57,6 +57,7 @@ export class SeedData {
       bids: [],
       customRequests: [],
       offers: [],
+      declines: [],
       conversations: [],
       messages: [],
       notifications: [],
@@ -435,6 +436,14 @@ export class SeedData {
         designs: [{ ...design(3, 303, true), prompt: "Barniz de Pasto jewelry box, black and gold, pre-Columbian frets", imageUrl: ArtImageCodec.encode({ shape: "joyero", motif: "precolombino", colors: ["#1A1A1A", "#C9A227"], seed: 303, view: "front" }) }],
         expiresAt: at(13), createdAt: at(-2),
       },
+      {
+        id: 3, buyerId: 9, targetMasterId: 1, title: "Plato con colibríes para mi madre",
+        description: "Quiero un plato de unos 35 cm como los de Richard Valderrama, con colibríes y flores en rojo, verde y dorado sobre fondo negro.",
+        shapeId: 4, styleId: 1, colorIds: [1, 2, 11, 9], motifIds: [2, 1], sizeNotes: "35 cm de diámetro", offeredPrice: 300, currency: "USD", desiredDate: at(60).slice(0, 10),
+        status: "PUBLISHED", acceptedOfferId: null,
+        designs: [{ ...design(4, 304, true), prompt: "Barniz de Pasto plate, black background, hummingbirds and flowers in red, green and gold", imageUrl: ArtImageCodec.encode({ shape: "plato", motif: "zoomorfo", colors: ["#1A1A1A", "#B3261E", "#2E7D32", "#C9A227"], seed: 304, view: "front" }) }],
+        expiresAt: at(14), createdAt: at(-1),
+      },
     );
     t.offers.push(
       { id: 1, requestId: 1, masterId: 1, type: "ACCEPT_PRICE", price: 260, currency: "USD", estimatedDays: 25, message: "Puedo hacerla con el borde de flores y cuatro colibríes.", designId: 1, status: "SENT", createdAt: at(-3) },
@@ -467,6 +476,7 @@ export class SeedData {
       { id: 1, userId: 9, type: "AUCTION_WON", title: `Ganaste la subasta de «${cabinet.titleEs}»`, body: "Tienes 48 horas para pagar.", link: "/account/orders/3", readAt: null, createdAt: at(-1, -6) },
       { id: 2, userId: 9, type: "NEW_CUSTOM_OFFER", title: "Nueva oferta para tu encargo", body: "María Cabrera envió una contraoferta.", link: "/account/custom/1", readAt: null, createdAt: at(-2) },
       { id: 3, userId: 9, type: "NEW_MESSAGE", title: "Richard Valderrama te respondió", body: null, link: "/messages/1", readAt: null, createdAt: at(-5) },
+      { id: 6, userId: 2, type: "SYSTEM", title: "Un cliente te pidió un encargo: «Plato con colibríes para mi madre»", body: null, link: "/artisan/custom-orders", readAt: null, createdAt: at(-1) },
       { id: 4, userId: SeedData.makerOf(t, hummingbird), type: "NEW_ORDER", title: "Nuevo pedido MUS-2026-000002", body: hummingbird.titleEs, link: "/artisan/orders", readAt: null, createdAt: at(-1) },
       { id: 5, userId: 1, type: "SYSTEM", title: "Carolina Benavides envió documentos para verificación", body: null, link: "/admin/verifications", readAt: null, createdAt: at(-1) },
     );

@@ -65,6 +65,8 @@ export interface CustomRequest {
   offers: CustomOffer[];
   expiresAt: IsoDate | null;
   createdAt: IsoDate;
+  /** Only in the artisan's "declined" list: the reason the artisan gave (null when none). */
+  declineReason?: string | null;
 }
 
 export type CustomRequestInput = Pick<

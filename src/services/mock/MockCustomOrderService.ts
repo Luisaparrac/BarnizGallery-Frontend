@@ -6,7 +6,7 @@ import type { CustomOrderService } from "../contracts/CustomOrderService";
 import { MockDatabase } from "./MockDatabase";
 import { money, rules } from "./MockRules";
 import { copy, latency, MockSession } from "./MockSession";
-import type { CustomRequestRow } from "./MockTables";
+import type { CustomRequestRow, DeclineRow } from "./MockTables";
 import { views } from "./MockViews";
 
 const OPEN = new Set(["PUBLISHED", "WITH_OFFERS"]);
@@ -118,7 +118,8 @@ export class MockCustomOrderService implements CustomOrderService {
     row.status = "PUBLISHED";
     row.expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
     const artisans = this.t.masters.filter((master) => master.verificationStatus === "APPROVED" && (!row.targetMasterId || master.id === row.targetMasterId));
-    artisans.forEach((master) => this.db.notify(master.userId, "SYSTEM", `Nuevo encargo abierto: «${row.title}»`, null, "/artisan/custom-orders"));
+    const title = row.targetMasterId ? `Un cliente te pidió un encargo: «${row.title}»` : `Nuevo encargo abierto: «${row.title}»`;
+    artisans.forEach((master) => this.db.notify(master.userId, "SYSTEM", title, null, "/artisan/custom-orders"));
     this.db.save();
     return copy(views.customRequest(row));
   }
@@ -208,6 +209,7 @@ export class MockCustomOrderService implements CustomOrderService {
     return copy(
       this.t.customRequests
         .filter((row) => OPEN.has(row.status) && (!row.targetMasterId || row.targetMasterId === master.id) && row.buyerId !== master.userId)
+        .filter((row) => !this.declines.some((entry) => entry.requestId === row.id && entry.masterId === master.id))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .map((row) => views.customRequest(row)),
     );
@@ -245,6 +247,42 @@ export class MockCustomOrderService implements CustomOrderService {
     if (!this.t.offers.some((entry) => entry.requestId === id && entry.status === "SENT") && row.status === "WITH_OFFERS") row.status = "PUBLISHED";
     this.db.save();
     return copy(views.customRequest(row));
+  }
+
+  /** Declines kept in the database (older saved databases may not have the table yet). */
+  private get declines(): DeclineRow[] {
+    return (this.t.declines ??= []);
+  }
+
+  async decline(id: Id, reason: string | null): Promise<void> {
+    await latency();
+    const { user, master } = MockSession.requireArtisan();
+    if (master.verificationStatus !== "APPROVED") throw new AppError("notApproved", "Your account must be approved first", 403);
+    const row = this.db.require(this.t.customRequests.find((entry) => entry.id === id), "Custom request");
+    if (!OPEN.has(row.status) || (row.targetMasterId && row.targetMasterId !== master.id)) throw new AppError("requestClosed", "This request is no longer open", 409);
+    if (!this.declines.some((entry) => entry.requestId === id && entry.masterId === master.id)) {
+      this.declines.push({ requestId: id, masterId: master.id, reason: reason?.trim() || null, createdAt: this.db.now() });
+    }
+    this.db.audit("custom_request_declines", id, "I", user.id, `${master.name} rechazó «${row.title}»`);
+    // The customer hears about it when the request was addressed to this master.
+    if (row.targetMasterId === master.id) {
+      this.db.notify(row.buyerId, "SYSTEM", `${master.name} no puede hacer tu encargo «${row.title}»`, reason?.trim() || null, `/account/custom/${row.id}`);
+    }
+    this.db.save();
+  }
+
+  async listDeclined(): Promise<CustomRequest[]> {
+    await latency();
+    const { master } = MockSession.requireArtisan();
+    return copy(
+      this.declines
+        .filter((entry) => entry.masterId === master.id)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .flatMap((entry) => {
+          const row = this.t.customRequests.find((request) => request.id === entry.requestId);
+          return row ? [{ ...views.customRequest(row), declineReason: entry.reason }] : [];
+        }),
+    );
   }
 
   async listAccepted(): Promise<CustomRequest[]> {

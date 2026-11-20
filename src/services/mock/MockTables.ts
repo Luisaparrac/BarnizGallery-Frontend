@@ -168,6 +168,14 @@ export interface AiUsageRow {
   createdAt: IsoDate;
 }
 
+/** An artisan said no to a custom request. */
+export interface DeclineRow {
+  requestId: Id;
+  masterId: Id;
+  reason: string | null;
+  createdAt: IsoDate;
+}
+
 export interface MockTables {
   catalogs: Catalogs;
   users: UserRow[];
@@ -189,6 +197,8 @@ export interface MockTables {
   bids: BidRow[];
   customRequests: CustomRequestRow[];
   offers: OfferRow[];
+  /** Requests an artisan declined (table custom_request_declines). */
+  declines: DeclineRow[];
   conversations: ConversationRow[];
   messages: MessageRow[];
   notifications: NotificationRow[];

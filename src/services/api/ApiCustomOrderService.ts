@@ -62,4 +62,12 @@ export class ApiCustomOrderService implements CustomOrderService {
   listAccepted(): Promise<CustomRequest[]> {
     return this.http.get<CustomRequest[]>("/api/artisan/custom-requests/accepted");
   }
+
+  decline(id: Id, reason: string | null): Promise<void> {
+    return this.http.post<void>(`${this.base}/${id}/decline`, { reason });
+  }
+
+  listDeclined(): Promise<CustomRequest[]> {
+    return this.http.get<CustomRequest[]>("/api/artisan/custom-requests/declined");
+  }
 }
