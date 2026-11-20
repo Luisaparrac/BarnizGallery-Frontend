@@ -11,17 +11,9 @@ import {
 import { MeshBatcher } from "./MeshBatcher";
 import { MeshFactory } from "./MeshFactory";
 import { PhotoTexture } from "./PhotoTexture";
+import type { HallFrame } from "./PlazaHall";
 import type { SceneContext } from "./SceneContext";
 import type { HallBoard, HallDesign } from "./WorldTypes";
-
-/** Inner size of the hall, in the building's local frame (door on the -Z side). */
-export interface HallFrame {
-  innerHalfWidth: number;
-  innerFrontZ: number;
-  innerBackZ: number;
-  doorHalfWidth: number;
-  doorHeight: number;
-}
 
 /** Stored on the clickable meshes of the hall, so a click can tell what was picked. */
 export interface HallMetadata {
