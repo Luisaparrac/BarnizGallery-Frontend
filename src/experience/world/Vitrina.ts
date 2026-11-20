@@ -1,4 +1,5 @@
 import { Color3, DynamicTexture, MeshBuilder, StandardMaterial, TransformNode, Vector3, type Material, type Mesh } from "@babylonjs/core";
+import type { MeshBatcher } from "./MeshBatcher";
 import { MeshFactory } from "./MeshFactory";
 import { PhotoTexture } from "./PhotoTexture";
 import type { SceneContext } from "./SceneContext";
@@ -12,6 +13,8 @@ export interface PieceMetadata {
 /**
  * Glass display case on a wooden plinth. Inside stands the 2D photo of the piece on a small easel,
  * and a brass-framed plaque on the front shows its title and price. Its front is the local -Z side.
+ * The wooden and brass parts go to the sala's batcher (merged per material); only the glass, the
+ * photo and the plaque stay separate meshes, because a click on them opens the piece.
  */
 export class Vitrina {
   static readonly PLINTH_HEIGHT = 1.0;
@@ -27,6 +30,7 @@ export class Vitrina {
     x: number,
     z: number,
     facing: number,
+    private readonly batcher: MeshBatcher,
   ) {
     this.root = new TransformNode(`vitrina-${piece.id}`, ctx.scene);
     this.root.parent = parent;
@@ -46,7 +50,7 @@ export class Vitrina {
     const P = Vitrina.PLINTH_HEIGHT;
     const glassHeight = 1.15;
 
-    this.box("plinth", S, P - 0.08, S, 0, (P - 0.08) / 2 + 0.08, 0, m.woodDark, 1.2, true);
+    this.box("plinth", S, P - 0.08, S, 0, (P - 0.08) / 2 + 0.08, 0, m.woodDark, 1.2);
     this.box("plinthBase", S + 0.1, 0.08, S + 0.1, 0, 0.04, 0, m.woodWarm, 1.2);
     this.box("plinthTop", S + 0.06, 0.05, S + 0.06, 0, P + 0.025, 0, m.brass);
     this.box("glass", S - 0.05, glassHeight, S - 0.05, 0, P + 0.05 + glassHeight / 2, 0, m.glass, 0, true);
@@ -59,8 +63,7 @@ export class Vitrina {
     const photoSize = 0.72;
     const photoY = P + 0.2 + photoSize / 2;
     this.box("easelFoot", 0.34, 0.14, 0.22, 0, P + 0.12, 0.1, m.cream);
-    const backing = this.box("photoBacking", photoSize + 0.05, photoSize + 0.05, 0.025, 0, photoY, 0.03, m.woodDark);
-    backing.rotation.x = -0.1;
+    this.box("photoBacking", photoSize + 0.05, photoSize + 0.05, 0.025, 0, photoY, 0.03, m.woodDark).rotation.x = -0.1;
     const photo = MeshBuilder.CreatePlane(`photo-${this.piece.id}`, { size: photoSize }, this.ctx.scene);
     photo.parent = this.root;
     photo.position.set(0, photoY, 0.012);
@@ -88,6 +91,7 @@ export class Vitrina {
     const mesh = MeshFactory.box(this.ctx.scene, `${name}-${this.piece.id}`, w, h, d, material, tile);
     mesh.parent = this.root;
     mesh.position.set(x, y, z);
+    if (!pickable) return this.batcher.add(mesh);
     return this.register(mesh, pickable);
   }
 

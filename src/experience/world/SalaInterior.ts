@@ -1,4 +1,5 @@
 import { MeshBuilder, type Material, type Mesh, type TransformNode } from "@babylonjs/core";
+import { MeshBatcher } from "./MeshBatcher";
 import { MeshFactory } from "./MeshFactory";
 import type { SceneContext } from "./SceneContext";
 import { Vitrina } from "./Vitrina";
@@ -33,6 +34,8 @@ export class SalaInterior {
   static readonly CAPACITY = CASE_SPOTS.length;
 
   readonly vitrinas: Vitrina[] = [];
+  /** Static parts of the room and of its cases, merged per material at the end of `build()`. */
+  private readonly batcher = new MeshBatcher();
 
   constructor(
     private readonly ctx: SceneContext,
@@ -46,11 +49,18 @@ export class SalaInterior {
     this.buildSign();
     this.room.pieces.slice(0, SalaInterior.CAPACITY).forEach((piece, index) => {
       const [x, z, facing] = CASE_SPOTS[index];
-      const vitrina = new Vitrina(this.ctx, this.root, piece, x, z, facing);
+      const vitrina = new Vitrina(this.ctx, this.root, piece, x, z, facing, this.batcher);
       vitrina.build();
       this.vitrinas.push(vitrina);
       this.ceilingLamp(x, z);
     });
+    // The merge bakes world positions, so the case roots must be up to date first.
+    this.root.computeWorldMatrix(true);
+    this.vitrinas.forEach((vitrina) => vitrina.root.computeWorldMatrix(true));
+    for (const mesh of this.batcher.merge(`${this.room.key}-interior`)) {
+      mesh.isPickable = false;
+      this.ctx.interior.add(mesh);
+    }
   }
 
   private buildRoom(): void {
@@ -100,16 +110,13 @@ export class SalaInterior {
     lamp.material = this.ctx.materials.glowLamp;
     lamp.parent = this.root;
     lamp.position.set(x, SalaInterior.CEILING - 0.04, z);
-    lamp.isPickable = false;
-    this.ctx.interior.add(lamp);
+    this.batcher.add(lamp);
   }
 
   private part(name: string, w: number, h: number, d: number, x: number, y: number, z: number, material: Material, tile = 0): Mesh {
     const mesh = MeshFactory.box(this.ctx.scene, `${this.room.key}-${name}`, w, h, d, material, tile);
     mesh.parent = this.root;
     mesh.position.set(x, y, z);
-    mesh.isPickable = false;
-    this.ctx.interior.add(mesh);
-    return mesh;
+    return this.batcher.add(mesh);
   }
 }
