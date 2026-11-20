@@ -3,6 +3,7 @@ import type { Id } from "../../../domain/common";
 import type { ArtworkDetail } from "../../../domain/gallery";
 import type { Localizer } from "../../../i18n/Localizer";
 import type { Formatter } from "../../../utils/Formatter";
+import { NameMask } from "../../../utils/NameMask";
 import { BoardView, type BoardContext } from "../board/BoardView";
 import { ErrorText } from "../ErrorText";
 import type { UiButton, UiField, UiNode, UiText } from "../kit/UiKit";
@@ -56,14 +57,6 @@ export class AuctionView extends BoardView {
     return auction.highestBid !== null ? auction.highestBid + auction.minIncrement : auction.basePrice + auction.minIncrement;
   }
 
-  /** "A*** C." — the history never shows full names. */
-  static mask(name: string): string {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (!parts.length) return "***";
-    const first = `${parts[0][0]}***`;
-    return parts.length > 1 ? `${first} ${parts[parts.length - 1][0]}.` : first;
-  }
-
   content({ kit }: BoardContext): UiNode {
     const { auction, bids, detail, userId } = this.data;
     const photos = detail ? [...detail.artwork.photos].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.sortOrder - b.sortOrder).map((photo) => photo.url) : [auction.coverUrl];
@@ -82,7 +75,7 @@ export class AuctionView extends BoardView {
     if (auction.status === "FINISHED") {
       const winner = bids.find((bid) => bid.amount === auction.highestBid && bid.reviewStatus === "VALID") ?? bids[0];
       if (auction.highestBidderId !== null && auction.highestBidderId === userId) info.add(kit.note(this.i18n.t("auction.youWon"), "success"));
-      else if (winner) info.add(kit.text(this.i18n.t("auctionHall.winner", { name: AuctionView.mask(winner.userName), amount: money(winner.amount) })));
+      else if (winner) info.add(kit.text(this.i18n.t("auctionHall.winner", { name: NameMask.mask(winner.userName), amount: money(winner.amount) })));
       else info.add(kit.text(this.i18n.t("auctionHall.noWinner")));
     } else if (auction.status === "ACTIVE" && userId !== null && auction.highestBidderId === userId) {
       info.add(kit.note(this.i18n.t("auction.youLead"), "success"));
@@ -91,7 +84,7 @@ export class AuctionView extends BoardView {
     info.add(kit.section(this.i18n.t("auction.history")));
     if (!bids.length) info.add(kit.note(this.i18n.t("auction.noBids")));
     for (const bid of [...bids].sort((a, b) => b.amount - a.amount).slice(0, AuctionView.HISTORY)) {
-      const who = bid.userId === userId ? this.i18n.t("auction.you") : AuctionView.mask(bid.userName);
+      const who = bid.userId === userId ? this.i18n.t("auction.you") : NameMask.mask(bid.userName);
       info.add(kit.note(`${who} · ${money(bid.amount)} · ${this.format.relative(bid.bidDate)}`));
     }
 
