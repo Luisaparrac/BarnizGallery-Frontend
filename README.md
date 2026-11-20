@@ -50,7 +50,7 @@ Contraseña de todas: `museo123`
 ## Qué incluye
 
 - **Bienvenida**: idioma, avatar, cuestionario de gustos (colores, formas, figuras, estilo, presupuesto) y recomendaciones.
-- **Experiencia 3D** (`index.html`): plaza con una sala por maestro; cada pieza es una foto 2D dentro de una vitrina.
+- **Experiencia 3D** (`index.html`): plaza con una sala por maestro (cada pieza es su foto enmarcada en la pared), Sala de encargos y Sala de subastas.
 - **Panel** (`panel.html`): artesanos y administradores, con su propio inicio de sesión y registro de artesanos.
 - **Cliente**: carrito, pago, pasarela, pedidos, favoritos, encargos con diseños de IA y ofertas de artesanos, mensajes, notificaciones, perfil (gustos y direcciones).
 - **Artesano**: verificación por pasos, editor de tienda (secciones, plantilla, colores, vista previa), obras, subastas, encargos (ofertar), pedidos por enviar (anticipo y saldo), liquidaciones.
@@ -61,10 +61,14 @@ Contraseña de todas: `museo123`
 
 Hecha con Babylon.js. Es la plaza de la versión anterior (fuente, quiosco, faroles, vegetación) con las salas abiertas:
 
-- Cada taller publicado es una sala (hasta 6 salas en la plaza, hasta 9 vitrinas por sala).
-- Cada pieza se muestra como su **foto principal en 2D** sobre una base 3D: pedestal de madera, vitrina de vidrio y placa con título y precio.
+- Cada taller publicado es una sala (hasta 6 salas en la plaza, hasta 6 cuadros por sala, en las paredes de la izquierda, la derecha y el fondo, con una banca en el centro).
+- Cada pieza es su **foto principal enmarcada** (proporción real, lado mayor de 1,4 m, centro a la altura de los ojos) con paspartú claro, un foco con haz y halo emisivos y una placa con título, maestro, técnica, medidas y precio o estado. Clic o **E** abre el tablero de la pieza.
+- Las fotos se dibujan con una segunda cámara (`PhotoPass`) después del post-proceso, así que conservan sus colores reales; la textura es de 1024 px en la sala y 2048 px de cerca.
+- **Sala de encargos** (sureste): mostrador, muro con los diseños de IA de mis encargos, pizarra de ofertas y mesa de trabajo.
+- **Sala de subastas** (suroeste): podio, las obras en subasta como cuadros y un tablero en vivo con la puja más alta, la cuenta regresiva y el número de pujas; clic o **E** sobre una obra abre su subasta para pujar.
+- **WhatsApp**: si el maestro tiene número (columna `whatsapp` de `data/maestros.csv`), el tablero de la pieza y un atril en su sala abren `wa.me` con un mensaje listo.
+- **Notificaciones**: campana en el HUD con las no leídas, lista con "Marcar todas como leídas" y avisos emergentes (pago aprobado, oferta nueva, te superaron en una puja, ganaste una subasta).
 - Las 2 salas que más coinciden con los gustos del visitante se marcan con una columna de luz.
-- Los paneles de pieza, compra, encargos y gustos se están pasando a 3D (`@babylonjs/gui`).
 - Controles: **W A S D** caminar, **Shift** correr, mouse mirar (clic para capturarlo, **Esc** para soltarlo), **V** cambiar cámara.
 - En celulares y tabletas sin mouse muestra un aviso.
 - Parámetros de URL: `?quality=low|medium|high` (calidad gráfica; baja sola si los FPS caen) y `?debug` (expone `window.museo`).
@@ -93,7 +97,7 @@ npm run seed:obras
 ```
 
 - `import:obras` usa `sharp`: acepta avif, png, webp y jpeg, deja todo en WebP de máximo 1600 px de lado y unos 300 KB, aplica el recorte de la columna `recorte` (`n:izquierda,arriba,ancho,alto` en píxeles de la foto n) y borra de `public/obras/<clave>/` las fotos que ya no estén en el inventario. Los originales solo se leen.
-- `--src` es la carpeta con una subcarpeta por maestro (columna `carpeta`). Los originales también están en el repo, en `public/obras/<Carpeta>/`, así que `--src public/obras` funciona; la salida va a `public/obras/<clave>/`, sin tocarlos.
+- `--src` es la carpeta con una subcarpeta por maestro (columna `carpeta`). Los originales no están en el repo: solo las WebP optimizadas de `public/obras/<clave>/`.
 - Fotos de la misma obra: `Bandeja (2).jpg` es otro ángulo de `Bandeja.jpg`. La foto sin número es la principal; si no existe, la `(1)`. Las demás siguen en orden.
 - `RealInventory.ts` no se edita a mano: se cambian los CSV y se corre `seed:obras`, que antes revisa que existan las fotos.
 
@@ -107,7 +111,7 @@ Los diseños de IA de los encargos también son simulados hasta que el backend c
 ```
 src/
   experience/   Experiencia 3D sin React (entrada de index.html)
-    world/      Mundo 3D (Babylon.js): plaza, salas, vitrinas, jugador, cámara
+    world/      Mundo 3D (Babylon.js): plaza, salas, cuadros, salas de encargos y subastas, jugador, cámara
   panel/        Panel React con HashRouter (entrada de panel.html)
   config/       AppConfig: lee las variables .env
   domain/       Tipos del modelo (usuario, galería, comercio, subasta, encargo...)
@@ -134,9 +138,13 @@ Patrones usados:
 | Observer | `Signal` / `AppEvents` (carrito, notificaciones, mensajes) y subastas en vivo |
 | Composition root | `PanelApp.tsx` arma proveedores y rutas del panel; `Experience` arma la experiencia 3D |
 | Facade | `World` es la única puerta al mundo 3D |
-| Template Method | `SceneComponent` y sus partes (`SalaBuilding`, `Kiosk`, `Fountain`...) |
+| Template Method | `SceneComponent` y sus partes (`SalaBuilding`, `Kiosk`, `Fountain`...); `PlazaHall` con `CommissionHall` y `AuctionHall` |
 | Factory | `MaterialLibrary`, `TextureFactory`, `MeshFactory` |
-| Adapter | `WorldRoomsLoader` convierte talleres y obras en salas y vitrinas |
+| Flyweight | `GalleryLights`: los materiales del haz y el halo de los focos, compartidos por todos los cuadros |
+| Builder | `HallRoomShell` arma el cuarto de las salas de la plaza |
+| Adapter | `WorldRoomsLoader` convierte talleres y obras en salas y cuadros; `CommissionHallLoader` y `AuctionBoardFeed` llenan las salas de encargos y subastas |
+| Mediator | `PurchaseFlow`, `CommissionFlow`, `AuctionFlow` deciden qué tablero sigue |
+| Observer | `NotificationCenter` (campana y avisos) y `AuctionBoardFeed` (tablero de subastas) |
 
 Convenciones: código en inglés, textos al usuario en español (e inglés). Los enums viajan en mayúsculas en inglés (`PAID`, `ARTISAN`); el backend los convierte a los valores de la base de datos.
 
