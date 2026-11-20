@@ -103,8 +103,6 @@ export const publicArea = {
     "auth.forgotSent": "Si {email} tiene cuenta, recibirás el enlace en unos minutos.",
     "auth.sendLink": "Enviar enlace",
     "auth.backToLogin": "Volver a entrar",
-    "auth.forbiddenTitle": "Esta página no es para tu tipo de cuenta",
-    "auth.forbiddenText": "Entra con otra cuenta o vuelve a la galería.",
   },
   en: {
     "welcome.avatarTitle": "Choose your avatar",
@@ -209,7 +207,5 @@ export const publicArea = {
     "auth.forgotSent": "If {email} has an account, the link arrives in a few minutes.",
     "auth.sendLink": "Send link",
     "auth.backToLogin": "Back to sign in",
-    "auth.forbiddenTitle": "This page is not for your type of account",
-    "auth.forbiddenText": "Sign in with another account or go back to the gallery.",
   },
 };

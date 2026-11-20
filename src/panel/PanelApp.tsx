@@ -1,7 +1,9 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
 import { AppShell } from "../components/layout/AppShell";
 import { PanelLayout } from "../components/layout/PanelLayout";
+import { RequireApprovedArtisan } from "../components/layout/RequireApprovedArtisan";
 import { RequireAuth } from "../components/layout/RequireAuth";
+import { AccessPolicy } from "../core/AccessPolicy";
 import { AdminAuditPage } from "../pages/admin/AdminAuditPage";
 import { AdminBidsPage } from "../pages/admin/AdminBidsPage";
 import { AdminCatalogsPage } from "../pages/admin/AdminCatalogsPage";
@@ -40,15 +42,15 @@ function Routing() {
         <Route path="register" element={<RegisterPage />} />
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
 
-        <Route path="messages" element={<RequireAuth roles={["ARTISAN", "ADMIN"]}><MessagesPage /></RequireAuth>} />
-        <Route path="messages/:id" element={<RequireAuth roles={["ARTISAN", "ADMIN"]}><MessagesPage /></RequireAuth>} />
-        <Route path="profile" element={<RequireAuth roles={["ARTISAN", "ADMIN"]}><ProfilePage /></RequireAuth>} />
-        <Route path="notifications" element={<RequireAuth roles={["ARTISAN", "ADMIN"]}><NotificationsPage /></RequireAuth>} />
+        <Route path="messages" element={<RequireAuth roles={AccessPolicy.rolesFor("panel")}><MessagesPage /></RequireAuth>} />
+        <Route path="messages/:id" element={<RequireAuth roles={AccessPolicy.rolesFor("panel")}><MessagesPage /></RequireAuth>} />
+        <Route path="profile" element={<RequireAuth roles={AccessPolicy.rolesFor("panel")}><ProfilePage /></RequireAuth>} />
+        <Route path="notifications" element={<RequireAuth roles={AccessPolicy.rolesFor("panel")}><NotificationsPage /></RequireAuth>} />
 
         <Route
           path="artisan"
           element={
-            <RequireAuth roles={["ARTISAN"]}>
+            <RequireAuth roles={AccessPolicy.rolesFor("artisanPanel")}>
               <PanelLayout
                 title={i18n.t("nav.artisanPanel")}
                 links={[
@@ -65,21 +67,24 @@ function Routing() {
             </RequireAuth>
           }
         >
-          <Route index element={<ArtisanDashboardPage />} />
           <Route path="verification" element={<VerificationPage />} />
-          <Route path="store" element={<StoreEditorPage />} />
-          <Route path="artworks" element={<ArtisanArtworksPage />} />
-          <Route path="artworks/new" element={<ArtworkEditorPage />} />
-          <Route path="artworks/:id" element={<ArtworkEditorPage />} />
-          <Route path="auctions" element={<ArtisanAuctionsPage />} />
-          <Route path="custom-orders" element={<ArtisanCustomOrdersPage />} />
-          <Route path="orders" element={<ArtisanOrdersPage />} />
+          {/* Everything else needs an approved artisan. */}
+          <Route element={<RequireApprovedArtisan />}>
+            <Route index element={<ArtisanDashboardPage />} />
+            <Route path="store" element={<StoreEditorPage />} />
+            <Route path="artworks" element={<ArtisanArtworksPage />} />
+            <Route path="artworks/new" element={<ArtworkEditorPage />} />
+            <Route path="artworks/:id" element={<ArtworkEditorPage />} />
+            <Route path="auctions" element={<ArtisanAuctionsPage />} />
+            <Route path="custom-orders" element={<ArtisanCustomOrdersPage />} />
+            <Route path="orders" element={<ArtisanOrdersPage />} />
+          </Route>
         </Route>
 
         <Route
           path="admin"
           element={
-            <RequireAuth roles={["ADMIN"]}>
+            <RequireAuth roles={AccessPolicy.rolesFor("adminPanel")}>
               <PanelLayout
                 title={i18n.t("nav.adminPanel")}
                 links={[
