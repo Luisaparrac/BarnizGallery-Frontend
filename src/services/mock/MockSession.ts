@@ -31,6 +31,16 @@ export class MockSession {
     return user;
   }
 
+  /**
+   * The approved artisan calling: store, works, orders, auctions, custom orders and sales are closed
+   * until the administration approves the account (only the verification is open before).
+   */
+  static requireApprovedArtisan(): { user: UserRow; master: Master; store: Store } {
+    const artisan = MockSession.requireArtisan();
+    if (artisan.master.verificationStatus !== "APPROVED") throw new AppError("forbidden", "Only approved artisans can use this", 403);
+    return artisan;
+  }
+
   /** The artisan calling, with the master record and the store it owns. */
   static requireArtisan(): { user: UserRow; master: Master; store: Store } {
     const user = MockSession.requireUser("ARTISAN");

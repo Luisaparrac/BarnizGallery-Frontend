@@ -4,6 +4,7 @@ import type { Address, AddressInput, ProfileUpdate, User } from "../../domain/us
 import { TokenStore } from "../api/TokenStore";
 import type { ProfileService } from "../contracts/ProfileService";
 import { MockDatabase } from "./MockDatabase";
+import { AccessPolicy } from "../../core/AccessPolicy";
 import { recommender } from "./MockRecommender";
 import { rules } from "./MockRules";
 import { copy, latency, MockSession } from "./MockSession";
@@ -72,13 +73,13 @@ export class MockProfileService implements ProfileService {
 
   async listAddresses(): Promise<Address[]> {
     await latency();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("buy"));
     return copy(this.db.tables.addresses.filter((row) => row.userId === user.id).map(({ userId: _user, ...address }) => address));
   }
 
   async saveAddress(address: AddressInput, id?: Id): Promise<Address> {
     await latency();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("buy"));
     const list = this.db.tables.addresses;
     const mine = list.filter((row) => row.userId === user.id);
     const isDefault = address.isDefault || mine.length === 0 || (mine.length === 1 && mine[0].id === id);
@@ -96,7 +97,7 @@ export class MockProfileService implements ProfileService {
 
   async deleteAddress(id: Id): Promise<void> {
     await latency();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("buy"));
     this.db.tables.addresses = this.db.tables.addresses.filter((row) => !(row.id === id && row.userId === user.id));
     this.db.save();
   }

@@ -3,6 +3,7 @@ import type { Id } from "../../domain/common";
 import { AppError } from "../../domain/errors";
 import type { AuctionService } from "../contracts/AuctionService";
 import { MockDatabase } from "./MockDatabase";
+import { AccessPolicy } from "../../core/AccessPolicy";
 import { money, rules } from "./MockRules";
 import { copy, latency, MockSession } from "./MockSession";
 import type { AuctionRow } from "./MockTables";
@@ -55,7 +56,7 @@ export class MockAuctionService implements AuctionService {
   async placeBid(id: Id, amount: number): Promise<Bid> {
     await latency();
     rules.syncAuctions();
-    const user = MockSession.requireUser("CUSTOMER", "ARTISAN");
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("bid"));
     const auction = this.row(id);
     if (auction.status !== "ACTIVE") throw new AppError("auctionClosed", "This auction is not active", 422);
     const artwork = this.t.artworks.find((row) => row.id === auction.artworkId)!;
@@ -90,14 +91,14 @@ export class MockAuctionService implements AuctionService {
   async listMine(): Promise<Auction[]> {
     await latency();
     rules.syncAuctions();
-    const { store } = MockSession.requireArtisan();
+    const { store } = MockSession.requireApprovedArtisan();
     const artworkIds = new Set(this.t.artworks.filter((row) => row.storeId === store.id).map((row) => row.id));
     return copy(this.t.auctions.filter((row) => artworkIds.has(row.artworkId)).sort((a, b) => b.startDate.localeCompare(a.startDate)).map((row) => views.auction(row)));
   }
 
   async create(request: CreateAuctionRequest): Promise<Auction> {
     await latency();
-    const { user, master, store } = MockSession.requireArtisan();
+    const { user, master, store } = MockSession.requireApprovedArtisan();
     if (master.verificationStatus !== "APPROVED") throw new AppError("notApproved", "Your account must be approved first", 403);
     const artwork = this.db.require(this.t.artworks.find((row) => row.id === request.artworkId && row.storeId === store.id && !row.deletedAt), "Artwork");
     if (artwork.status === "SOLD" || artwork.status === "RESERVED" || artwork.status === "DRAFT") throw new AppError("auctionNotAllowed", "This piece cannot go to auction", 422);

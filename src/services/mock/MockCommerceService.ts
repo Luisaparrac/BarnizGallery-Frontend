@@ -3,6 +3,7 @@ import type { Cart, CheckoutRequest, Order, Payment, PaymentMethod, PaymentStatu
 import { AppError } from "../../domain/errors";
 import type { CommerceService } from "../contracts/CommerceService";
 import { MockDatabase } from "./MockDatabase";
+import { AccessPolicy } from "../../core/AccessPolicy";
 import { money, rules } from "./MockRules";
 import { copy, latency, MockSession } from "./MockSession";
 import type { CartRow } from "./MockTables";
@@ -50,12 +51,12 @@ export class MockCommerceService implements CommerceService {
   async getCart(): Promise<Cart> {
     await latency();
     rules.syncOrders();
-    return copy(this.view(this.cartOf(MockSession.requireUser().id)));
+    return copy(this.view(this.cartOf(MockSession.requireUser(...AccessPolicy.rolesFor("buy")).id)));
   }
 
   async addToCart(artworkId: Id): Promise<Cart> {
     await latency();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("buy"));
     const artwork = this.db.require(this.t.artworks.find((row) => row.id === artworkId && !row.deletedAt), "Artwork");
     if (artwork.saleMode !== "SALE" || artwork.status !== "EXHIBITED" || artwork.price === null || artwork.stock < 1) {
       throw new AppError("notForSale", "This piece is not for sale right now", 422);
@@ -69,7 +70,7 @@ export class MockCommerceService implements CommerceService {
 
   async updateQuantity(artworkId: Id, quantity: number): Promise<Cart> {
     await latency();
-    const cart = this.cartOf(MockSession.requireUser().id);
+    const cart = this.cartOf(MockSession.requireUser(...AccessPolicy.rolesFor("buy")).id);
     const artwork = this.db.require(this.t.artworks.find((row) => row.id === artworkId), "Artwork");
     const item = cart.items.find((entry) => entry.artworkId === artworkId);
     if (item) item.quantity = Math.max(1, Math.min(quantity, artwork.stock));
@@ -79,7 +80,7 @@ export class MockCommerceService implements CommerceService {
 
   async removeFromCart(artworkId: Id): Promise<Cart> {
     await latency();
-    const cart = this.cartOf(MockSession.requireUser().id);
+    const cart = this.cartOf(MockSession.requireUser(...AccessPolicy.rolesFor("buy")).id);
     cart.items = cart.items.filter((entry) => entry.artworkId !== artworkId);
     this.db.save();
     return copy(this.view(cart));
@@ -87,7 +88,7 @@ export class MockCommerceService implements CommerceService {
 
   async checkout(request: CheckoutRequest): Promise<Order> {
     await latency();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("buy"));
     const cart = this.view(this.cartOf(user.id));
     if (!cart.items.length) throw new AppError("emptyCart", "The cart is empty", 422);
     const unavailable = cart.items.find((item) => item.stock < item.quantity);
@@ -116,7 +117,7 @@ export class MockCommerceService implements CommerceService {
 
   async startPayment(orderId: Id): Promise<Payment> {
     await latency();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("buy"));
     const order = this.db.require(this.t.orders.find((row) => row.id === orderId && row.buyerId === user.id), "Order");
     if (order.status !== "PENDING_PAYMENT") throw new AppError("orderNotPending", "This order is not waiting for payment", 409);
     const id = this.db.nextId("payments");
@@ -132,7 +133,7 @@ export class MockCommerceService implements CommerceService {
 
   async getPayment(paymentId: Id): Promise<Payment> {
     await latency();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("buy"));
     const payment = this.db.require(this.t.payments.find((row) => row.id === paymentId), "Payment");
     const order = this.t.orders.find((row) => row.id === payment.orderId);
     if (order?.buyerId !== user.id) throw new AppError("forbidden", "Not your payment", 403);
@@ -158,7 +159,7 @@ export class MockCommerceService implements CommerceService {
   async listMyOrders(): Promise<Order[]> {
     await latency();
     rules.syncAuctions();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("buy"));
     this.db.save();
     return copy(this.t.orders.filter((row) => row.buyerId === user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((row) => views.order(row)));
   }
@@ -166,7 +167,7 @@ export class MockCommerceService implements CommerceService {
   async getOrder(orderId: Id): Promise<Order> {
     await latency();
     rules.syncAuctions();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("buy"));
     const order = this.db.require(this.t.orders.find((row) => row.id === orderId), "Order");
     if (order.buyerId !== user.id && user.role !== "ADMIN") throw new AppError("forbidden", "Not your order", 403);
     return copy(views.order(order));
@@ -174,7 +175,7 @@ export class MockCommerceService implements CommerceService {
 
   async cancelOrder(orderId: Id): Promise<Order> {
     await latency();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("buy"));
     const order = this.db.require(this.t.orders.find((row) => row.id === orderId && row.buyerId === user.id), "Order");
     if (order.status !== "PENDING_PAYMENT" || order.type !== "PURCHASE") throw new AppError("onlyUnpaidCancel", "Only unpaid purchases can be cancelled", 409);
     rules.cancelOrder(order, user.id, "Cancelado por el cliente");

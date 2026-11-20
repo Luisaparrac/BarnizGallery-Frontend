@@ -4,6 +4,7 @@ import type { CustomRequest, CustomRequestInput, OfferInput } from "../../domain
 import { AppError } from "../../domain/errors";
 import type { CustomOrderService } from "../contracts/CustomOrderService";
 import { MockDatabase } from "./MockDatabase";
+import { AccessPolicy } from "../../core/AccessPolicy";
 import { money, rules } from "./MockRules";
 import { copy, latency, MockSession } from "./MockSession";
 import type { CustomRequestRow, DeclineRow } from "./MockTables";
@@ -25,7 +26,7 @@ export class MockCustomOrderService implements CustomOrderService {
   }
 
   private mine(id: Id): CustomRequestRow {
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("commission"));
     const row = this.db.require(this.t.customRequests.find((entry) => entry.id === id), "Custom request");
     if (row.buyerId !== user.id) throw new AppError("forbidden", "Not your request", 403);
     return row;
@@ -49,7 +50,7 @@ export class MockCustomOrderService implements CustomOrderService {
 
   async create(input: CustomRequestInput): Promise<CustomRequest> {
     await latency();
-    const user = MockSession.requireUser("CUSTOMER", "ARTISAN");
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("commission"));
     this.validate(input);
     const row: CustomRequestRow = {
       ...input, id: this.db.nextId("customRequests"), buyerId: user.id, title: input.title.trim(), description: input.description.trim(),
@@ -137,14 +138,14 @@ export class MockCustomOrderService implements CustomOrderService {
   async listMine(): Promise<CustomRequest[]> {
     await latency();
     this.expire();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("commission"));
     return copy(this.t.customRequests.filter((row) => row.buyerId === user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((row) => views.customRequest(row)));
   }
 
   async get(id: Id): Promise<CustomRequest> {
     await latency();
     this.expire();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("commission"));
     const row = this.db.require(this.t.customRequests.find((entry) => entry.id === id), "Custom request");
     const master = this.t.masters.find((entry) => entry.userId === user.id);
     const isArtisanViewer = !!master && (OPEN.has(row.status) || this.t.offers.some((offer) => offer.requestId === id && offer.masterId === master.id));
@@ -154,7 +155,7 @@ export class MockCustomOrderService implements CustomOrderService {
 
   async acceptOffer(id: Id, offerId: Id): Promise<{ request: CustomRequest; orderId: Id }> {
     await latency();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("commission"));
     const row = this.mine(id);
     if (!OPEN.has(row.status)) throw new AppError("requestClosed", "This request is not open", 409);
     const offer = this.db.require(this.t.offers.find((entry) => entry.id === offerId && entry.requestId === id && entry.status === "SENT"), "Offer");
@@ -204,7 +205,7 @@ export class MockCustomOrderService implements CustomOrderService {
   async listOpen(): Promise<CustomRequest[]> {
     await latency();
     this.expire();
-    const { master, store } = MockSession.requireArtisan();
+    const { master, store } = MockSession.requireApprovedArtisan();
     if (master.verificationStatus !== "APPROVED" || !store.acceptsCustomOrders) return [];
     return copy(
       this.t.customRequests
@@ -217,7 +218,7 @@ export class MockCustomOrderService implements CustomOrderService {
 
   async sendOffer(id: Id, input: OfferInput): Promise<CustomRequest> {
     await latency();
-    const { user, master } = MockSession.requireArtisan();
+    const { user, master } = MockSession.requireApprovedArtisan();
     if (master.verificationStatus !== "APPROVED") throw new AppError("notApproved", "Your account must be approved first", 403);
     const row = this.db.require(this.t.customRequests.find((entry) => entry.id === id), "Custom request");
     if (!OPEN.has(row.status)) throw new AppError("requestClosed", "This request is no longer open", 409);
@@ -240,7 +241,7 @@ export class MockCustomOrderService implements CustomOrderService {
 
   async withdrawOffer(id: Id, offerId: Id): Promise<CustomRequest> {
     await latency();
-    const { master } = MockSession.requireArtisan();
+    const { master } = MockSession.requireApprovedArtisan();
     const row = this.db.require(this.t.customRequests.find((entry) => entry.id === id), "Custom request");
     const offer = this.db.require(this.t.offers.find((entry) => entry.id === offerId && entry.masterId === master.id && entry.status === "SENT"), "Offer");
     offer.status = "WITHDRAWN";
@@ -256,7 +257,7 @@ export class MockCustomOrderService implements CustomOrderService {
 
   async decline(id: Id, reason: string | null): Promise<void> {
     await latency();
-    const { user, master } = MockSession.requireArtisan();
+    const { user, master } = MockSession.requireApprovedArtisan();
     if (master.verificationStatus !== "APPROVED") throw new AppError("notApproved", "Your account must be approved first", 403);
     const row = this.db.require(this.t.customRequests.find((entry) => entry.id === id), "Custom request");
     if (!OPEN.has(row.status) || (row.targetMasterId && row.targetMasterId !== master.id)) throw new AppError("requestClosed", "This request is no longer open", 409);
@@ -273,7 +274,7 @@ export class MockCustomOrderService implements CustomOrderService {
 
   async listDeclined(): Promise<CustomRequest[]> {
     await latency();
-    const { master } = MockSession.requireArtisan();
+    const { master } = MockSession.requireApprovedArtisan();
     return copy(
       this.declines
         .filter((entry) => entry.masterId === master.id)
@@ -287,7 +288,7 @@ export class MockCustomOrderService implements CustomOrderService {
 
   async listAccepted(): Promise<CustomRequest[]> {
     await latency();
-    const { master } = MockSession.requireArtisan();
+    const { master } = MockSession.requireApprovedArtisan();
     const offerIds = new Set(this.t.offers.filter((offer) => offer.masterId === master.id).map((offer) => offer.requestId));
     return copy(this.t.customRequests.filter((row) => offerIds.has(row.id)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((row) => views.customRequest(row)));
   }

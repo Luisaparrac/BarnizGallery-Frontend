@@ -3,6 +3,7 @@ import { AppError } from "../../domain/errors";
 import type { ArtworkDetail, ArtworkSummary, GalleryFilters, ReportInput, StoreSummary } from "../../domain/gallery";
 import type { GalleryService } from "../contracts/GalleryService";
 import { MockDatabase } from "./MockDatabase";
+import { AccessPolicy } from "../../core/AccessPolicy";
 import { rules } from "./MockRules";
 import { copy, latency, MockSession } from "./MockSession";
 import { views } from "./MockViews";
@@ -76,7 +77,7 @@ export class MockGalleryService implements GalleryService {
 
   async toggleFavorite(artworkId: Id): Promise<boolean> {
     await latency();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("favorite"));
     const index = this.t.favorites.findIndex((row) => row.userId === user.id && row.artworkId === artworkId);
     if (index >= 0) this.t.favorites.splice(index, 1);
     else {
@@ -89,7 +90,7 @@ export class MockGalleryService implements GalleryService {
 
   async listFavorites(): Promise<ArtworkSummary[]> {
     await latency();
-    const user = MockSession.requireUser();
+    const user = MockSession.requireUser(...AccessPolicy.rolesFor("favorite"));
     const ids = this.t.favorites.filter((row) => row.userId === user.id).map((row) => row.artworkId);
     return copy(this.t.artworks.filter((row) => ids.includes(row.id) && !row.deletedAt).map((row) => views.artworkSummary(row)));
   }

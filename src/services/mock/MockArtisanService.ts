@@ -61,12 +61,12 @@ export class MockArtisanService implements ArtisanService {
 
   async getMyStore(): Promise<Store> {
     await latency();
-    return copy(MockSession.requireArtisan().store);
+    return copy(MockSession.requireApprovedArtisan().store);
   }
 
   async saveMyStore(update: Store): Promise<Store> {
     await latency();
-    const { user, store } = MockSession.requireArtisan();
+    const { user, store } = MockSession.requireApprovedArtisan();
     if (!update.nameEs.trim()) throw new AppError("storeName", "The store needs a name", 422);
     const slug = SeedData.slug(update.slug || update.nameEs);
     if (this.t.stores.some((row) => row.slug === slug && row.id !== store.id)) throw new AppError("slugTaken", "That address is already used by another store", 409);
@@ -82,7 +82,7 @@ export class MockArtisanService implements ArtisanService {
 
   async applyTemplate(templateId: Id): Promise<Store> {
     await latency();
-    const { user, store } = MockSession.requireArtisan();
+    const { user, store } = MockSession.requireApprovedArtisan();
     const template = this.db.require(this.t.catalogs.templates.find((entry) => entry.id === templateId && entry.isActive), "Template");
     const kept = new Map(store.sections.map((section) => [section.type, section]));
     store.templateId = template.id;
@@ -99,7 +99,7 @@ export class MockArtisanService implements ArtisanService {
   /** Same rule as the trigger tg_stores_publication: only approved artisans publish. */
   async publishStore(): Promise<Store> {
     await latency();
-    const { user, master, store } = MockSession.requireArtisan();
+    const { user, master, store } = MockSession.requireApprovedArtisan();
     if (master.verificationStatus !== "APPROVED") throw new AppError("storeNeedsApproval", "The store can be published once your account is approved", 409);
     if (store.status === "SUSPENDED") throw new AppError("storeSuspended", "The store was suspended by the administrator", 409);
     store.status = "PUBLISHED";
@@ -111,7 +111,7 @@ export class MockArtisanService implements ArtisanService {
 
   async unpublishStore(): Promise<Store> {
     await latency();
-    const { user, store } = MockSession.requireArtisan();
+    const { user, store } = MockSession.requireApprovedArtisan();
     if (store.status === "SUSPENDED") throw new AppError("storeSuspended", "The store was suspended by the administrator", 409);
     store.status = "DRAFT";
     this.db.audit("stores", store.id, "U", user.id, "Tienda pasada a borrador");
@@ -122,12 +122,12 @@ export class MockArtisanService implements ArtisanService {
   async listMyArtworks(): Promise<Artwork[]> {
     await latency();
     rules.syncAuctions();
-    const { store } = MockSession.requireArtisan();
+    const { store } = MockSession.requireApprovedArtisan();
     return copy(this.t.artworks.filter((row) => row.storeId === store.id && !row.deletedAt).map(({ deletedAt: _deleted, ...artwork }) => artwork));
   }
 
   private ownArtwork(id: Id): ArtworkRow {
-    const { store } = MockSession.requireArtisan();
+    const { store } = MockSession.requireApprovedArtisan();
     return this.db.require(this.t.artworks.find((row) => row.id === id && row.storeId === store.id && !row.deletedAt), "Artwork");
   }
 
@@ -139,7 +139,7 @@ export class MockArtisanService implements ArtisanService {
 
   async saveArtwork(input: ArtworkInput, id?: Id): Promise<Artwork> {
     await latency();
-    const { user, store } = MockSession.requireArtisan();
+    const { user, store } = MockSession.requireApprovedArtisan();
     if (!input.titleEs.trim() || !input.titleEn.trim()) throw new AppError("titlesBoth", "Write the title in both languages", 422);
     if (input.saleMode === "SALE" && input.status !== "DRAFT" && (input.price === null || input.price <= 0)) {
       throw new AppError("priceRequired", "A piece for sale needs a price before leaving draft", 422);
@@ -170,7 +170,7 @@ export class MockArtisanService implements ArtisanService {
 
   async deleteArtwork(id: Id): Promise<void> {
     await latency();
-    const { user } = MockSession.requireArtisan();
+    const { user } = MockSession.requireApprovedArtisan();
     const row = this.ownArtwork(id);
     if (["IN_AUCTION", "RESERVED"].includes(row.status)) throw new AppError("pieceBusy", "This piece has an open auction or order", 409);
     row.deletedAt = this.db.now();
@@ -190,13 +190,13 @@ export class MockArtisanService implements ArtisanService {
 
   async getSales(): Promise<StoreSales> {
     await latency();
-    return copy(views.storeSales(MockSession.requireArtisan().store));
+    return copy(views.storeSales(MockSession.requireApprovedArtisan().store));
   }
 
   async listOrderItems(): Promise<ArtisanOrderItem[]> {
     await latency();
     rules.syncAuctions();
-    const { store } = MockSession.requireArtisan();
+    const { store } = MockSession.requireApprovedArtisan();
     return copy(
       this.t.orders
         .filter((order) => order.status !== "PENDING_PAYMENT" && order.status !== "CANCELLED")
@@ -210,7 +210,7 @@ export class MockArtisanService implements ArtisanService {
   }
 
   private ownItem(itemId: Id): { order: OrderRow; item: OrderRow["items"][number] } {
-    const { store } = MockSession.requireArtisan();
+    const { store } = MockSession.requireApprovedArtisan();
     for (const order of this.t.orders) {
       const item = order.items.find((entry) => entry.id === itemId && entry.storeId === store.id);
       if (item) return { order, item };
@@ -228,7 +228,7 @@ export class MockArtisanService implements ArtisanService {
 
   async markPreparing(itemId: Id): Promise<void> {
     await latency();
-    const { user } = MockSession.requireArtisan();
+    const { user } = MockSession.requireApprovedArtisan();
     const { order, item } = this.ownItem(itemId);
     if (item.fulfillmentStatus !== "PENDING") throw new AppError("itemNotPending", "This item is not pending", 409);
     item.fulfillmentStatus = "PREPARING";
@@ -238,7 +238,7 @@ export class MockArtisanService implements ArtisanService {
 
   async markShipped(itemId: Id, shipment: ShipmentInput): Promise<void> {
     await latency();
-    const { user } = MockSession.requireArtisan();
+    const { user } = MockSession.requireApprovedArtisan();
     const { order, item } = this.ownItem(itemId);
     if (!["PENDING", "PREPARING"].includes(item.fulfillmentStatus)) throw new AppError("itemShipped", "This item was already shipped", 409);
     if (!shipment.carrier.trim() || !shipment.trackingNumber.trim()) throw new AppError("shipmentData", "Write the carrier and the tracking number", 422);
@@ -253,7 +253,7 @@ export class MockArtisanService implements ArtisanService {
 
   async markDelivered(itemId: Id): Promise<void> {
     await latency();
-    const { user } = MockSession.requireArtisan();
+    const { user } = MockSession.requireApprovedArtisan();
     const { order, item } = this.ownItem(itemId);
     if (item.fulfillmentStatus !== "SHIPPED") throw new AppError("onlyShippedDelivered", "Only shipped items can be delivered", 409);
     item.fulfillmentStatus = "DELIVERED";
@@ -270,7 +270,7 @@ export class MockArtisanService implements ArtisanService {
   /** The custom piece is finished: the customer gets the order for the rest of the price. */
   async requestBalance(itemId: Id): Promise<void> {
     await latency();
-    const { user, store } = MockSession.requireArtisan();
+    const { user, store } = MockSession.requireApprovedArtisan();
     const { order, item } = this.ownItem(itemId);
     if (order.type !== "CUSTOM" || order.balanceOfOrderId || !item.customOfferId || order.status === "PENDING_PAYMENT") {
       throw new AppError("balanceOnlyDeposit", "Only paid custom-order deposits can ask for the balance", 409);
@@ -300,7 +300,7 @@ export class MockArtisanService implements ArtisanService {
 
   async listPayouts(): Promise<Payout[]> {
     await latency();
-    const { master } = MockSession.requireArtisan();
+    const { master } = MockSession.requireApprovedArtisan();
     return copy(this.t.payouts.filter((row) => row.masterId === master.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((row) => views.payout(row)));
   }
 }
