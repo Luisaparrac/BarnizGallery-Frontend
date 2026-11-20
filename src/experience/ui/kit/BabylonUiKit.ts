@@ -44,6 +44,36 @@ class BabylonBox extends BabylonNode implements UiBox {
   }
 }
 
+/**
+ * A row that wraps like CSS flex-wrap: a column of horizontal lines, and a new line starts when
+ * the next control (chips, swatches...) would not fit in the width of the board's content.
+ */
+class BabylonWrapRow extends BabylonNode implements UiBox {
+  private line: StackPanel | null = null;
+  private used = 0;
+
+  constructor(
+    private readonly lines: StackPanel,
+    private readonly newLine: () => StackPanel,
+    private readonly spacing: number,
+    private readonly maxWidth: () => number,
+  ) {
+    super(lines);
+  }
+
+  add(child: UiNode): void {
+    const control = BabylonUiKit.control(child);
+    const width = control.widthInPixels;
+    if (!this.line || (this.used > 0 && this.used + this.spacing + width > this.maxWidth())) {
+      this.line = this.newLine();
+      this.lines.addControl(this.line);
+      this.used = 0;
+    }
+    this.used += (this.used > 0 ? this.spacing : 0) + width;
+    this.line.addControl(control);
+  }
+}
+
 class BabylonText extends BabylonNode implements UiText {
   constructor(readonly block: TextBlock) {
     super(block);
@@ -553,9 +583,18 @@ export class BabylonUiKit implements UiKit {
   }
 
   row(gap: Gap = "medium", align: Align = "start"): UiBox {
-    const row = this.stack(false, this.gap(gap));
-    row.horizontalAlignment = align === "center" ? Control.HORIZONTAL_ALIGNMENT_CENTER : align === "end" ? Control.HORIZONTAL_ALIGNMENT_RIGHT : Control.HORIZONTAL_ALIGNMENT_LEFT;
-    return new BabylonBox(row);
+    const alignment = align === "center" ? Control.HORIZONTAL_ALIGNMENT_CENTER : align === "end" ? Control.HORIZONTAL_ALIGNMENT_RIGHT : Control.HORIZONTAL_ALIGNMENT_LEFT;
+    const spacing = this.gap(gap);
+    // Sized by its lines (not 100%), so a row can still sit inside another horizontal row.
+    const lines = this.stack(true, spacing);
+    lines.adaptWidthToChildren = true;
+    lines.horizontalAlignment = alignment;
+    const newLine = () => {
+      const line = this.stack(false, spacing);
+      line.horizontalAlignment = alignment;
+      return line;
+    };
+    return new BabylonWrapRow(lines, newLine, T.px(spacing), () => this.contentWidth);
   }
 
   columns(main: UiNode, side: UiNode): UiNode {
