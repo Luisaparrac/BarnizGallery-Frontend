@@ -1,4 +1,5 @@
 import { ArtImageCodec } from "../../art/ArtImageSpec";
+import { AccessPolicy } from "../../core/AccessPolicy";
 import { ArtworkImageFactory } from "../../art/ArtworkImageFactory";
 import type { Id } from "../../domain/common";
 import type { CustomRequest } from "../../domain/customOrder";
@@ -36,7 +37,7 @@ export class CommissionHallLoader {
   ) {}
 
   async load(user: User | null): Promise<HallData> {
-    const requests = user ? await services.customOrder.listMine().catch(() => [] as CustomRequest[]) : [];
+    const requests = AccessPolicy.can(user, "commission") ? await services.customOrder.listMine().catch(() => [] as CustomRequest[]) : [];
     const designs = this.designsOf(requests);
     return {
       designs: designs.length ? designs : await this.examples(),

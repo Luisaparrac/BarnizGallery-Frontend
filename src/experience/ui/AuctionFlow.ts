@@ -1,3 +1,4 @@
+import { AccessPolicy } from "../../core/AccessPolicy";
 import { AppEvents } from "../../core/AppEvents";
 import type { Id } from "../../domain/common";
 import type { ArtworkDetail, ArtworkSummary } from "../../domain/gallery";
@@ -48,7 +49,7 @@ export class AuctionFlow {
         const order = await services.commerce.getOrder(auction.orderId).catch(() => null);
         if (order?.status === "PENDING_PAYMENT") payableOrderId = order.id;
       }
-      const view = new AuctionView(this.i18n, this.format, { auction, bids, detail, userId: user?.id ?? null, payableOrderId }, {
+      const view = new AuctionView(this.i18n, this.format, { auction, bids, detail, userId: user?.id ?? null, canBid: AccessPolicy.can(user, "bid"), payableOrderId }, {
         bid: async (amount) => {
           await services.auction.placeBid(id, amount);
           AppEvents.notificationsChanged.emit();

@@ -37,7 +37,8 @@ export class PieceView extends BoardView {
     private readonly i18n: Localizer,
     private readonly format: Formatter,
     private readonly detail: ArtworkDetail,
-    private readonly signedIn: boolean,
+    /** Visitor (asked to sign in), customer (buys and saves) or another role (only looks). */
+    private readonly buyer: "visitor" | "customer" | "other",
     private readonly act: PieceActions,
   ) {
     super();
@@ -66,7 +67,8 @@ export class PieceView extends BoardView {
     if (story) info.add(kit.text(this.shorten(story)));
     const dimensions = this.format.centimeters(artwork.widthCm, artwork.heightCm, artwork.depthCm);
     if (dimensions) info.add(kit.note(`${this.i18n.t("artwork.dimensions")}: ${dimensions}`));
-    if (!this.signedIn && this.forSale) info.add(kit.note(this.i18n.t("shop.signInToBuy")));
+    if (this.buyer === "visitor" && this.forSale) info.add(kit.note(this.i18n.t("shop.signInToBuy")));
+    if (this.buyer === "other") info.add(kit.note(this.i18n.t("access.noPurchase")));
     this.notice = kit.note("", "success");
     this.notice.setVisible(false);
     info.add(this.notice);
@@ -76,7 +78,8 @@ export class PieceView extends BoardView {
   override actions({ kit }: BoardContext): UiButton[] {
     const contact = this.act.contact;
     const contactButtons = contact ? [kit.button(this.i18n.t("whatsapp.contact"), () => contact(), "secondary")] : [];
-    if (!this.signedIn) return [...contactButtons, ...(this.forSale ? [kit.button(this.i18n.t("shop.signIn"), () => this.act.signIn())] : [])];
+    if (this.buyer === "visitor") return [...contactButtons, ...(this.forSale ? [kit.button(this.i18n.t("shop.signIn"), () => this.act.signIn())] : [])];
+    if (this.buyer === "other") return contactButtons;
     this.saveButton = kit.button(this.saveLabel(), () => void this.toggleSaved(), "secondary");
     const buttons = [...contactButtons, this.saveButton];
     if (this.forSale) {

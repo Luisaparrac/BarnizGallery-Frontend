@@ -1,3 +1,4 @@
+import { AccessPolicy } from "../../core/AccessPolicy";
 import { AppEvents } from "../../core/AppEvents";
 import type { Id } from "../../domain/common";
 import type { Cart, Order, Payment } from "../../domain/commerce";
@@ -60,7 +61,7 @@ export class PurchaseFlow {
       const store = await services.gallery.getStore(detail.storeSlug).catch(() => null);
       const contactUrl = new WhatsAppLink(this.i18n).forPiece(store?.master.whatsapp, detail.masterName, this.i18n.pick(detail.artwork.titleEs, detail.artwork.titleEn));
       this.host.show(
-        new PieceView(this.i18n, this.format, detail, this.session.signedIn, {
+        new PieceView(this.i18n, this.format, detail, this.buyer, {
           addToCart: async () => {
             await services.commerce.addToCart(id);
             AppEvents.cartChanged.emit();
@@ -74,8 +75,25 @@ export class PurchaseFlow {
     });
   }
 
+  /** Who is looking at a piece: a visitor (asked to sign in), a customer, or a role that does not buy. */
+  private get buyer(): "visitor" | "customer" | "other" {
+    const user = this.session.user;
+    if (!user) return "visitor";
+    return AccessPolicy.can(user, "buy") ? "customer" : "other";
+  }
+
+  /** Artisans and administrators walk the museum but do not buy, bid or commission. */
+  notForRole(title: string): void {
+    const role = this.session.user ? this.i18n.tx(`role.${this.session.user.role}`).toLowerCase() : "";
+    this.host.show(new MessageView(title, this.i18n.t("access.walkOnly", { role })));
+  }
+
   /** The cart (HUD button or the cashier stall). */
   async showCart(): Promise<void> {
+    if (this.buyer === "other") {
+      this.notForRole(this.i18n.t("cart.title"));
+      return;
+    }
     if (!this.session.signedIn) {
       this.host.show(new MessageView(this.i18n.t("cart.title"), this.i18n.t("shop.signInForCart"), { label: this.i18n.t("shop.signIn"), run: () => this.signIn(() => void this.showCart()) }));
       return;

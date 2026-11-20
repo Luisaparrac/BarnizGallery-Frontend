@@ -16,6 +16,8 @@ export interface AuctionData {
   detail: ArtworkDetail | null;
   /** The visitor's user id, or null without a session. */
   userId: Id | null;
+  /** False for signed-in roles that do not bid (artisans and administrators). */
+  canBid: boolean;
   /** The winner's order still waiting for payment, when the visitor won. */
   payableOrderId: Id | null;
 }
@@ -88,7 +90,8 @@ export class AuctionView extends BoardView {
       info.add(kit.note(`${who} · ${money(bid.amount)} · ${this.format.relative(bid.bidDate)}`));
     }
 
-    if (auction.status === "ACTIVE" && userId !== null) {
+    if (auction.status === "ACTIVE" && userId !== null && !this.data.canBid) info.add(kit.note(this.i18n.t("access.noBids")));
+    if (auction.status === "ACTIVE" && userId !== null && this.data.canBid) {
       this.amount = kit.field(this.i18n.t("auction.yourBid", { min: money(this.minimum) }), { type: "number", value: String(this.minimum) });
       info.add(this.amount);
     }
@@ -105,6 +108,7 @@ export class AuctionView extends BoardView {
     }
     if (auction.status !== "ACTIVE") return [];
     if (userId === null) return [kit.button(this.i18n.t("auction.loginToBid"), () => this.act.signIn())];
+    if (!this.data.canBid) return [];
     this.bidButton = kit.button(this.i18n.t("auction.bid"), () => void this.placeBid());
     return [this.bidButton];
   }

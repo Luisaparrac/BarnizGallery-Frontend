@@ -1,3 +1,4 @@
+import { AccessPolicy } from "../../core/AccessPolicy";
 import type { Id } from "../../domain/common";
 import type { CustomRequest, CustomRequestInput } from "../../domain/customOrder";
 import type { Localizer } from "../../i18n/Localizer";
@@ -34,6 +35,10 @@ export class CommissionFlow {
 
   /** My custom orders (the stall or the Account board). */
   async showList(): Promise<void> {
+    if (this.session.user && !AccessPolicy.can(this.session.user, "commission")) {
+      this.purchase.notForRole(this.i18n.t("custom.title"));
+      return;
+    }
     if (!this.session.signedIn) {
       this.host.show(new MessageView(this.i18n.t("custom.title"), this.i18n.t("shop.signInForCommissions"), { label: this.i18n.t("shop.signIn"), run: () => this.purchase.requireSignIn(() => void this.showList()) }));
       return;

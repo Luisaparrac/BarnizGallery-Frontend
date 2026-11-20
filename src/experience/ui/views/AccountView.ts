@@ -1,3 +1,4 @@
+import { AccessPolicy } from "../../../core/AccessPolicy";
 import type { Language } from "../../../domain/common";
 import type { User } from "../../../domain/user";
 import type { Localizer } from "../../../i18n/Localizer";
@@ -45,9 +46,9 @@ export class AccountView extends BoardView {
 
     const links = kit.column("small");
     if (this.user) {
-      links.add(kit.option(this.i18n.t("account.orders"), this.i18n.t("account.ordersDetail"), false, () => this.act.orders()));
-      links.add(kit.option(this.i18n.t("account.commissions"), this.i18n.t("account.commissionsDetail"), false, () => this.act.commissions()));
-      if (this.user.role !== "CUSTOMER") links.add(kit.option(this.i18n.t("account.panel"), this.i18n.t("account.panelDetail"), false, () => this.act.panel()));
+      if (AccessPolicy.can(this.user, "buy")) links.add(kit.option(this.i18n.t("account.orders"), this.i18n.t("account.ordersDetail"), false, () => this.act.orders()));
+      if (AccessPolicy.can(this.user, "commission")) links.add(kit.option(this.i18n.t("account.commissions"), this.i18n.t("account.commissionsDetail"), false, () => this.act.commissions()));
+      if (AccessPolicy.can(this.user, "panel")) links.add(kit.option(this.i18n.t("account.panel"), this.i18n.t("account.panelDetail"), false, () => this.act.panel()));
     }
     links.add(kit.option(this.i18n.t("lobby.changeAvatar"), this.i18n.t("account.avatarDetail"), false, () => this.act.changeAvatar()));
     column.add(links);

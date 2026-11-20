@@ -1,3 +1,4 @@
+import { AccessPolicy } from "../../core/AccessPolicy";
 import { AppEvents } from "../../core/AppEvents";
 import type { User } from "../../domain/user";
 import type { Localizer } from "../../i18n/Localizer";
@@ -178,8 +179,9 @@ export class ExperienceUi {
     this.stopWatchingCart?.();
     this.stopWatchingCart = null;
     const user = this.session.user;
-    this.hud.setEnabled("cart", user?.role !== "ADMIN");
-    if (!user || user.role === "ADMIN") {
+    const buys = AccessPolicy.can(user, "buy");
+    this.hud.setEnabled("cart", !user || buys);
+    if (!user || !buys) {
       this.hud.setCartCount(null);
       return;
     }
