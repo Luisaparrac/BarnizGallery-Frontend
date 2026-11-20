@@ -82,7 +82,7 @@ export class Experience {
     const canvas = this.createCanvas();
     let plaza: PlazaStage;
     try {
-      plaza = new PlazaStage(canvas, { i18n: this.i18n, user: result.user, rooms: data.rooms, avatarCode: result.avatar?.code ?? null, quality: this.params.get("quality") });
+      plaza = new PlazaStage(canvas, { i18n: this.i18n, user: result.user, rooms: data.rooms, auctions: data.auctions, avatarCode: result.avatar?.code ?? null, quality: this.params.get("quality") });
     } catch {
       this.showNotice(this.i18n.t("world.noWebgl"));
       return;

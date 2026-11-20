@@ -65,3 +65,37 @@ export interface HallTexts {
   /** Sign on the back wall inside. */
   inside: string;
 }
+
+/** A piece on auction, framed in the auction hall. */
+export interface AuctionPiece extends WorldPiece {
+  auctionId: Id;
+}
+
+/** One line of the live board in the auction hall. Texts arrive translated. */
+export interface AuctionBoardRow {
+  title: string;
+  /** "US$ 290", or the base price when nobody has bid. */
+  bid: string;
+  status: "ACTIVE" | "SCHEDULED" | "FINISHED" | "CANCELLED";
+  /** When the countdown ends: the end of an active auction or the start of a scheduled one. */
+  until: string | null;
+  bids: number;
+}
+
+/** What the live board of the auction hall shows. */
+export interface AuctionBoard {
+  title: string;
+  /** Column headers: work, highest bid, ends in, bids. */
+  columns: [string, string, string, string];
+  rows: AuctionBoardRow[];
+  /** Shown instead of the time for finished auctions, and before the countdown of scheduled ones. */
+  ended: string;
+  opens: string;
+  empty: string;
+}
+
+/** Fixed data of the auction hall: its signs and the pieces on auction when the plaza was built. */
+export interface AuctionHallData {
+  facade: [string, string];
+  pieces: AuctionPiece[];
+}

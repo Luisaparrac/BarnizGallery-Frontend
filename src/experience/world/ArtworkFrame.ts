@@ -50,6 +50,8 @@ export class ArtworkFrame {
     spot: WallSpot,
     private readonly batcher: MeshBatcher,
     private readonly ceiling: number,
+    /** What a click on the picture reports; by default, the piece. */
+    private readonly metadata: object = { pieceId: piece.id } satisfies PieceMetadata,
   ) {
     this.root = new TransformNode(`frame-${piece.id}`, ctx.scene);
     this.root.parent = parent;
@@ -278,7 +280,7 @@ export class ArtworkFrame {
   /** A clickable mesh (photo or plaque): opens the piece and hides far away. */
   private register(mesh: Mesh): void {
     mesh.isPickable = true;
-    mesh.metadata = { pieceId: this.piece.id } satisfies PieceMetadata;
+    mesh.metadata = this.metadata;
     mesh.addLODLevel(ArtworkFrame.DETAIL_DISTANCE, null);
     this.ctx.interior.add(mesh);
     this.meshes.push(mesh);

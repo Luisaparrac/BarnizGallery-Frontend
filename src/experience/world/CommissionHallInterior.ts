@@ -8,6 +8,7 @@ import {
   type Mesh,
   type TransformNode,
 } from "@babylonjs/core";
+import { HallRoomShell } from "./HallRoomShell";
 import { MeshBatcher } from "./MeshBatcher";
 import { MeshFactory } from "./MeshFactory";
 import { PhotoTexture } from "./PhotoTexture";
@@ -138,43 +139,15 @@ export class CommissionHallInterior {
   // ---------------------------------------------------------------- room
 
   private buildRoom(): void {
-    const m = this.ctx.materials;
-    const { innerHalfWidth: hw, innerFrontZ: fz, innerBackZ: bz, doorHalfWidth: dw, doorHeight: dh } = this.frame;
-    const width = hw * 2;
-    const depth = bz - fz;
-    const midZ = (fz + bz) / 2;
-    const H = CommissionHallInterior.CEILING;
-    const skin = 0.02;
-
-    this.part("floor", width, 0.04, depth, 0, 0.02, midZ, m.woodWarm, 2);
-    this.part("ceiling", width, 0.05, depth, 0, H + 0.025, midZ, m.cream, 0);
-    for (let x = -hw + 1.2; x < hw - 0.5; x += 2.2) this.part("beam", 0.2, 0.24, depth, x, H - 0.12, midZ, m.woodDark, 2);
-
-    // Workshop walls: warm plaster above an ochre wainscot (the salas use a gallery paint).
-    this.part("wallLeft", skin, H, depth, -hw + skin / 2, H / 2, midZ, m.gallery, 3);
-    this.part("wallRight", skin, H, depth, hw - skin / 2, H / 2, midZ, m.gallery, 3);
-    this.part("wallBack", width, H, skin, 0, H / 2, bz - skin / 2, m.gallery, 3);
-    const sideWidth = hw - dw;
-    for (const side of [-1, 1]) this.part("wallFront", sideWidth, H, skin, side * (dw + sideWidth / 2), H / 2, fz + skin / 2, m.gallery, 3);
-    this.part("wallOverDoor", dw * 2, H - dh, skin, 0, dh + (H - dh) / 2, fz + skin / 2, m.gallery, 3);
-
-    const wain = 1.0;
-    const ochre = this.paint("#b9852f");
-    this.part("wainLeft", 0.05, wain, depth, -hw + 0.045, wain / 2, midZ, ochre);
-    this.part("wainRight", 0.05, wain, depth, hw - 0.045, wain / 2, midZ, ochre);
-    this.part("wainBack", width, wain, 0.05, 0, wain / 2, bz - 0.045, ochre);
-    for (const side of [-1, 1]) this.part("wainFront", sideWidth, wain, 0.05, side * (dw + sideWidth / 2), wain / 2, fz + 0.045, ochre);
-    this.part("railBack", width, 0.06, 0.08, 0, wain + 0.03, bz - 0.06, m.woodDark);
-    this.part("railLeft", 0.08, 0.06, depth, -hw + 0.06, wain + 0.03, midZ, m.woodDark);
-    this.part("railRight", 0.08, 0.06, depth, hw - 0.06, wain + 0.03, midZ, m.woodDark);
-
-    // Ceiling lamps over the desk, the design wall and the workbench.
-    for (const [x, z] of [[0, bz - 2.4], [-hw + 2.2, -1.6], [-hw + 2.2, 1.6], [hw - 2.4, fz + 2.6], [hw - 2.4, bz - 2.6]] as const) {
-      const lamp = MeshBuilder.CreateCylinder("hall-lamp", { diameter: 0.46, height: 0.08, tessellation: 20 }, this.ctx.scene);
-      lamp.material = m.glowLamp;
-      this.place(lamp, x, H - 0.04, z);
-      this.batcher.add(lamp);
-    }
+    const { innerHalfWidth: hw, innerFrontZ: fz, innerBackZ: bz } = this.frame;
+    // Workshop walls: warm plaster above an ochre wainscot.
+    new HallRoomShell(this.ctx, this.root, this.batcher).build(this.frame, CommissionHallInterior.CEILING, this.paint("#b9852f"), [
+      [0, bz - 2.4],
+      [-hw + 2.2, -1.6],
+      [-hw + 2.2, 1.6],
+      [hw - 2.4, fz + 2.6],
+      [hw - 2.4, bz - 2.6],
+    ]);
   }
 
   // ---------------------------------------------------------------- front desk

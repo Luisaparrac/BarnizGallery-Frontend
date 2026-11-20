@@ -55,9 +55,25 @@ export class PieceInteractable extends Interactable {
   }
 }
 
-/** The open door of the commissions hall: says what the hall is for. */
+/** The open door of a plaza hall (commissions or auctions): says what the hall is for. */
 export class HallDoorInteractable extends Interactable {
-  constructor(position: Vector3, radius = 4.2) {
+  constructor(
+    position: Vector3,
+    readonly hall: "commissions" | "auctions",
+    radius = 4.2,
+  ) {
+    super(position, radius);
+  }
+}
+
+/** A piece on auction, framed in the auction hall. */
+export class AuctionPieceInteractable extends Interactable {
+  constructor(
+    position: Vector3,
+    readonly auctionId: number,
+    readonly title: string,
+    radius = 1.6,
+  ) {
     super(position, radius);
   }
 }

@@ -7,9 +7,11 @@ import { Fountain } from "./Fountain";
 import { InputController } from "./InputController";
 import { CashierStall } from "./CashierStall";
 import type { PieceMetadata } from "./ArtworkFrame";
+import { AuctionHall } from "./AuctionHall";
+import type { AuctionMetadata } from "./AuctionHallInterior";
 import { CommissionHall } from "./CommissionHall";
 import type { HallMetadata } from "./CommissionHallInterior";
-import { ContactInteractable, DesignFrameInteractable, DoorInteractable, HallDoorInteractable, OffersBoardInteractable, PieceInteractable, StallInteractable, type Interactable } from "./Interactable";
+import { AuctionPieceInteractable, ContactInteractable, DesignFrameInteractable, DoorInteractable, HallDoorInteractable, OffersBoardInteractable, PieceInteractable, StallInteractable, type Interactable } from "./Interactable";
 import { InteractionSystem } from "./InteractionSystem";
 import { InteriorLighting } from "./InteriorLighting";
 import { Kiosk } from "./Kiosk";
@@ -30,7 +32,7 @@ import { SkyDome } from "./SkyDome";
 import { StreetFurniture } from "./StreetFurniture";
 import { Terrain } from "./Terrain";
 import { Vegetation } from "./Vegetation";
-import type { CameraMode, HallBoard, HallDesign, HallTexts, StallKind, WorldPiece, WorldRoom } from "./WorldTypes";
+import type { AuctionBoard, AuctionHallData, CameraMode, HallBoard, HallDesign, HallTexts, StallKind, WorldPiece, WorldRoom } from "./WorldTypes";
 
 /**
  * Facade over the whole 3D scene: the plaza, one sala per master with the pieces in display cases,
@@ -53,6 +55,8 @@ export class World {
   readonly designPicked = new Signal<number>();
   /** The visitor picked the offers board of the commissions hall. */
   readonly offersPicked = new Signal<void>();
+  /** The visitor picked a piece in the auction hall (the auction's id). */
+  readonly auctionPicked = new Signal<number>();
   /** The visitor used the WhatsApp lectern of a master's sala. */
   readonly contactRequested = new Signal<WorldRoom>();
   /** Returns true while a click belongs to the UI (a HUD button), so the world ignores it. */
@@ -64,6 +68,7 @@ export class World {
   private readonly avatars: AvatarFactory;
   private readonly photoPass: PhotoPass;
   private hall: CommissionHall | null = null;
+  private auctionHall: AuctionHall | null = null;
   private readonly onResize = () => this.engine.resize();
   private time = 0;
 
@@ -71,6 +76,7 @@ export class World {
     canvas: HTMLCanvasElement,
     rooms: readonly WorldRoom[],
     hallTexts: HallTexts,
+    auctions: AuctionHallData,
     requestedQuality: string | null,
     avatarCode: string | null = null,
   ) {
@@ -93,7 +99,7 @@ export class World {
     this.photoPass = new PhotoPass(this.scene, this.camera);
     const context: SceneContext = { scene: this.scene, materials, shadows, quality: this.quality, interior, photos: this.photoPass };
 
-    this.buildComponents(context, rooms, hallTexts);
+    this.buildComponents(context, rooms, hallTexts, auctions);
 
     this.input = new InputController(canvas);
     this.avatars = new AvatarFactory({ scene: this.scene, materials, shadows });
@@ -139,11 +145,13 @@ export class World {
     this.engine.dispose();
   }
 
-  private buildComponents(context: SceneContext, rooms: readonly WorldRoom[], hallTexts: HallTexts): void {
+  private buildComponents(context: SceneContext, rooms: readonly WorldRoom[], hallTexts: HallTexts, auctions: AuctionHallData): void {
     const stalls = [new Kiosk(context), new CashierStall(context)];
     const hall = new CommissionHall(context, PlazaLayout.commissionHall, PlazaLayout.center, hallTexts);
+    const auctionHall = new AuctionHall(context, PlazaLayout.auctionHall, PlazaLayout.center, auctions);
     this.hall = hall;
-    this.components.push(new Terrain(context), new Plaza(context), new PerimeterWall(context), new Fountain(context), ...stalls, hall, new Vegetation(context), new StreetFurniture(context));
+    this.auctionHall = auctionHall;
+    this.components.push(new Terrain(context), new Plaza(context), new PerimeterWall(context), new Fountain(context), ...stalls, hall, auctionHall, new Vegetation(context), new StreetFurniture(context));
 
     SalaSlots.assign(rooms).forEach(({ room, slot }, index) => {
       const accent = index % 2 === 0 ? context.materials.paintRed : context.materials.paintGreen;
@@ -166,7 +174,9 @@ export class World {
     });
     stalls.forEach((stall) => this.interactions.register(new StallInteractable(stall.standPoint, stall.kind)));
 
-    this.interactions.register(new HallDoorInteractable(hall.doorPoint, 3));
+    this.interactions.register(new HallDoorInteractable(hall.doorPoint, "commissions", 3));
+    this.interactions.register(new HallDoorInteractable(auctionHall.doorPoint, "auctions", 3));
+    auctionHall.pieceSpots.forEach(({ piece, point }) => this.interactions.register(new AuctionPieceInteractable(point, piece.auctionId, piece.title)));
     this.interactions.register(new StallInteractable(hall.counterPoint, "commissions", 1.8));
     this.interactions.register(new OffersBoardInteractable(hall.boardPoint));
     hall.framePoints.forEach((point, index) => this.interactions.register(new DesignFrameInteractable(point, index)));
@@ -175,6 +185,11 @@ export class World {
   /** Fills the design wall of the commissions hall (the visitor's designs, or examples). */
   setCommissionDesigns(designs: readonly HallDesign[], emptyLabel: string): void {
     this.hall?.setDesigns(designs, emptyLabel);
+  }
+
+  /** Writes the live board of the auction hall. */
+  setAuctionBoard(board: AuctionBoard): void {
+    this.auctionHall?.setBoard(board);
   }
 
   /** Writes the offers chalkboard of the commissions hall. */
@@ -188,18 +203,20 @@ export class World {
     else if (item instanceof DesignFrameInteractable) this.designPicked.emit(item.index);
     else if (item instanceof OffersBoardInteractable) this.offersPicked.emit();
     else if (item instanceof ContactInteractable) this.contactRequested.emit(item.sala.room);
+    else if (item instanceof AuctionPieceInteractable) this.auctionPicked.emit(item.auctionId);
   }
 
   /** A click on a display case opens the piece; any other click captures the mouse to look around. */
   private onCanvasClick(x: number, y: number): void {
     if (this.pointerBlocked()) return;
     const hit = this.scene.pick(x, y, (mesh) => mesh.isPickable && mesh.isEnabled(), false, this.camera);
-    const metadata = hit?.pickedMesh?.metadata as (Partial<PieceMetadata> & HallMetadata & { contactRoom?: string }) | null | undefined;
+    const metadata = hit?.pickedMesh?.metadata as (Partial<PieceMetadata> & Partial<AuctionMetadata> & HallMetadata & { contactRoom?: string }) | null | undefined;
     if (metadata && hit && hit.distance < 7) {
       const piece = metadata.pieceId !== undefined ? this.pieces.get(metadata.pieceId) : undefined;
       if (piece) return this.pieceSelected.emit(piece);
       if (metadata.hallFrame !== undefined) return this.designPicked.emit(metadata.hallFrame);
       if (metadata.hallBoard) return this.offersPicked.emit();
+      if (metadata.auctionId !== undefined) return this.auctionPicked.emit(metadata.auctionId);
       const room = metadata.contactRoom ? this.salas.get(metadata.contactRoom)?.room : undefined;
       if (room) return this.contactRequested.emit(room);
     }

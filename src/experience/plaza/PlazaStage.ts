@@ -5,12 +5,14 @@ import type { Localizer } from "../../i18n/Localizer";
 import type { Stage } from "../Stage";
 import { ExperienceUi } from "../ui/ExperienceUi";
 import { World } from "../world/World";
-import type { WorldRoom } from "../world/WorldTypes";
+import type { AuctionPiece, WorldRoom } from "../world/WorldTypes";
 
 export interface PlazaOptions {
   i18n: Localizer;
   user: User | null;
   rooms: readonly WorldRoom[];
+  /** The pieces on auction, framed in the auction hall. */
+  auctions: AuctionPiece[];
   avatarCode: string | null;
   quality: string | null;
 }
@@ -28,7 +30,8 @@ export class PlazaStage implements Stage {
   constructor(canvas: HTMLCanvasElement, options: PlazaOptions) {
     const t = (key: Parameters<typeof options.i18n.t>[0]) => options.i18n.t(key);
     const hallTexts = { facade: [t("hall.facadeTitle"), t("hall.facadeLine")] as [string, string], inside: t("hall.insideSign") };
-    this.world = new World(canvas, options.rooms, hallTexts, options.quality, options.avatarCode);
+    const auctions = { facade: [t("auctionHall.facadeTitle"), t("auctionHall.facadeLine")] as [string, string], pieces: options.auctions };
+    this.world = new World(canvas, options.rooms, hallTexts, auctions, options.quality, options.avatarCode);
     this.world.setPlaying(false);
     this.ui = new ExperienceUi(this.world, options.i18n, options.user);
     this.avatarCode = options.avatarCode;

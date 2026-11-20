@@ -7,13 +7,16 @@ import type { User } from "../../domain/user";
 import type { Localizer } from "../../i18n/Localizer";
 import { services } from "../../services/ServiceRegistry";
 import type { Formatter } from "../../utils/Formatter";
-import type { WorldPiece, WorldRoom } from "./WorldTypes";
+import type { Auction } from "../../domain/auction";
+import type { AuctionPiece, WorldPiece, WorldRoom } from "./WorldTypes";
 
 /** What the 3D page needs: one room per published store, with its pieces, already translated. */
 export interface WorldData {
   rooms: WorldRoom[];
   /** Pieces by id, to open the panel of the piece the visitor picks. */
   slugs: Map<Id, string>;
+  /** Pieces on auction for the auction hall: open ones first, then the latest finished. */
+  auctions: AuctionPiece[];
 }
 
 /** Turns the gallery services' data into the rooms of the 3D plaza (Adapter between services and the world). */
@@ -37,9 +40,42 @@ export class WorldRoomsLoader {
         pieces.forEach((piece) => slugs.set(piece.id, piece.slug));
         return this.room(summary, pieces, recommended.has(summary.store.id));
       });
+    const auctions = await this.auctionPieces(artworks);
     // The frames are built with the photos' real proportions, so those are read first.
-    await Promise.all(rooms.flatMap((room) => room.pieces).map(async (piece) => (piece.photoAspect = await WorldRoomsLoader.aspectOf(piece.photoUrl))));
-    return { rooms, slugs };
+    const framed: WorldPiece[] = [...rooms.flatMap((room) => room.pieces), ...auctions];
+    await Promise.all(framed.map(async (piece) => (piece.photoAspect = await WorldRoomsLoader.aspectOf(piece.photoUrl))));
+    return { rooms, slugs, auctions };
+  }
+
+  /** Up to four auctions for the hall's walls: active and scheduled first, then the latest finished. */
+  private async auctionPieces(artworks: ArtworkSummary[]): Promise<AuctionPiece[]> {
+    const list = await services.auction.list().catch(() => [] as Auction[]);
+    const open = list.filter((auction) => auction.status === "ACTIVE" || auction.status === "SCHEDULED");
+    const finished = list.filter((auction) => auction.status === "FINISHED").sort((a, b) => b.endDate.localeCompare(a.endDate));
+    return [...open, ...finished].slice(0, 4).map((auction) => {
+      const row = artworks.find((entry) => entry.artwork.id === auction.artworkId);
+      const base: WorldPiece = row
+        ? this.piece(row)
+        : {
+            id: auction.artworkId,
+            slug: "",
+            title: this.i18n.pick(auction.artworkTitleEs, auction.artworkTitleEn),
+            photoUrl: ArtworkImageFactory.resolve(auction.coverUrl),
+            photoAspect: 1,
+            masterName: auction.storeName,
+            technique: "",
+            dimensions: "",
+            caption: "",
+          };
+      return { ...base, auctionId: auction.id, caption: this.auctionCaption(auction) };
+    });
+  }
+
+  private auctionCaption(auction: Auction): string {
+    const amount = this.format.money(auction.highestBid ?? auction.basePrice, auction.currency);
+    if (auction.status === "ACTIVE") return this.i18n.t("auctionHall.captionActive", { amount });
+    if (auction.status === "SCHEDULED") return this.i18n.t("auctionHall.captionScheduled", { amount: this.format.money(auction.basePrice, auction.currency) });
+    return this.i18n.t("auctionHall.captionFinished");
   }
 
   private room(summary: StoreSummary, pieces: WorldPiece[], recommended: boolean): WorldRoom {

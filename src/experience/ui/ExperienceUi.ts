@@ -5,12 +5,14 @@ import { services } from "../../services/ServiceRegistry";
 import { CommissionHallInterior } from "../world/CommissionHallInterior";
 import { WhatsAppLink } from "./WhatsAppLink";
 import { NotificationCenter } from "./NotificationCenter";
+import { AuctionBoardFeed } from "./AuctionBoardFeed";
+import { AuctionFlow } from "./AuctionFlow";
 import { ToastStack } from "./ToastStack";
 import { MessageView } from "./views/MessageView";
 import { NotificationsView } from "./views/NotificationsView";
 import type { AppNotification } from "../../domain/messaging";
 import { Formatter } from "../../utils/Formatter";
-import { ContactInteractable, DesignFrameInteractable, DoorInteractable, HallDoorInteractable, OffersBoardInteractable, PieceInteractable, StallInteractable, type Interactable } from "../world/Interactable";
+import { AuctionPieceInteractable, ContactInteractable, DesignFrameInteractable, DoorInteractable, HallDoorInteractable, OffersBoardInteractable, PieceInteractable, StallInteractable, type Interactable } from "../world/Interactable";
 import type { World } from "../world/World";
 import { Hud } from "./Hud";
 import { PanelSurface, type SurfaceView } from "./PanelSurface";
@@ -44,6 +46,8 @@ export class ExperienceUi {
   private readonly commissions: CommissionFlow;
   private readonly account: AccountFlow;
   private readonly notifications: NotificationCenter;
+  private readonly auctions: AuctionFlow;
+  private readonly auctionFeed: AuctionBoardFeed;
   private readonly toasts = new ToastStack();
   private stopWatchingCart: (() => void) | null = null;
   private readonly hallLoader: CommissionHallLoader;
@@ -73,6 +77,8 @@ export class ExperienceUi {
     this.commissions = new CommissionFlow(i18n, this.session, host, this.purchase);
     this.account = new AccountFlow(i18n, this.session, host, this.purchase, this.commissions);
     this.notifications = new NotificationCenter(this.session);
+    this.auctions = new AuctionFlow(i18n, this.session, { show: host.show, current: () => this.surface.currentView }, this.purchase);
+    this.auctionFeed = new AuctionBoardFeed(i18n, (board) => world.setAuctionBoard(board));
     this.hallLoader = new CommissionHallLoader(i18n, CommissionHallInterior.FRAMES);
     this.hud.setFirstPerson(world.cameraMode === "FIRST_PERSON");
     world.pointerBlocked = () => this.layer.pointerOverHud;
@@ -96,6 +102,7 @@ export class ExperienceUi {
         if (kind === "commissions") void this.commissions.showList();
       }),
       world.designPicked.subscribe((index) => this.openDesign(index)),
+      world.auctionPicked.subscribe((id) => void this.auctions.showAuction(id)),
       world.contactRequested.subscribe((room) => {
         const url = new WhatsAppLink(this.i18n).forRoom(room.whatsapp, room.masterName);
         if (url) WhatsAppLink.open(url);
@@ -134,6 +141,8 @@ export class ExperienceUi {
     this.unsubscribe.forEach((stop) => stop());
     this.stopWatchingCart?.();
     this.notifications.dispose();
+    this.auctions.stop();
+    this.auctionFeed.dispose();
     this.toasts.dispose();
     this.hud.dispose();
     this.surface.dispose();
@@ -141,8 +150,10 @@ export class ExperienceUi {
   }
 
   private onPanelClosed(): void {
-    // A board may have created a commission, generated designs, accepted an offer or paid.
+    // A board may have created a commission, generated designs, accepted an offer, paid or bid.
+    this.auctions.stop();
     this.refreshHall();
+    void this.auctionFeed.refresh();
     void this.notifications.check();
     this.layer.usePanelPointer(false);
     this.hud.setVisible(true);
@@ -218,6 +229,7 @@ export class ExperienceUi {
     const id = Number(/\/(\d+)$/.exec(link)?.[1]);
     if (link.startsWith("/account/orders")) await this.account.showOrders();
     else if (link.startsWith("/account/custom/") && id) await this.commissions.showRequest(id);
+    else if (link.startsWith("/auctions/") && id) await this.auctions.showAuction(id);
     else if (/^\/(artisan|admin|messages)/.test(link)) {
       window.open(`panel.html#${link}`, "_blank", "noopener");
       this.surface.close();
@@ -245,7 +257,8 @@ export class ExperienceUi {
   }
 
   private promptFor(item: Interactable | null): string | null {
-    if (item instanceof HallDoorInteractable) return this.i18n.t("hall.promptDoor");
+    if (item instanceof HallDoorInteractable) return this.i18n.t(item.hall === "auctions" ? "auctionHall.promptDoor" : "hall.promptDoor");
+    if (item instanceof AuctionPieceInteractable) return this.i18n.t("auctionHall.promptPiece", { title: item.title });
     if (item instanceof ContactInteractable) return this.i18n.t("whatsapp.prompt", { master: item.sala.room.masterName });
     if (item instanceof OffersBoardInteractable) return this.i18n.t("hall.promptBoard");
     if (item instanceof DesignFrameInteractable) {
