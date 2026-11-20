@@ -148,6 +148,21 @@ Patrones usados:
 
 Convenciones: código en inglés, textos al usuario en español (e inglés). Los enums viajan en mayúsculas en inglés (`PAID`, `ARTISAN`); el backend los convierte a los valores de la base de datos.
 
+## Accesos por rol
+
+La regla está en `src/core/AccessPolicy.ts` y la usan la experiencia 3D, el panel y los servicios simulados (estos responden `403 forbidden`, igual que el backend). El detalle por endpoint para el backend está en [`docs/accesos-backend.md`](docs/accesos-backend.md).
+
+| Acción | Visitante | Cliente | Artesano | Admin |
+|---|:---:|:---:|:---:|:---:|
+| Recorrer el 3D, ver obras y subastas, quiosco | ✅ | ✅ | ✅ | ✅ |
+| Carrito y compra, pujas, encargos, favoritos | 🔒 pide iniciar sesión | ✅ | ❌ | ❌ |
+| Notificaciones y cuenta | ❌ | ✅ | ✅ | ✅ |
+| Enlace y acceso al panel | ❌ | ❌ | ✅ | ✅ |
+| Panel del artesano (tienda, obras, pedidos, encargos, subastas) | ❌ | ❌ | ✅ solo aprobado (sin aprobar: solo verificación) | ❌ |
+| Panel de administración | ❌ | ❌ | ❌ | ✅ |
+
+Si un rol entra a una ruta del panel que no le corresponde, vuelve a su inicio con un aviso.
+
 ## Endpoints que espera el frontend
 
 Propuestos para el backend (todos con `Authorization: Bearer <token>` salvo los públicos).
@@ -201,7 +216,8 @@ POST   /api/custom-requests/:id/designs/:designId/select
 POST   /api/custom-requests/:id/publish | /cancel
 POST   /api/custom-requests/:id/offers
 POST   /api/custom-requests/:id/offers/:offerId/accept | /reject | /withdraw
-GET    /api/artisan/custom-requests/open | /accepted
+GET    /api/artisan/custom-requests/open | /accepted | /declined
+POST   /api/custom-requests/:id/decline   (artesano: rechaza con motivo opcional)
 ```
 
 **Mensajes y notificaciones**
