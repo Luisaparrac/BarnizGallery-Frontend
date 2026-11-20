@@ -18,6 +18,8 @@ export interface Master {
   profilePhotoUrl: string | null;
   verificationStatus: VerificationStatus;
   verifiedAt: IsoDate | null;
+  /** WhatsApp number in international format (digits only); missing or null when there is none. */
+  whatsapp?: string | null;
 }
 
 export interface VerificationStep {

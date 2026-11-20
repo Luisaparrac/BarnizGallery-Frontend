@@ -12,6 +12,8 @@ export interface RealMaster {
   avatar: string;
   biographyEs: string;
   biographyEn: string;
+  /** WhatsApp number in international format (digits only), or null when the master has none. */
+  whatsapp: string | null;
 }
 
 export interface RealWork {
@@ -51,7 +53,8 @@ export class RealInventory {
     "city": "San Juan de Pasto",
     "avatar": "artesano",
     "biographyEs": "Richard Martin Valderrama Reinel es un reconocido maestro artesano de Pasto, Nariño, con más de cuatro décadas dedicadas al oficio tradicional del Barniz de Pasto (Mopa-Mopa). Cuenta con autorización oficial de uso de la Denominación de Origen otorgada por la Superintendencia de Industria y Comercio. A lo largo de su carrera, ha destacado por elevar esta técnica prehispánica —declarada Patrimonio Cultural Inmaterial de la Humanidad por la UNESCO— mediante el diseño de obras innovadoras y el uso magistral de materiales como el pan de oro. Paralelamente a su labor creativa, ejerce como formador y tallerista en alianza con instituciones culturales y académicas para salvaguardar este legado para las nuevas generaciones.",
-    "biographyEn": "Richard Martin Valderrama Reinel is a renowned master artisan from Pasto, Nariño, with more than four decades devoted to the traditional craft of Barniz de Pasto (Mopa-Mopa). He holds official authorization to use the Designation of Origin granted by the Superintendence of Industry and Commerce. Throughout his career he has raised this pre-Hispanic technique —declared Intangible Cultural Heritage of Humanity by UNESCO— through innovative designs and a masterful use of materials such as gold leaf. Alongside his creative work, he teaches workshops with cultural and academic institutions to safeguard this legacy for new generations."
+    "biographyEn": "Richard Martin Valderrama Reinel is a renowned master artisan from Pasto, Nariño, with more than four decades devoted to the traditional craft of Barniz de Pasto (Mopa-Mopa). He holds official authorization to use the Designation of Origin granted by the Superintendence of Industry and Commerce. Throughout his career he has raised this pre-Hispanic technique —declared Intangible Cultural Heritage of Humanity by UNESCO— through innovative designs and a masterful use of materials such as gold leaf. Alongside his creative work, he teaches workshops with cultural and academic institutions to safeguard this legacy for new generations.",
+    "whatsapp": null
   },
   {
     "key": "granja",
@@ -61,7 +64,8 @@ export class RealInventory {
     "city": "San Juan de Pasto",
     "avatar": "artesano",
     "biographyEs": "Gilberto Granja es un reconocido maestro artesano pastuso con más de seis décadas de trayectoria en el oficio ancestral del barniz de Pasto (mopa-mopa). Galardonado con la Medalla a la Maestría Artesanal en 2009, lidera en San Juan de Pasto su taller familiar junto a su hijo Óscar Granja, preservando y renovando esta técnica declarada Patrimonio Cultural Inmaterial de la Humanidad mediante piezas de alta precisión y colorido como cofres, bargueños y objetos decorativos.",
-    "biographyEn": "Gilberto Granja is a renowned master artisan from Pasto with more than six decades in the ancestral craft of Barniz de Pasto (mopa-mopa). Awarded the Medal for Craft Mastery in 2009, he runs his family workshop in San Juan de Pasto with his son Óscar Granja, preserving and renewing this technique, declared Intangible Cultural Heritage of Humanity, through precise and colorful pieces such as chests, bargueño cabinets and decorative objects."
+    "biographyEn": "Gilberto Granja is a renowned master artisan from Pasto with more than six decades in the ancestral craft of Barniz de Pasto (mopa-mopa). Awarded the Medal for Craft Mastery in 2009, he runs his family workshop in San Juan de Pasto with his son Óscar Granja, preserving and renewing this technique, declared Intangible Cultural Heritage of Humanity, through precise and colorful pieces such as chests, bargueño cabinets and decorative objects.",
+    "whatsapp": null
   },
   {
     "key": "cabrera",
@@ -71,7 +75,8 @@ export class RealInventory {
     "city": "San Juan de Pasto",
     "avatar": "artesana",
     "biographyEs": "María Cabrera es licenciada en Artes Plásticas e instructora del Servicio Nacional de Aprendizaje (SENA), con una trayectoria vinculada a la formación artística y la expresión creativa. Su interés por el patrimonio cultural nariñense la llevó a profundizar sus conocimientos en la técnica ancestral del barniz de Pasto (mopa-mopa), mediante un diplomado especializado. Desde su práctica artística recreativa, explora las posibilidades expresivas de este oficio tradicional, integrando su sensibilidad estética y formación académica en la creación de piezas que reflejan su aprecio por la identidad cultural y las tradiciones artesanales de la región.",
-    "biographyEn": "María Cabrera holds a degree in Fine Arts and is an instructor at the National Learning Service (SENA), with a career devoted to art education and creative expression. Her interest in the cultural heritage of Nariño led her to deepen her knowledge of the ancestral Barniz de Pasto (mopa-mopa) technique through a specialized diploma course. Through her artistic practice she explores the expressive possibilities of this traditional craft, bringing together her aesthetic sensibility and academic training in pieces that reflect her love for the cultural identity and craft traditions of the region."
+    "biographyEn": "María Cabrera holds a degree in Fine Arts and is an instructor at the National Learning Service (SENA), with a career devoted to art education and creative expression. Her interest in the cultural heritage of Nariño led her to deepen her knowledge of the ancestral Barniz de Pasto (mopa-mopa) technique through a specialized diploma course. Through her artistic practice she explores the expressive possibilities of this traditional craft, bringing together her aesthetic sensibility and academic training in pieces that reflect her love for the cultural identity and craft traditions of the region.",
+    "whatsapp": null
   },
   {
     "key": "lasso",
@@ -81,7 +86,8 @@ export class RealInventory {
     "city": "San Juan de Pasto",
     "avatar": "artesano",
     "biographyEs": "“Yo tengo 60 años y toda mi vida he trabajado en el Barniz de Pasto. Comencé desde los 12 años y aún lo sigo ejerciendo. Llegar a este oficio fue una casualidad porque quería estudiar, pero como no se pudo, decidí buscar trabajo. En el barrio en el que vivía trabajaban maestros que practicaban la técnica en blanco y negro. Así que comencé a pasar de taller en taller para aprender a hacer las momias, las coronas y las guardas. Seguí trabajando en blanco y negro por 20 años y luego comencé a hacer productos a color porque esto es como la televisión, comenzamos en blanco y negro y terminamos a color.”",
-    "biographyEn": "“I am 60 years old and I have worked in Barniz de Pasto all my life. I started when I was 12 and I still do it. I came to this craft by chance: I wanted to study, but since that was not possible, I decided to look for work. In my neighborhood there were masters who practiced the technique in black and white. So I went from workshop to workshop to learn how to make the mummies, the crowns and the borders. I kept working in black and white for 20 years and then I started making pieces in color, because this is like television: we started in black and white and ended up in color.”"
+    "biographyEn": "“I am 60 years old and I have worked in Barniz de Pasto all my life. I started when I was 12 and I still do it. I came to this craft by chance: I wanted to study, but since that was not possible, I decided to look for work. In my neighborhood there were masters who practiced the technique in black and white. So I went from workshop to workshop to learn how to make the mummies, the crowns and the borders. I kept working in black and white for 20 years and then I started making pieces in color, because this is like television: we started in black and white and ended up in color.”",
+    "whatsapp": null
   },
   {
     "key": "caguasongo",
@@ -91,7 +97,8 @@ export class RealInventory {
     "city": "San Juan de Pasto",
     "avatar": "artesano",
     "biographyEs": "Con más de cincuenta años de trayectoria, el maestro artesano Jesús Ceballos Caguasango es uno de los grandes guardianes del Barniz de Pasto o Mopa-Mopa, técnica declarada Patrimonio Cultural Inmaterial de la Humanidad. Su obra une el saber ancestral de la resina vegetal con el arte precolombino, el modernismo y la identidad cultural de Nariño.",
-    "biographyEn": "With more than fifty years in the craft, master artisan Jesús Ceballos Caguasango is one of the great guardians of Barniz de Pasto or Mopa-Mopa, a technique declared Intangible Cultural Heritage of Humanity. His work brings together the ancestral knowledge of the plant resin with pre-Columbian art, modernism and the cultural identity of Nariño."
+    "biographyEn": "With more than fifty years in the craft, master artisan Jesús Ceballos Caguasango is one of the great guardians of Barniz de Pasto or Mopa-Mopa, a technique declared Intangible Cultural Heritage of Humanity. His work brings together the ancestral knowledge of the plant resin with pre-Columbian art, modernism and the cultural identity of Nariño.",
+    "whatsapp": null
   },
   {
     "key": "castrillon",
@@ -101,7 +108,8 @@ export class RealInventory {
     "city": "San Juan de Pasto",
     "avatar": "artesano",
     "biographyEs": "José María Castrillón es un destacado maestro artesano de San Juan de Pasto, Nariño, con más de cinco décadas de trayectoria dedicadas a preservar el arte ancestral del Barniz de Pasto (Mopa-Mopa). Formado inicialmente en la carpintería y heredero de los saberes de grandes pioneros del oficio, lidera el taller Artesanías Castrillón, espacio desde el cual transforma la madera mediante la aplicación artesanal de esta resina natural. Su obra, reconocida a nivel cultural e institucional, mantiene vivo un patrimonio inmaterial transmitiendo este legado técnico y creativo a las nuevas generaciones.",
-    "biographyEn": "José María Castrillón is a distinguished master artisan from San Juan de Pasto, Nariño, with more than five decades devoted to preserving the ancestral art of Barniz de Pasto (Mopa-Mopa). First trained as a carpenter and heir to the knowledge of great pioneers of the craft, he runs the Artesanías Castrillón workshop, where he transforms wood with the handmade application of this natural resin. His work, recognized by cultural institutions, keeps an intangible heritage alive by passing this technical and creative legacy on to new generations."
+    "biographyEn": "José María Castrillón is a distinguished master artisan from San Juan de Pasto, Nariño, with more than five decades devoted to preserving the ancestral art of Barniz de Pasto (Mopa-Mopa). First trained as a carpenter and heir to the knowledge of great pioneers of the craft, he runs the Artesanías Castrillón workshop, where he transforms wood with the handmade application of this natural resin. His work, recognized by cultural institutions, keeps an intangible heritage alive by passing this technical and creative legacy on to new generations.",
+    "whatsapp": null
   }
 ];
 

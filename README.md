@@ -79,7 +79,7 @@ Con backend real, `POST /api/orders/:orderId/payments` debe devolver `checkoutUr
 
 Los datos simulados usan los 6 maestros reales y sus 21 obras con fotos reales. La fuente es el inventario en `data/`:
 
-- `data/maestros.csv`: clave, nombre, carpeta de fotos, nombre de la tienda (ES/EN), ciudad, avatar y biografía (ES/EN).
+- `data/maestros.csv`: clave, nombre, carpeta de fotos, nombre de la tienda (ES/EN), ciudad, avatar, biografía (ES/EN) y `whatsapp` (número en formato internacional, solo dígitos, por ejemplo `573001234567`; vacío = sin botón de WhatsApp).
 - `data/obras.csv`: una fila por obra con sus fotos, recorte opcional, forma, colores, figuras, estilo, descripción, precio, medidas (ancho × alto × fondo en cm), modo de venta (`Directa` o `Subasta`) y stock. La columna `precio provisional` marca los precios que aún no son los definitivos.
 
 Dos scripts repetibles (Node 22.18 o superior, sin compilar) pasan el inventario a la app:

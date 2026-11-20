@@ -11,6 +11,8 @@ export interface InventoryMaster {
   avatar: string;
   biographyEs: string;
   biographyEn: string;
+  /** WhatsApp number in international format, digits only (573001234567), or null. */
+  whatsapp: string | null;
 }
 
 /** Pixel rectangle cut from an original photo before resizing it. */
@@ -69,6 +71,7 @@ export class Inventory {
       avatar: row["avatar"],
       biographyEs: row["biografía ES"],
       biographyEn: row["biografía EN"],
+      whatsapp: Inventory.whatsapp(row["whatsapp"], row["nombre"]),
     }));
     this.works = CsvReader.read(join(dataDir, "obras.csv")).map((row) => this.work(row));
     for (const work of this.works) {
@@ -135,6 +138,14 @@ export class Inventory {
   static orderPhotos(files: string[]): string[] {
     const number = (file: string) => Number(/\((\d+)\)\.[^.]+$/.exec(file)?.[1] ?? 0);
     return [...files].sort((a, b) => number(a) - number(b));
+  }
+
+  /** Keeps the digits of a WhatsApp number ("+57 300 123 4567" → "573001234567"); empty → null. */
+  private static whatsapp(value: string | undefined, owner: string): string | null {
+    const digits = (value ?? "").replace(/\D/g, "");
+    if (!digits) return null;
+    if (digits.length < 10 || digits.length > 15) throw new Error(`${owner}: WhatsApp "${value}" must be a full international number, like 573001234567`);
+    return digits;
   }
 
   private static list(value: string | undefined): string[] {

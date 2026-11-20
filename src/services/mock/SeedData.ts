@@ -187,7 +187,7 @@ export class SeedData {
     return {
       id, userId, name: real.name, slug: real.key, city: real.city, workshop: real.storeEs,
       biographyEs: real.biographyEs, biographyEn: real.biographyEn,
-      profilePhotoUrl: null, verificationStatus: "APPROVED", verifiedAt: at(-100),
+      profilePhotoUrl: null, verificationStatus: "APPROVED", verifiedAt: at(-100), whatsapp: real.whatsapp,
     };
   }
 

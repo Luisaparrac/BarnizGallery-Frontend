@@ -31,6 +31,7 @@ const masters = inventory.masters.map((master) => ({
   avatar: master.avatar,
   biographyEs: master.biographyEs,
   biographyEn: master.biographyEn,
+  whatsapp: master.whatsapp,
 }));
 
 const works = inventory.works.map((work) => ({
@@ -71,6 +72,8 @@ export interface RealMaster {
   avatar: string;
   biographyEs: string;
   biographyEn: string;
+  /** WhatsApp number in international format (digits only), or null when the master has none. */
+  whatsapp: string | null;
 }
 
 export interface RealWork {
