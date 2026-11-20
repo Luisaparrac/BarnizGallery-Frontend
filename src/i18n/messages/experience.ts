@@ -1,7 +1,7 @@
 /** Texts of the 3D interface: lobby, HUD, boards and the UiKit sample view. */
 export const experience = {
   es: {
-    "lobby.languageTitle": "Bienvenida · Welcome",
+    "lobby.languageTitle": "Te damos la bienvenida · Welcome",
     "lobby.languageText": "Elige el idioma del museo · Choose the language of the museum",
     "lobby.spanish": "Español",
     "lobby.english": "English",
@@ -129,7 +129,7 @@ export const experience = {
     "hall.boardHintEmpty": "Pide tu encargo en el mostrador",
   },
   en: {
-    "lobby.languageTitle": "Bienvenida · Welcome",
+    "lobby.languageTitle": "Te damos la bienvenida · Welcome",
     "lobby.languageText": "Elige el idioma del museo · Choose the language of the museum",
     "lobby.spanish": "Español",
     "lobby.english": "English",
