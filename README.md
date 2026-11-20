@@ -74,6 +74,24 @@ Hecha con Babylon.js. Es la plaza de la versión anterior (fuente, quiosco, faro
 En modo simulado la pasarela es **de prueba**: no pide datos de tarjeta ni cobra dinero; solo deja elegir «Aprobar» o «Rechazar» y hace lo que haría el webhook.
 Con backend real, `POST /api/orders/:orderId/payments` debe devolver `checkoutUrl` (URL externa de la pasarela) y el frontend redirige allí.
 
+### Maestros y obras reales
+
+La fuente de los maestros reales y sus obras es el inventario en `data/`:
+
+- `data/maestros.csv`: clave, nombre, carpeta de fotos, nombre de la tienda (ES/EN), ciudad, avatar y biografía (ES/EN).
+- `data/obras.csv`: una fila por obra con sus fotos, recorte opcional, forma, colores, figuras, estilo, descripción, precio, medidas (ancho × alto × fondo en cm), modo de venta (`Directa` o `Subasta`) y stock. La columna `precio provisional` marca los precios que aún no son los definitivos.
+
+Un script repetible (Node 22.18 o superior, sin compilar) pasa las fotos a la app:
+
+```bash
+# Fotos: copia los originales optimizados a public/obras/<maestro>/<obra>-<n>.webp
+npm run import:obras -- --src "C:\ruta\Obras-BarnizGallery"
+```
+
+- `import:obras` usa `sharp`: acepta avif, png, webp y jpeg, deja todo en WebP de máximo 1600 px de lado y unos 300 KB, aplica el recorte de la columna `recorte` (`n:izquierda,arriba,ancho,alto` en píxeles de la foto n) y borra de `public/obras/<clave>/` las fotos que ya no estén en el inventario. Los originales solo se leen.
+- `--src` es la carpeta con una subcarpeta por maestro (columna `carpeta`). Los originales también están en el repo, en `public/obras/<Carpeta>/`, así que `--src public/obras` funciona; la salida va a `public/obras/<clave>/`, sin tocarlos.
+- Fotos de la misma obra: `Bandeja (2).jpg` es otro ángulo de `Bandeja.jpg`. La foto sin número es la principal; si no existe, la `(1)`. Las demás siguen en orden.
+
 ### Diseños de IA y fotos
 
 Las «fotos» de demo son ilustraciones SVG generadas en código (`src/art/`), con URLs `art:...`. Con backend real se usan las URLs de imágenes que devuelva la API.
