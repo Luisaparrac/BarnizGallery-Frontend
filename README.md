@@ -1,272 +1,211 @@
-# MUSEO v2 — Frontend (React + TypeScript + Vite)
+# MUSEO — Barniz de Pasto Mopa-Mopa
 
-Galería 3D y tienda del Barniz de Pasto Mopa-Mopa con tres interfaces: **cliente**, **artesano** y **administrador**.
-Implementa solo lo modelado en la v2 (base de datos `V2__marketplace.sql` y lista de correcciones para backend); no agrega funciones nuevas.
+MUSEO es una galería virtual en 3D del **Barniz de Pasto Mopa-Mopa**, la técnica artesanal de Nariño declarada Patrimonio Cultural Inmaterial de la Humanidad.
+El visitante recorre una plaza con las salas de seis maestros reales, ve sus obras colgadas como cuadros, puja en subastas y pide piezas por encargo con diseños de IA.
+Proyecto del curso **Patrones de Software** de la **Universidad Cooperativa de Colombia**.
 
-## Cómo correrlo
+**App desplegada:** https://barniz-gallery-frontend.vercel.app (museo 3D) · https://barniz-gallery-frontend.vercel.app/panel.html (panel de artesanos y administración)
 
-Requisitos: Node 20 o superior.
+## Capturas
 
-```bash
-npm install
-cp .env.example .env      # en Windows: copy .env.example .env
-npm run dev               # http://localhost:5173 (3D) y http://localhost:5173/panel.html (panel)
-```
+**Vestíbulo:** el visitante elige el avatar que lo acompaña por el museo.
 
-Otros comandos:
+![Vestíbulo con los cinco avatares](docs/img/vestibulo-avatares.webp)
 
-| Comando | Qué hace |
+**Sala de un maestro:** cada obra es su foto enmarcada, con su foco y una placa con título, maestro, técnica, medidas y precio.
+
+![Cuadro con su placa en la sala de un maestro](docs/img/sala-cuadro-y-placa.webp)
+
+**Sala de subastas:** podio, sillas y un tablero con las subastas activas y su cuenta regresiva en vivo.
+
+![Sala de subastas con el tablero en vivo](docs/img/sala-de-subastas.webp)
+
+**Panel del artesano:** los encargos dirigidos al maestro, con filtros, para aceptarlos o rechazarlos.
+
+![Página de encargos del panel del artesano](docs/img/panel-encargos-del-maestro.webp)
+
+## Qué hace
+
+**Museo 3D (`index.html`)**
+- **Vestíbulo:** idioma (español o inglés), avatar (cinco avatares hechos en código) y taquilla para iniciar sesión, registrarse o entrar como visitante.
+- **Plaza:** fuente, quiosco de gustos (recomienda las dos salas más afines al visitante), caja y seis salas, una por maestro.
+- **Salas de los maestros:** cada obra es su foto principal enmarcada en la pared, con la proporción real, un foco y una placa. Con clic o **E** se abre la ficha de la pieza, con fotos, precio, carrito y "Guardar".
+- **WhatsApp:** si el maestro tiene número, la ficha de la pieza y un atril en su sala abren `wa.me` con un mensaje listo.
+- **Sala de subastas:** las obras en subasta, un tablero en vivo y una ficha para pujar, con historial (nombres enmascarados), incremento mínimo y cuenta regresiva. En una subasta terminada se ve quién ganó, y el ganador puede pagar su pedido.
+- **Sala de encargos:** el cliente describe la pieza, genera diseños de IA, publica el encargo y recibe ofertas de los maestros; al aceptar una, paga el anticipo.
+- **Carrito y pagos:** dirección de envío y pasarela de pago (Tarjeta, PSE o Nequi).
+- **Notificaciones:** campana con el contador de no leídas, lista y avisos emergentes (pago aprobado, oferta nueva, te superaron en una puja, ganaste una subasta).
+- Solo para computador: en celulares y tabletas muestra un aviso.
+
+**Panel 2D (`panel.html`)**
+- **Artesano:** verificación del taller, editor de su tienda, obras, subastas, encargos (aceptar con precio, plazo y mensaje, o rechazar con motivo), pedidos por enviar y liquidaciones.
+- **Administración:** verificaciones, usuarios, tiendas, catálogos, configuración, pujas sospechosas, reportes, ventas, liquidaciones y auditoría.
+
+**Backend real y datos simulados**
+
+Cada servicio puede usar el backend real o una versión simulada que guarda los datos en el navegador. Se elige servicio por servicio con `VITE_REAL_SERVICES` (ver [Cómo ejecutarlo](#cómo-ejecutarlo)). En la app desplegada:
+
+| Servicio | Estado |
 |---|---|
-| `npm run build` | Revisa tipos (`tsc`) y genera `dist/` |
-| `npm run preview` | Sirve la versión compilada en http://localhost:4173 |
+| `auth` (inicio de sesión y registro), `catalog`, `gallery` (obras y tiendas), `auction` (subastas), `notification` | **Backend real** |
+| `customOrder` (**encargos**), `commerce` (carrito, pedidos y pagos), `profile`, `messaging`, `artisan` (panel del artesano), `admin` | Simulados |
 
-## Datos simulados o backend real
+En producción no hay cuentas de demostración: cada persona crea su cuenta con **"Registrarse"**.
 
-El frontend funciona **sin backend**: cada servicio tiene una versión real (`api/`) y una simulada (`mock/`) que guarda los datos en el navegador (`localStorage`).
+## Tecnologías
 
-| Variable | Uso |
-|---|---|
-| `VITE_API_URL` | URL del backend (por defecto `http://localhost:8080`) |
-| `VITE_USE_MOCKS` | `true` = todo simulado. `false` = todo contra el backend |
-| `VITE_REAL_SERVICES` | Servicios que ya existen en el backend y se usan reales aunque `VITE_USE_MOCKS=true`. Ejemplo: `auth,catalog,gallery` |
-
-Servicios: `auth, catalog, profile, gallery, commerce, auction, customOrder, messaging, notification, artisan, admin`.
-
-Así el equipo puede ir pasando servicio por servicio al backend a medida que la encargada termina cada endpoint.
-El enlace **«Restablecer datos de demo»** del pie de página borra los datos simulados.
-
-## Cuentas de prueba (modo simulado)
-
-Los datos simulados traen cuentas de cliente, de los maestros, de una artesana en verificación y de administración.
-Las cuentas y su contraseña solo aparecen en las pantallas de inicio de sesión **en desarrollo** (`npm run dev`) con `VITE_USE_MOCKS=true`: están en `src/config/DemoAccounts.ts`.
-El build de producción (`npm run build`) no las incluye ni en el HTML ni en el JS.
-
-## Qué incluye
-
-- **Bienvenida**: idioma, avatar, cuestionario de gustos (colores, formas, figuras, estilo, presupuesto) y recomendaciones.
-- **Experiencia 3D** (`index.html`): plaza con una sala por maestro (cada pieza es su foto enmarcada en la pared), Sala de encargos y Sala de subastas.
-- **Panel** (`panel.html`): artesanos y administradores, con su propio inicio de sesión y registro de artesanos.
-- **Cliente**: carrito, pago, pasarela, pedidos, favoritos, encargos con diseños de IA y ofertas de artesanos, mensajes, notificaciones, perfil (gustos y direcciones).
-- **Artesano**: verificación por pasos, editor de tienda (secciones, plantilla, colores, vista previa), obras, subastas, encargos (ofertar), pedidos por enviar (anticipo y saldo), liquidaciones.
-- **Administrador**: verificaciones, usuarios, tiendas, catálogos, configuración (`app_settings`), pujas sospechosas, reportes, ventas y liquidaciones, auditoría.
-- Español e inglés (`src/i18n`).
-
-### Galería 3D
-
-Hecha con Babylon.js. Es la plaza de la versión anterior (fuente, quiosco, faroles, vegetación) con las salas abiertas:
-
-- Cada taller publicado es una sala (hasta 6 salas en la plaza, hasta 6 cuadros por sala, en las paredes de la izquierda, la derecha y el fondo, con una banca en el centro).
-- Cada pieza es su **foto principal enmarcada** (proporción real, lado mayor de 1,4 m, centro a la altura de los ojos) con paspartú claro, un foco con haz y halo emisivos y una placa con título, maestro, técnica, medidas y precio o estado. Clic o **E** abre el tablero de la pieza.
-- Las fotos se dibujan con una segunda cámara (`PhotoPass`) después del post-proceso, así que conservan sus colores reales; la textura es de 1024 px en la sala y 2048 px de cerca.
-- **Sala de encargos** (sureste): mostrador, muro con los diseños de IA de mis encargos, pizarra de ofertas y mesa de trabajo.
-- **Sala de subastas** (suroeste): podio, las obras en subasta como cuadros y un tablero en vivo con la puja más alta, la cuenta regresiva y el número de pujas; clic o **E** sobre una obra abre su subasta para pujar.
-- **WhatsApp**: si el maestro tiene número (columna `whatsapp` de `data/maestros.csv`), el tablero de la pieza y un atril en su sala abren `wa.me` con un mensaje listo.
-- **Notificaciones**: campana en el HUD con las no leídas, lista con "Marcar todas como leídas" y avisos emergentes (pago aprobado, oferta nueva, te superaron en una puja, ganaste una subasta).
-- Las 2 salas que más coinciden con los gustos del visitante se marcan con una columna de luz.
-- Controles: **W A S D** caminar, **Shift** correr, mouse mirar (clic para capturarlo, **Esc** para soltarlo), **V** cambiar cámara.
-- En celulares y tabletas sin mouse muestra un aviso.
-- Parámetros de URL: `?quality=low|medium|high` (calidad gráfica; baja sola si los FPS caen) y `?debug` (expone `window.museo`).
-- Babylon.js pesa ~6 MB y solo lo descarga `index.html`; el panel no lo carga.
-
-### Pasarela de pagos
-
-En modo simulado la pasarela es **de prueba**: no pide datos de tarjeta ni cobra dinero; solo deja elegir «Aprobar» o «Rechazar» y hace lo que haría el webhook.
-Con backend real, `POST /api/orders/:orderId/payments` debe devolver `checkoutUrl` (URL externa de la pasarela) y el frontend redirige allí.
-
-### Maestros y obras reales
-
-Los datos simulados usan los 6 maestros reales y sus 21 obras con fotos reales. La fuente es el inventario en `data/`:
-
-- `data/maestros.csv`: clave, nombre, carpeta de fotos, nombre de la tienda (ES/EN), ciudad, avatar, biografía (ES/EN) y `whatsapp` (número en formato internacional, solo dígitos, por ejemplo `573001234567`; vacío = sin botón de WhatsApp).
-- `data/obras.csv`: una fila por obra con sus fotos, recorte opcional, forma, colores, figuras, estilo, descripción, precio, medidas (ancho × alto × fondo en cm), modo de venta (`Directa` o `Subasta`) y stock. La columna `precio provisional` marca los precios que aún no son los definitivos.
-
-Dos scripts repetibles (Node 22.18 o superior, sin compilar) pasan el inventario a la app:
-
-```bash
-# 1. Fotos: copia los originales optimizados a public/obras/<maestro>/<obra>-<n>.webp
-npm run import:obras -- --src "C:\ruta\Obras-BarnizGallery"
-
-# 2. Datos: genera src/services/mock/RealInventory.ts (maestros y obras que usa SeedData)
-npm run seed:obras
-```
-
-- `import:obras` usa `sharp`: acepta avif, png, webp y jpeg, deja todo en WebP de máximo 1600 px de lado y unos 300 KB, aplica el recorte de la columna `recorte` (`n:izquierda,arriba,ancho,alto` en píxeles de la foto n) y borra de `public/obras/<clave>/` las fotos que ya no estén en el inventario. Los originales solo se leen.
-- `--src` es la carpeta con una subcarpeta por maestro (columna `carpeta`). Los originales no están en el repo: solo las WebP optimizadas de `public/obras/<clave>/`.
-- Fotos de la misma obra: `Bandeja (2).jpg` es otro ángulo de `Bandeja.jpg`. La foto sin número es la principal; si no existe, la `(1)`. Las demás siguen en orden.
-- `RealInventory.ts` no se edita a mano: se cambian los CSV y se corre `seed:obras`, que antes revisa que existan las fotos.
-
-### Diseños de IA y fotos
-
-Las «fotos» de demo son ilustraciones SVG generadas en código (`src/art/`), con URLs `art:...`. Con backend real se usan las URLs de imágenes que devuelva la API.
-Los diseños de IA de los encargos también son simulados hasta que el backend conecte el proveedor (`ai.image_provider`).
+| Tecnología | Versión (`package.json`) | Uso |
+|---|---|---|
+| TypeScript | ~5.8.3 | Todo el código, en modo estricto (`strict`, `noUnusedLocals`, `noUnusedParameters`) |
+| Vite | ^6.3.5 | Servidor de desarrollo y build, con dos entradas |
+| Babylon.js (`@babylonjs/core`, `gui`, `loaders`) | ^8.56.2 | El museo 3D, sin React |
+| React y React DOM | ^19.1.0 | Solo el panel 2D |
+| React Router | ^7.6.0 | Rutas del panel (`HashRouter`) |
+| Fuentes `@fontsource` | ^5.3.0 | Figtree, Bricolage Grotesque y Fraunces, empaquetadas localmente |
+| sharp (desarrollo) | ^0.35.5 | Optimiza las fotos de las obras a WebP |
 
 ## Arquitectura
 
+Dos puntos de entrada comparten el mismo dominio, los mismos servicios y los mismos textos:
+
+```mermaid
+flowchart TD
+  index["index.html<br/>src/experience/main.ts"] --> experience["experience/<br/>museo 3D con Babylon.js"]
+  panel["panel.html<br/>src/panel/main.tsx"] --> pages["panel/ y pages/<br/>panel 2D con React"]
+
+  experience --> core["core/<br/>Signal, AppEvents, AccessPolicy"]
+  pages --> core
+  experience --> registry["services/ServiceRegistry"]
+  pages --> registry
+
+  registry --> contracts["services/contracts/<br/>interfaces de cada servicio"]
+  contracts --> api["services/api/<br/>Api*Service + HttpClient → backend"]
+  contracts --> mock["services/mock/<br/>Mock*Service + MockDatabase → navegador"]
+
+  api --> domain["domain/<br/>tipos del modelo"]
+  mock --> domain
+  core --> domain
 ```
-src/
-  experience/   Experiencia 3D sin React (entrada de index.html)
-    world/      Mundo 3D (Babylon.js): plaza, salas, cuadros, salas de encargos y subastas, jugador, cámara
-  panel/        Panel React con HashRouter (entrada de panel.html)
-  config/       AppConfig: lee las variables .env
-  domain/       Tipos del modelo (usuario, galería, comercio, subasta, encargo...)
-  services/
-    contracts/  Interfaces de cada servicio
-    api/        Implementación real (HttpClient + endpoints)
-    mock/       Implementación simulada (MockDatabase, reglas, semilla)
-    ServiceRegistry.ts  Elige api o mock por servicio
-  state/        Contextos: sesión, idioma, catálogos, avisos
-  pages/        artisan, admin y shared (usadas por el panel)
-  components/   Componentes reutilizables y layout
-  art/          Generador de las imágenes de demo
-  i18n/         Textos en español e inglés
-  styles/       CSS
-```
 
-Patrones usados:
+- **`domain/`:** los tipos del modelo (usuario, galería, comercio, subasta, encargo, mensajes), sin lógica.
+- **`services/contracts/`:** una interfaz por servicio. `services/api/` la implementa contra el backend y `services/mock/` con datos en el navegador.
+- **`ServiceRegistry`:** elige, servicio por servicio, la implementación real o la simulada. Ni el museo ni el panel saben cuál están usando.
+- **`core/`:** utilidades compartidas, como las señales (`Signal`), los eventos de la app y la matriz de accesos (`AccessPolicy`).
+- **`experience/`:** el museo 3D (vestíbulo, plaza, mundo y tableros).
+- **`pages/`:** las páginas del panel.
 
-| Patrón | Dónde |
-|---|---|
-| Strategy + Factory | `ServiceRegistry` elige la implementación real o simulada de cada contrato |
-| Adapter | `Api*Service` y `Mock*Service` implementan la misma interfaz |
-| Singleton | `HttpClient`, `MockDatabase`, `ServiceRegistry` |
-| Observer | `Signal` / `AppEvents` (carrito, notificaciones, mensajes) y subastas en vivo |
-| Composition root | `PanelApp.tsx` arma proveedores y rutas del panel; `Experience` arma la experiencia 3D |
-| Facade | `World` es la única puerta al mundo 3D |
-| Template Method | `SceneComponent` y sus partes (`SalaBuilding`, `Kiosk`, `Fountain`...); `PlazaHall` con `CommissionHall` y `AuctionHall` |
-| Factory | `MaterialLibrary`, `TextureFactory`, `MeshFactory` |
-| Flyweight | `GalleryLights`: los materiales del haz y el halo de los focos, compartidos por todos los cuadros |
-| Builder | `HallRoomShell` arma el cuarto de las salas de la plaza |
-| Adapter | `WorldRoomsLoader` convierte talleres y obras en salas y cuadros; `CommissionHallLoader` y `AuctionBoardFeed` llenan las salas de encargos y subastas |
-| Mediator | `PurchaseFlow`, `CommissionFlow`, `AuctionFlow` deciden qué tablero sigue |
-| Observer | `NotificationCenter` (campana y avisos) y `AuctionBoardFeed` (tablero de subastas) |
+## Patrones de diseño
 
-Convenciones: código en inglés, textos al usuario en español (e inglés). Los enums viajan en mayúsculas en inglés (`PAID`, `ARTISAN`); el backend los convierte a los valores de la base de datos.
+| Patrón | Dónde está | Para qué sirve |
+|---|---|---|
+| Facade | `World` (`src/experience/world/World.ts`) | Única puerta al mundo 3D: la interfaz no conoce escenas, mallas ni cámaras. |
+| Template Method | `SceneComponent`, `PlazaHall`, `Stall`, `ProceduralAvatar`, `BoardView` y `BoardFormView` | La clase base fija los pasos (construir, actualizar, armar un tablero) y cada subclase completa los suyos. |
+| Builder | `AvatarPartBuilder`, `HallRoomShell`, `BoardSheet` | Arman paso a paso un avatar, el cuarto de una sala o la hoja de un tablero. |
+| Abstract Factory + Bridge | `UiKit` con `DomUiKit` y `BabylonUiKit`; `PanelSurface` con `DomPanelSurface` y `BabylonPanelSurface` | Las mismas vistas se dibujan en HTML o dentro del mundo 3D (`?ui=babylon`) sin cambiar su código. |
+| Adapter | `Api*Service` y `Mock*Service`; `WorldRoomsLoader`, `CommissionHallLoader`, `AuctionBoardFeed` | Adaptan el backend y los datos simulados a una misma interfaz, y los datos de los servicios a lo que necesita el mundo 3D. |
+| Strategy | Contratos de `src/services/contracts/` con sus implementaciones `Api*` y `Mock*` | Dos implementaciones intercambiables de cada servicio, elegidas según la configuración. |
+| Singleton + Factory | `ServiceRegistry`, `HttpClient`, `MockDatabase` | Una sola instancia de cada servicio, del cliente HTTP y de la base simulada. |
+| Factory | `MaterialLibrary`, `AvatarFactory` | Crean los materiales del mundo y los avatares (de un `.glb` o hechos en código). |
+| Observer | `Signal`, `AppEvents`, `NotificationCenter`, `AuctionBoardFeed` | Avisan de cambios (carrito, notificaciones, subastas en vivo) sin acoplar a quien emite con quien escucha. |
+| Mediator | `ExperienceUi`, `PurchaseFlow`, `CommissionFlow`, `AuctionFlow`, `AccountFlow`, `TasteFlow` | Deciden qué tablero sigue en cada proceso; los tableros no se conocen entre sí. |
+| State | `Stage`, con `LobbyStage`, `PlazaStage` y `AvatarStudio` | El museo está en una etapa a la vez (vestíbulo o plaza) y la cambia completa. |
+| Flyweight | `GalleryLights` | Todos los cuadros comparten los mismos materiales del haz y el halo de los focos. |
 
-## Accesos por rol
+## Roles y accesos
 
-La regla está en `src/core/AccessPolicy.ts` y la usan la experiencia 3D, el panel y los servicios simulados (estos responden `403 forbidden`, igual que el backend). El detalle por endpoint para el backend está en [`docs/accesos-backend.md`](docs/accesos-backend.md).
+La matriz está en un solo lugar, `src/core/AccessPolicy.ts`, y la usan el museo 3D, el panel y los servicios simulados. Estos responden `403 forbidden`, igual que el backend.
 
-| Acción | Visitante | Cliente | Artesano | Admin |
+| Acción | Visitante | Cliente | Artesano | Administrador |
 |---|:---:|:---:|:---:|:---:|
-| Recorrer el 3D, ver obras y subastas, quiosco | ✅ | ✅ | ✅ | ✅ |
-| Carrito y compra, pujas, encargos, favoritos | 🔒 pide iniciar sesión | ✅ | ❌ | ❌ |
+| Recorrer el 3D, ver obras y subastas, quiosco de gustos | ✅ | ✅ | ✅ | ✅ |
+| Carrito y compra, pujas, encargos, favoritos | Pide iniciar sesión | ✅ | ❌ | ❌ |
 | Notificaciones y cuenta | ❌ | ✅ | ✅ | ✅ |
-| Enlace y acceso al panel | ❌ | ❌ | ✅ | ✅ |
-| Panel del artesano (tienda, obras, pedidos, encargos, subastas) | ❌ | ❌ | ✅ solo aprobado (sin aprobar: solo verificación) | ❌ |
-| Panel de administración | ❌ | ❌ | ❌ | ✅ |
+| Panel (`panel.html`) | ❌ | ❌ | ✅ | ✅ |
+| Tienda, obras, pedidos, encargos y subastas propios | ❌ | ❌ | ✅ solo si está aprobado (antes, solo la verificación) | ❌ |
+| Administración | ❌ | ❌ | ❌ | ✅ |
 
-Si un rol entra a una ruta del panel que no le corresponde, vuelve a su inicio con un aviso.
+Si un rol entra a una ruta del panel que no le corresponde, vuelve a su inicio con un aviso. El detalle por endpoint, con los errores que debe responder el backend, está en [docs/accesos-backend.md](docs/accesos-backend.md).
 
-## Endpoints que espera el frontend
+## Rendimiento
 
-Propuestos para el backend (todos con `Authorization: Bearer <token>` salvo los públicos).
+- **Fusión por material (`MeshBatcher`):** las partes fijas de cada sala y de la plaza se unen en una malla por material. Al introducirla, la entrada de la plaza bajó de 1760 a 977 draw calls y de 712 a 369 mallas, en calidad alta (commit `530557e`).
+- **Segunda cámara para las fotos (`PhotoPass`):** dentro de una sala, las fotos se dibujan otra vez después del post-proceso, sin bloom, SSAO ni ajuste de tono, para conservar sus colores reales.
+- **Texturas por distancia (`PhotoTexture`):** cada foto se carga a 1024 px dentro de la sala, a 2048 px a menos de 4,5 m y se libera a más de 40 m. Lleva mipmaps y filtrado anisotrópico.
+- **Detalle por distancia:** la foto y la placa de un cuadro no se dibujan a más de 24 m.
+- **Avatares de una sola malla:** cada avatar es una sola malla con esqueleto.
+- **Gestor de calidad (`QualityManager`):** perfiles `low`, `medium` y `high`, con sombras, antialiasing, bloom, SSAO y resolución. Baja solo de perfil si el juego pasa unos 4 segundos por debajo de 28 FPS. Se fija con `?quality=low|medium|high`.
+- **Depuración:**
+  - `?debug` muestra un contador de FPS, draw calls y mallas, y expone la escena en la consola.
+  - `?debug=avatars` abre el estudio de avatares.
+  - `?ui=babylon` dibuja los tableros dentro del mundo 3D en vez de en HTML.
+- **Carga separada:** Babylon.js solo lo descarga `index.html`; el panel no lo carga.
 
-**Auth y perfil**
-```
-POST   /api/auth/login | /api/auth/register | /api/auth/logout
-POST   /api/auth/forgot-password | /api/auth/verify-email
-GET    /api/users/me            PATCH /api/users/me
-GET    /api/users/me/taste-profile     PUT /api/users/me/taste-profile
-POST   /api/users/me/recommendations?strategy=...
-POST   /api/recommendations/preview    POST /api/interactions
-GET    /api/users/me/addresses   POST /api/users/me/addresses
-PUT    /api/users/me/addresses/:id     DELETE /api/users/me/addresses/:id
-POST   /api/uploads/images       (multipart, campo "file")
-```
+## Cómo ejecutarlo
 
-**Catálogos y galería**
-```
-GET    /api/catalogs
-POST   /api/admin/catalogs/:kind       PUT /api/admin/catalogs/:kind/:id
-GET    /api/artworks             GET /api/artworks/:slug
-GET    /api/stores               GET /api/stores/:slug
-GET    /api/favorites            POST /api/favorites/:artworkId/toggle
-POST   /api/reports
-```
+**Requisitos:** Node.js 20 o superior (probado con Node 24). Los scripts del inventario de obras (`npm run import:obras` y `npm run seed:obras`) necesitan Node 22.18 o superior.
 
-**Carrito, pedidos y pagos**
-```
-GET    /api/cart                 POST /api/cart/items
-PUT    /api/cart/items/:artworkId      DELETE /api/cart/items/:artworkId
-POST   /api/orders/checkout      GET /api/orders      GET /api/orders/:orderId
-POST   /api/orders/:orderId/cancel
-POST   /api/orders/:orderId/payments   GET /api/payments/:paymentId
+```bash
+npm install
+cp .env.example .env.local   # en Windows: copy .env.example .env.local
+npm run dev                  # museo en http://localhost:5173 y panel en http://localhost:5173/panel.html
+npm run build                # revisa los tipos (tsc) y genera dist/
+npm run preview              # sirve dist/ en http://localhost:4173
 ```
 
-**Subastas**
-```
-GET    /api/auctions             GET /api/auctions/:id
-GET    /api/auctions/:id/bids    POST /api/auctions/:id/bids
-POST   /api/auctions             POST /api/auctions/:id/cancel
-GET    /api/artisan/auctions
-```
+**Variables de entorno** (`.env.example`):
 
-**Encargos con IA**
-```
-GET    /api/custom-requests      POST /api/custom-requests
-GET    /api/custom-requests/:id  PUT /api/custom-requests/:id
-POST   /api/custom-requests/:id/designs
-POST   /api/custom-requests/:id/designs/:designId/select
-POST   /api/custom-requests/:id/publish | /cancel
-POST   /api/custom-requests/:id/offers
-POST   /api/custom-requests/:id/offers/:offerId/accept | /reject | /withdraw
-GET    /api/artisan/custom-requests/open | /accepted | /declined
-POST   /api/custom-requests/:id/decline   (artesano: rechaza con motivo opcional)
-```
+| Variable | Qué hace | Ejemplo |
+|---|---|---|
+| `VITE_API_URL` | URL del backend | `http://localhost:8080` |
+| `VITE_USE_MOCKS` | `true`: los servicios usan datos simulados en el navegador, salvo los de `VITE_REAL_SERVICES`. `false`: todos usan el backend. | `true` |
+| `VITE_REAL_SERVICES` | Servicios que usan el backend real aunque `VITE_USE_MOCKS` sea `true`, separados por comas. Valores: `auth, catalog, profile, gallery, commerce, auction, customOrder, messaging, notification, artisan, admin` | `auth,catalog,gallery,auction,notification` |
 
-**Mensajes y notificaciones**
-```
-GET    /api/conversations        POST /api/conversations
-GET    /api/conversations/:id/messages  POST /api/conversations/:id/messages
-GET    /api/notifications        GET /api/notifications/unread-count
-POST   /api/notifications/:id/read      POST /api/notifications/read-all
-```
+Con datos simulados no hace falta backend. El enlace **"Restablecer datos de demo"** del pie de página del panel borra lo guardado en el navegador.
 
-**Artesano**
-```
-GET    /api/artisan/master       PATCH /api/artisan/master
-GET    /api/artisan/verification POST /api/artisan/verification/:step
-GET    /api/artisan/store        PUT /api/artisan/store
-POST   /api/artisan/store/template/:templateId
-POST   /api/artisan/store/publish | /unpublish
-GET    /api/artisan/artworks     POST /api/artisan/artworks
-GET    /api/artisan/artworks/:id PUT /api/artisan/artworks/:id   DELETE /api/artisan/artworks/:id
-GET    /api/artisan/sales        GET /api/artisan/payouts
-GET    /api/artisan/order-items
-POST   /api/artisan/order-items/:itemId/preparing | /shipped | /delivered | /balance
-```
+**Obras y fotos de los maestros:** el inventario real está en `data/maestros.csv` y `data/obras.csv`. Dos scripts lo pasan a la app:
+- `npm run import:obras -- --src <carpeta de originales>` optimiza las fotos a WebP en `public/obras/`.
+- `npm run seed:obras` genera `src/services/mock/RealInventory.ts`, los datos de los maestros y las obras.
 
-**Administración**
+## Backend e IA
+
+- **Backend:** [BarnizGallery-Backend](https://github.com/Luisaparrac/BarnizGallery-Backend). El frontend lo llama con `Authorization: Bearer <token>` a través de `HttpClient`.
+- **IA:** [BarnizGallery-IA](https://github.com/Luisaparrac/BarnizGallery-IA). El frontend no llama a la IA directamente: la consume a través del backend, por ejemplo al generar los diseños de un encargo.
+
+## Estructura de carpetas
+
 ```
-GET    /api/admin/dashboard
-GET    /api/admin/verifications  POST /api/admin/verifications/steps/:stepId
-GET    /api/admin/users          PATCH /api/admin/users/:id
-GET    /api/admin/stores         PATCH /api/admin/stores/:storeId
-GET    /api/admin/settings       PUT /api/admin/settings/:key
-GET    /api/admin/bids/suspicious      POST /api/admin/bids/:bidId/valid
-GET    /api/admin/reports        PATCH /api/admin/reports/:id
-GET    /api/admin/sales
-GET    /api/admin/payouts        POST /api/admin/payouts     POST /api/admin/payouts/:id/paid
-GET    /api/admin/audit
+data/                inventario real de maestros y obras (CSV)
+docs/                accesos por rol para el backend e imágenes del README
+public/              fotos optimizadas de las obras y retratos de los avatares
+scripts/             scripts del inventario: importar fotos y generar los datos
+src/
+  art/               imágenes generadas en código para datos de ejemplo y diseños simulados
+  components/        componentes React del panel
+  config/            configuración leída del .env
+  core/              Signal, AppEvents, AccessPolicy y otras utilidades compartidas
+  domain/            tipos del modelo
+  experience/        museo 3D: vestíbulo, plaza, mundo, tableros y HUD
+  i18n/              textos en español e inglés
+  pages/             páginas del panel: artesano, administración y compartidas
+  panel/             punto de entrada y rutas del panel
+  services/          contratos, implementación real (api) y simulada (mock), ServiceRegistry
+  state/             contextos de React: sesión, idioma, catálogos y avisos
+  styles/            CSS del panel
+  utils/             formato de fechas y dinero, enmascarado de nombres
+index.html           entrada del museo 3D
+panel.html           entrada del panel 2D
 ```
 
-Errores: el backend debe responder `{ "code": "...", "message": "..." }`. El frontend traduce el `code` (ver `error.*` en `src/i18n/messages/common.ts`).
+## Limitaciones y trabajo pendiente
 
-## Patrones de la interfaz
+- **Sin pruebas automáticas:** el proyecto no tiene pruebas unitarias ni de integración. La verificación se hace con el chequeo de tipos de `npm run build` y revisando a mano con capturas.
+- **Encargos simulados:** el módulo de encargos, incluidos los diseños de IA, sigue con datos simulados. También están simulados el carrito y los pagos, el perfil, los mensajes, el panel del artesano y la administración.
+- **Subastas reales pendientes de la moneda:** las subastas ya usan el backend, pero falta resolver la moneda.
+- **Precios provisionales:** los precios de las obras del inventario aún no son los definitivos.
+- **Solo computador:** no hay controles táctiles para celulares ni tabletas.
 
-Los tableros de la experiencia 3D (iniciar sesión, pago, carrito, pieza, controles…) no dependen de cómo se dibujan.
+## Equipo
 
-- **`UiKit` (Abstract Factory)** — `src/experience/ui/kit/UiKit.ts` es una interfaz que fabrica las piezas de un tablero: títulos, textos, campos, botones, tarjetas seleccionables, resumen del pedido, pasos, galería, etc. Los nodos son opacos: una vista solo los mete en cajas y usa unos pocos métodos (`setText`, `setEnabled`, `value`…).
-- **Dos fábricas concretas:**
-  - `DomUiKit`: HTML y CSS sobre el canvas (`dom-ui.css`). Texto nítido, campos reales con `autocomplete` y foco accesible.
-  - `BabylonUiKit`: Babylon GUI en un tablero dentro del mundo 3D.
-- **Bridge** — las vistas (`BoardView` y sus subclases, en `src/experience/ui/views`) son la abstracción y la fábrica más su superficie (`DomPanelSurface` o `BabylonPanelSurface`) son la implementación. `PanelSurface` elige la implementación sin que las vistas cambien.
-- **Template Method** — `BoardView` fija la estructura del tablero (encabezado, título, contenido y botones) y `BoardFormView` agrega la validación, el error y el envío con Enter.
-- **Mediator** — `PurchaseFlow` decide qué tablero sigue en la compra; los tableros no se conocen entre sí.
-
-### Cómo probar las dos fábricas
-
-1. `npm run dev`
-2. Abre `http://localhost:5173/`: los tableros salen en HTML (por defecto).
-3. Abre `http://localhost:5173/?ui=babylon`: los mismos tableros salen dibujados con Babylon GUI dentro del mundo 3D, con marco de madera. Hay pequeñas diferencias visuales; por ejemplo, la tarjeta "Agregar dirección" tiene borde sólido porque Babylon GUI no dibuja bordes punteados.
-4. Con `?debug` aparece abajo a la izquierda un contador de FPS y draw calls.
+- Luisa Fernanda Parra Cabrera
+- *(completar)*
+- *(completar)*
