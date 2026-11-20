@@ -1,4 +1,4 @@
-import { MeshBuilder, Vector3, type Material, type Mesh, type TransformNode } from "@babylonjs/core";
+import { Color3, DynamicTexture, MeshBuilder, StandardMaterial, TransformNode, Vector3, type Material, type Mesh } from "@babylonjs/core";
 import { ArtworkFrame, type WallSpot } from "./ArtworkFrame";
 import { MeshBatcher } from "./MeshBatcher";
 import { MeshFactory } from "./MeshFactory";
@@ -24,6 +24,8 @@ export class SalaInterior {
   static readonly CAPACITY = 6;
 
   readonly frames: ArtworkFrame[] = [];
+  /** Where the visitor stands at the WhatsApp lectern (world), or null when the master has no number. */
+  contactPoint: Vector3 | null = null;
   /** Static parts of the room and of its frames, merged per material at the end of `build()`. */
   private readonly batcher = new MeshBatcher();
 
@@ -38,6 +40,7 @@ export class SalaInterior {
     this.buildRoom();
     this.buildSign();
     this.buildBench();
+    if (this.room.whatsapp) this.buildContactLectern();
     const pieces = this.room.pieces.slice(0, SalaInterior.CAPACITY);
     const spots = this.wallSpots(pieces.length);
     pieces.forEach((piece, index) => {
@@ -117,6 +120,88 @@ export class SalaInterior {
       [back(-3.4), back(3.4), left(-2.3), left(2.3), right(-2.3), right(2.3)],
     ];
     return layouts[Math.min(count, layouts.length - 1)];
+  }
+
+  /**
+   * A lectern by the entrance with "Contact the master on WhatsApp": a click or E opens the chat.
+   * It stands on the right of the door, turned towards the visitor coming in.
+   */
+  private buildContactLectern(): void {
+    const m = this.ctx.materials;
+    const x = 3.3;
+    const z = this.frame.innerFrontZ + 1.6;
+    // Turned towards the doorway (the sign faces local -Z of its pivot).
+    const turn = 0.5;
+    const lectern = MeshBuilder.CreateBox(`${this.room.key}-lecternPost`, { width: 0.12, height: 1.05, depth: 0.12 }, this.ctx.scene);
+    lectern.material = m.woodDark;
+    lectern.parent = this.root;
+    lectern.position.set(x, 0.52, z);
+    this.batcher.add(lectern);
+    this.part("lecternFoot", 0.5, 0.05, 0.4, x, 0.025, z, m.woodDark, 1);
+
+    const width = 0.62;
+    const height = 0.42;
+    const pivot = new TransformNode(`${this.room.key}-contactPivot`, this.ctx.scene);
+    pivot.parent = this.root;
+    pivot.position.set(x, 1.2, z);
+    pivot.rotation.y = turn;
+    const board = MeshBuilder.CreatePlane(`${this.room.key}-contact`, { width, height }, this.ctx.scene);
+    board.parent = pivot;
+    board.position.set(0, 0, -0.05);
+    // Sloped like a reading desk.
+    board.rotation.x = 0.5;
+    const texture = new DynamicTexture(`${this.room.key}-contactTex`, { width: 1240, height: 840 }, this.ctx.scene, true);
+    const ctx = texture.getContext() as CanvasRenderingContext2D;
+    ctx.fillStyle = "#1d7a45";
+    ctx.fillRect(0, 0, 1240, 840);
+    ctx.strokeStyle = "#c9a227";
+    ctx.lineWidth = 18;
+    ctx.strokeRect(9, 9, 1222, 822);
+    // A chat bubble, drawn (not a logo).
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(620, 230, 120, 0, Math.PI * 2);
+    ctx.moveTo(530, 310);
+    ctx.lineTo(500, 380);
+    ctx.lineTo(590, 340);
+    ctx.fill();
+    ctx.fillStyle = "#1d7a45";
+    for (const dx of [-50, 0, 50]) {
+      ctx.beginPath();
+      ctx.arc(620 + dx, 230, 16, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "700 84px 'Bricolage Grotesque', Figtree, Arial, sans-serif";
+    const words = this.room.contactLabel.split(" ");
+    const half = Math.ceil(words.length / 2);
+    ctx.fillText(words.slice(0, half).join(" "), 620, 480);
+    ctx.fillText(words.slice(half).join(" "), 620, 580);
+    ctx.font = "italic 500 64px Figtree, Arial, sans-serif";
+    ctx.fillText(this.room.masterName, 620, 720);
+    texture.update();
+    const material = new StandardMaterial(`${this.room.key}-contactMat`, this.ctx.scene);
+    material.disableLighting = true;
+    material.emissiveTexture = texture;
+    material.emissiveColor = Color3.Black();
+    material.diffuseColor = Color3.Black();
+    material.specularColor = Color3.Black();
+    board.material = material;
+    board.isPickable = true;
+    board.metadata = { contactRoom: this.room.key };
+    this.ctx.interior.add(board);
+    // The wooden board sits right behind the sign, following its slope.
+    const backing = this.part("lecternBoard", width + 0.06, height + 0.06, 0.03, 0, 0, 0.02, m.woodWarm, 1);
+    backing.parent = board;
+
+    // The merge bakes world positions: the pivot and the sign must be up to date first.
+    this.root.computeWorldMatrix(true);
+    pivot.computeWorldMatrix(true);
+    board.computeWorldMatrix(true);
+    const front = new Vector3(x - Math.sin(turn) * 1.3, 0, z - Math.cos(turn) * 1.3);
+    this.contactPoint = Vector3.TransformCoordinates(front, this.root.getWorldMatrix());
   }
 
   /** A wooden bench in the middle, facing the back wall. */

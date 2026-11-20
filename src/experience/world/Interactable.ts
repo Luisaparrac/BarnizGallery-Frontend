@@ -33,6 +33,17 @@ export class DoorInteractable extends Interactable {
   }
 }
 
+/** The WhatsApp lectern of a master's sala. */
+export class ContactInteractable extends Interactable {
+  constructor(
+    position: Vector3,
+    readonly sala: SalaBuilding,
+    radius = 1.4,
+  ) {
+    super(position, radius);
+  }
+}
+
 /** A framed piece on the wall of a sala. */
 export class PieceInteractable extends Interactable {
   constructor(

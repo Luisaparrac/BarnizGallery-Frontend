@@ -20,6 +20,7 @@ import { MessageView } from "./views/MessageView";
 import { OrderConfirmationView } from "./views/OrderConfirmationView";
 import type { OrderSummary } from "./views/OrderSummaryCard";
 import { PieceView } from "./views/PieceView";
+import { WhatsAppLink } from "./WhatsAppLink";
 
 /** Where the purchase boards are shown (the experience's board). */
 export interface PurchaseHost {
@@ -56,6 +57,8 @@ export class PurchaseFlow {
     await this.load(async () => {
       const detail = await services.gallery.getArtwork(piece.slug);
       const id = detail.artwork.id;
+      const store = await services.gallery.getStore(detail.storeSlug).catch(() => null);
+      const contactUrl = new WhatsAppLink(this.i18n).forPiece(store?.master.whatsapp, detail.masterName, this.i18n.pick(detail.artwork.titleEs, detail.artwork.titleEn));
       this.host.show(
         new PieceView(this.i18n, this.format, detail, this.session.signedIn, {
           addToCart: async () => {
@@ -65,6 +68,7 @@ export class PurchaseFlow {
           toggleSaved: () => services.gallery.toggleFavorite(id),
           signIn: () => this.signIn(() => void this.showPiece(piece)),
           openCart: () => void this.showCart(),
+          contact: contactUrl ? () => WhatsAppLink.open(contactUrl) : null,
         }),
       );
     });

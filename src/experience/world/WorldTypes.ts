@@ -33,6 +33,10 @@ export interface WorldRoom {
   insideSign: string;
   pieces: WorldPiece[];
   recommended: boolean;
+  /** The master's WhatsApp number, or null: the sala then has no contact lectern. */
+  whatsapp: string | null;
+  /** Text of the contact lectern, translated. */
+  contactLabel: string;
 }
 
 /** One frame of the design wall in the commissions hall. Texts arrive already translated. */

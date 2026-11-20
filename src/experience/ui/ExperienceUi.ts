@@ -3,7 +3,8 @@ import type { User } from "../../domain/user";
 import type { Localizer } from "../../i18n/Localizer";
 import { services } from "../../services/ServiceRegistry";
 import { CommissionHallInterior } from "../world/CommissionHallInterior";
-import { DesignFrameInteractable, DoorInteractable, HallDoorInteractable, OffersBoardInteractable, PieceInteractable, StallInteractable, type Interactable } from "../world/Interactable";
+import { WhatsAppLink } from "./WhatsAppLink";
+import { ContactInteractable, DesignFrameInteractable, DoorInteractable, HallDoorInteractable, OffersBoardInteractable, PieceInteractable, StallInteractable, type Interactable } from "../world/Interactable";
 import type { World } from "../world/World";
 import { Hud } from "./Hud";
 import { PanelSurface, type SurfaceView } from "./PanelSurface";
@@ -80,6 +81,10 @@ export class ExperienceUi {
         if (kind === "commissions") void this.commissions.showList();
       }),
       world.designPicked.subscribe((index) => this.openDesign(index)),
+      world.contactRequested.subscribe((room) => {
+        const url = new WhatsAppLink(this.i18n).forRoom(room.whatsapp, room.masterName);
+        if (url) WhatsAppLink.open(url);
+      }),
       world.offersPicked.subscribe(() => {
         const id = this.hallData?.offersRequestId;
         void (id ? this.commissions.showRequest(id) : this.commissions.showList());
@@ -180,6 +185,7 @@ export class ExperienceUi {
 
   private promptFor(item: Interactable | null): string | null {
     if (item instanceof HallDoorInteractable) return this.i18n.t("hall.promptDoor");
+    if (item instanceof ContactInteractable) return this.i18n.t("whatsapp.prompt", { master: item.sala.room.masterName });
     if (item instanceof OffersBoardInteractable) return this.i18n.t("hall.promptBoard");
     if (item instanceof DesignFrameInteractable) {
       const design = this.hallData?.designs[item.index];

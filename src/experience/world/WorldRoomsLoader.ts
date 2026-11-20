@@ -52,6 +52,8 @@ export class WorldRoomsLoader {
       insideSign: this.i18n.pick(summary.store.nameEs, summary.store.nameEn),
       pieces,
       recommended,
+      whatsapp: summary.master.whatsapp ?? null,
+      contactLabel: this.i18n.t("whatsapp.contact"),
     };
   }
 

@@ -13,11 +13,14 @@ export interface PieceActions {
   signIn(): void;
   /** Shows the cart (after adding the piece). */
   openCart(): void;
+  /** Opens WhatsApp with a message to the master; null when the master has no number. */
+  contact: (() => void) | null;
 }
 
 /**
  * Board of one piece: its photos (the big one changes with the thumbnails), master, price or
  * state, a bit of its story, and Add to cart and Save. Without a session it asks to sign in.
+ * When the master has a WhatsApp number, a button opens a chat with a ready-made message.
  */
 export class PieceView extends BoardView {
   private static readonly STORY_LENGTH = 420;
@@ -71,9 +74,11 @@ export class PieceView extends BoardView {
   }
 
   override actions({ kit }: BoardContext): UiButton[] {
-    if (!this.signedIn) return this.forSale ? [kit.button(this.i18n.t("shop.signIn"), () => this.act.signIn())] : [];
+    const contact = this.act.contact;
+    const contactButtons = contact ? [kit.button(this.i18n.t("whatsapp.contact"), () => contact(), "secondary")] : [];
+    if (!this.signedIn) return [...contactButtons, ...(this.forSale ? [kit.button(this.i18n.t("shop.signIn"), () => this.act.signIn())] : [])];
     this.saveButton = kit.button(this.saveLabel(), () => void this.toggleSaved(), "secondary");
-    const buttons = [this.saveButton];
+    const buttons = [...contactButtons, this.saveButton];
     if (this.forSale) {
       this.cartButton = kit.button(this.i18n.t("artwork.addToCart"), () => void this.addToCart());
       buttons.push(this.cartButton);

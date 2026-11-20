@@ -9,7 +9,7 @@ import { CashierStall } from "./CashierStall";
 import type { PieceMetadata } from "./ArtworkFrame";
 import { CommissionHall } from "./CommissionHall";
 import type { HallMetadata } from "./CommissionHallInterior";
-import { DesignFrameInteractable, DoorInteractable, HallDoorInteractable, OffersBoardInteractable, PieceInteractable, StallInteractable, type Interactable } from "./Interactable";
+import { ContactInteractable, DesignFrameInteractable, DoorInteractable, HallDoorInteractable, OffersBoardInteractable, PieceInteractable, StallInteractable, type Interactable } from "./Interactable";
 import { InteractionSystem } from "./InteractionSystem";
 import { InteriorLighting } from "./InteriorLighting";
 import { Kiosk } from "./Kiosk";
@@ -53,6 +53,8 @@ export class World {
   readonly designPicked = new Signal<number>();
   /** The visitor picked the offers board of the commissions hall. */
   readonly offersPicked = new Signal<void>();
+  /** The visitor used the WhatsApp lectern of a master's sala. */
+  readonly contactRequested = new Signal<WorldRoom>();
   /** Returns true while a click belongs to the UI (a HUD button), so the world ignores it. */
   pointerBlocked: () => boolean = () => false;
 
@@ -155,6 +157,8 @@ export class World {
     this.salas.forEach((sala) => {
       sala.setRecommended(sala.room.recommended);
       this.interactions.register(new DoorInteractable(sala.doorPoint, sala));
+      const contact = sala.interior.contactPoint;
+      if (contact) this.interactions.register(new ContactInteractable(contact, sala));
       for (const frame of sala.interior.frames) {
         this.pieces.set(frame.piece.id, frame.piece);
         this.interactions.register(new PieceInteractable(frame.viewPoint, frame));
@@ -183,18 +187,21 @@ export class World {
     else if (item instanceof StallInteractable) this.stallUsed.emit(item.kind);
     else if (item instanceof DesignFrameInteractable) this.designPicked.emit(item.index);
     else if (item instanceof OffersBoardInteractable) this.offersPicked.emit();
+    else if (item instanceof ContactInteractable) this.contactRequested.emit(item.sala.room);
   }
 
   /** A click on a display case opens the piece; any other click captures the mouse to look around. */
   private onCanvasClick(x: number, y: number): void {
     if (this.pointerBlocked()) return;
     const hit = this.scene.pick(x, y, (mesh) => mesh.isPickable && mesh.isEnabled(), false, this.camera);
-    const metadata = hit?.pickedMesh?.metadata as (Partial<PieceMetadata> & HallMetadata) | null | undefined;
+    const metadata = hit?.pickedMesh?.metadata as (Partial<PieceMetadata> & HallMetadata & { contactRoom?: string }) | null | undefined;
     if (metadata && hit && hit.distance < 7) {
       const piece = metadata.pieceId !== undefined ? this.pieces.get(metadata.pieceId) : undefined;
       if (piece) return this.pieceSelected.emit(piece);
       if (metadata.hallFrame !== undefined) return this.designPicked.emit(metadata.hallFrame);
       if (metadata.hallBoard) return this.offersPicked.emit();
+      const room = metadata.contactRoom ? this.salas.get(metadata.contactRoom)?.room : undefined;
+      if (room) return this.contactRequested.emit(room);
     }
     this.input.requestPointerLock();
   }
