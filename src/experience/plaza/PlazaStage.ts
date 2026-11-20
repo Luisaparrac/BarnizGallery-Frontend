@@ -26,7 +26,9 @@ export class PlazaStage implements Stage {
 
   /** Throws when the browser has no WebGL. */
   constructor(canvas: HTMLCanvasElement, options: PlazaOptions) {
-    this.world = new World(canvas, options.rooms, options.quality, options.avatarCode);
+    const t = (key: Parameters<typeof options.i18n.t>[0]) => options.i18n.t(key);
+    const hallTexts = { facade: [t("hall.facadeTitle"), t("hall.facadeLine")] as [string, string], inside: t("hall.insideSign") };
+    this.world = new World(canvas, options.rooms, hallTexts, options.quality, options.avatarCode);
     this.world.setPlaying(false);
     this.ui = new ExperienceUi(this.world, options.i18n, options.user);
     this.avatarCode = options.avatarCode;

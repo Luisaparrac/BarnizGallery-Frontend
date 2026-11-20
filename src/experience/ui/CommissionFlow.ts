@@ -56,7 +56,8 @@ export class CommissionFlow {
     await this.showRequest(request.id);
   }
 
-  private async showRequest(id: Id): Promise<void> {
+  /** Opens one of the visitor's custom orders (from the list or the design wall of the hall). */
+  async showRequest(id: Id): Promise<void> {
     await this.load(async () => {
       const [request] = await Promise.all([services.customOrder.get(id), this.loadSettings()]);
       this.show(request);

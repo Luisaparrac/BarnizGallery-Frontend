@@ -11,7 +11,7 @@ export abstract class Interactable {
   ) {}
 }
 
-/** A stall of the plaza: the welcome kiosk, the cashier or the commissions workshop. */
+/** A counter of the plaza: the welcome kiosk, the cashier or the front desk of the commissions hall. */
 export class StallInteractable extends Interactable {
   constructor(
     position: Vector3,
@@ -40,6 +40,31 @@ export class PieceInteractable extends Interactable {
     readonly vitrina: Vitrina,
     radius = 1.3,
   ) {
+    super(position, radius);
+  }
+}
+
+/** The open door of the commissions hall: says what the hall is for. */
+export class HallDoorInteractable extends Interactable {
+  constructor(position: Vector3, radius = 4.2) {
+    super(position, radius);
+  }
+}
+
+/** One frame of the design wall in the commissions hall (by its index). */
+export class DesignFrameInteractable extends Interactable {
+  constructor(
+    position: Vector3,
+    readonly index: number,
+    radius = 1.15,
+  ) {
+    super(position, radius);
+  }
+}
+
+/** The offers chalkboard of the commissions hall. */
+export class OffersBoardInteractable extends Interactable {
+  constructor(position: Vector3, radius = 1.8) {
     super(position, radius);
   }
 }

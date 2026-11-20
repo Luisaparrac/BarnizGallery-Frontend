@@ -2,12 +2,14 @@ import { AppEvents } from "../../core/AppEvents";
 import type { User } from "../../domain/user";
 import type { Localizer } from "../../i18n/Localizer";
 import { services } from "../../services/ServiceRegistry";
-import { DoorInteractable, PieceInteractable, StallInteractable, type Interactable } from "../world/Interactable";
+import { CommissionHallInterior } from "../world/CommissionHallInterior";
+import { DesignFrameInteractable, DoorInteractable, HallDoorInteractable, OffersBoardInteractable, PieceInteractable, StallInteractable, type Interactable } from "../world/Interactable";
 import type { World } from "../world/World";
 import { Hud } from "./Hud";
 import { PanelSurface, type SurfaceView } from "./PanelSurface";
 import { AccountFlow } from "./AccountFlow";
 import { CommissionFlow } from "./CommissionFlow";
+import { CommissionHallLoader, type HallData } from "./CommissionHallLoader";
 import { PurchaseFlow } from "./PurchaseFlow";
 import { TasteFlow } from "./TasteFlow";
 import { UiLayer } from "./UiLayer";
@@ -35,6 +37,10 @@ export class ExperienceUi {
   private readonly commissions: CommissionFlow;
   private readonly account: AccountFlow;
   private stopWatchingCart: (() => void) | null = null;
+  private readonly hallLoader: CommissionHallLoader;
+  private hallData: HallData | null = null;
+  /** Increases with every hall refresh, so an older answer never overwrites a newer one. */
+  private hallRequest = 0;
 
   constructor(
     private readonly world: World,
@@ -56,6 +62,7 @@ export class ExperienceUi {
     this.tastes = new TasteFlow(i18n, this.session, world, host);
     this.commissions = new CommissionFlow(i18n, this.session, host, this.purchase);
     this.account = new AccountFlow(i18n, this.session, host, this.purchase, this.commissions);
+    this.hallLoader = new CommissionHallLoader(i18n, CommissionHallInterior.FRAMES);
     this.hud.setFirstPerson(world.cameraMode === "FIRST_PERSON");
     world.pointerBlocked = () => this.layer.pointerOverHud;
 
@@ -72,10 +79,19 @@ export class ExperienceUi {
         if (kind === "welcome") void this.tastes.open();
         if (kind === "commissions") void this.commissions.showList();
       }),
-      this.session.changed.subscribe(() => this.watchCart()),
+      world.designPicked.subscribe((index) => this.openDesign(index)),
+      world.offersPicked.subscribe(() => {
+        const id = this.hallData?.offersRequestId;
+        void (id ? this.commissions.showRequest(id) : this.commissions.showList());
+      }),
+      this.session.changed.subscribe(() => {
+        this.watchCart();
+        this.refreshHall();
+      }),
       this.surface.closed.subscribe(() => this.onPanelClosed()),
     );
     this.watchCart();
+    this.refreshHall();
   }
 
   /**
@@ -103,6 +119,8 @@ export class ExperienceUi {
   }
 
   private onPanelClosed(): void {
+    // A board may have created a commission, generated designs or accepted an offer.
+    this.refreshHall();
     this.layer.usePanelPointer(false);
     this.hud.setVisible(true);
     this.world.setPlaying(true);
@@ -140,7 +158,34 @@ export class ExperienceUi {
     this.stopWatchingCart = AppEvents.cartChanged.subscribe(refresh);
   }
 
+  /** Reloads what the commissions hall shows: the design wall and the offers board. */
+  private refreshHall(): void {
+    const request = ++this.hallRequest;
+    void this.hallLoader.load(this.session.user).then((data) => {
+      if (request !== this.hallRequest) return;
+      this.hallData = data;
+      this.world.setCommissionDesigns(data.designs, this.i18n.t("hall.emptyFrame"));
+      this.world.setCommissionBoard(data.board);
+      // The prompt of the frame or board the visitor stands at may have changed.
+      this.hud.setPrompt(this.promptFor(this.world.interactions.current));
+    });
+  }
+
+  /** A frame of the design wall: the visitor's commission, or the list (and a new one) for an example. */
+  private openDesign(index: number): void {
+    const design = this.hallData?.designs[index];
+    if (!design) return;
+    void (design.requestId ? this.commissions.showRequest(design.requestId) : this.commissions.showList());
+  }
+
   private promptFor(item: Interactable | null): string | null {
+    if (item instanceof HallDoorInteractable) return this.i18n.t("hall.promptDoor");
+    if (item instanceof OffersBoardInteractable) return this.i18n.t("hall.promptBoard");
+    if (item instanceof DesignFrameInteractable) {
+      const design = this.hallData?.designs[item.index];
+      if (!design) return this.i18n.t("hall.promptEmptyFrame");
+      return design.requestId ? this.i18n.t("hall.promptDesign", { title: design.label }) : this.i18n.t("hall.promptExample");
+    }
     if (item instanceof StallInteractable) return this.i18n.t(ExperienceUi.STALL_PROMPTS[item.kind]);
     if (item instanceof PieceInteractable) return this.i18n.t("world.promptPiece", { title: item.vitrina.piece.title });
     if (item instanceof DoorInteractable) {
