@@ -882,3 +882,7 @@
   border-radius: 4px;
   box-shadow: 0 2px 10px rgba(36, 22, 18, 0.18);
 }
+
+.mu-sheet:focus {
+  outline: none;
+}

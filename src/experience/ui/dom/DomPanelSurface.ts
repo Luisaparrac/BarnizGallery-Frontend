@@ -132,10 +132,17 @@ export class DomPanelSurface {
     return sheet;
   }
 
+  /** The first field gets the focus; without fields the sheet itself does (no ring on a button). */
   private focusFirst(): void {
     const sheet = this.layer.querySelector<HTMLElement>(".mu-sheet");
-    const target = sheet?.querySelector<HTMLElement>("input") ?? sheet?.querySelector<HTMLElement>(DomPanelSurface.FOCUSABLE);
-    target?.focus({ preventScroll: true });
+    if (!sheet) return;
+    const field = sheet.querySelector<HTMLElement>("input, textarea, select");
+    if (field) {
+      field.focus({ preventScroll: true });
+      return;
+    }
+    sheet.tabIndex = -1;
+    sheet.focus({ preventScroll: true });
   }
 
   /** Esc closes; Tab cycles inside the sheet; no key goes on to the walk. */
