@@ -1,4 +1,4 @@
-import { Color3, Material, PBRMaterial, Scene, Texture } from "@babylonjs/core";
+import { Color3, PBRMaterial, Scene, Texture } from "@babylonjs/core";
 import { TextureFactory, type TextureSet } from "./TextureFactory";
 
 interface PbrOptions {
@@ -173,5 +173,3 @@ export class MaterialLibrary {
     set.normal.level = 1;
   }
 }
-
-export type AnyMaterial = Material;

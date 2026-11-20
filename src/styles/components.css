@@ -805,12 +805,6 @@ input[type="color"] {
   font-size: 0.92rem;
 }
 
-.crumbs {
-  padding: 18px 0 8px;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-
 .img-missing {
   background: repeating-linear-gradient(45deg, var(--surface-2) 0 10px, var(--wall) 10px 20px);
   aspect-ratio: 1;
