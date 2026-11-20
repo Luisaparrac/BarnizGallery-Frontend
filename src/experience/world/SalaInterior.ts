@@ -1,4 +1,4 @@
-import { MeshBuilder, type Material, type Mesh, type TransformNode } from "@babylonjs/core";
+import { MeshBuilder, Vector3, type Material, type Mesh, type TransformNode } from "@babylonjs/core";
 import { MeshBatcher } from "./MeshBatcher";
 import { MeshFactory } from "./MeshFactory";
 import type { SceneContext } from "./SceneContext";
@@ -57,10 +57,19 @@ export class SalaInterior {
     // The merge bakes world positions, so the case roots must be up to date first.
     this.root.computeWorldMatrix(true);
     this.vitrinas.forEach((vitrina) => vitrina.root.computeWorldMatrix(true));
-    for (const mesh of this.batcher.merge(`${this.room.key}-interior`)) {
+    const merged = this.batcher.merge(`${this.room.key}-interior`);
+    for (const mesh of merged) {
       mesh.isPickable = false;
       this.ctx.interior.add(mesh);
     }
+    const { innerHalfWidth: hw, innerFrontZ: fz, innerBackZ: bz } = this.frame;
+    this.ctx.photos.addRoom({
+      world: this.root.getWorldMatrix(),
+      min: new Vector3(-hw, 0, fz),
+      max: new Vector3(hw, SalaInterior.CEILING, bz),
+      photos: this.vitrinas.flatMap((vitrina) => (vitrina.photo ? [vitrina.photo] : [])),
+      occluders: merged,
+    });
   }
 
   private buildRoom(): void {

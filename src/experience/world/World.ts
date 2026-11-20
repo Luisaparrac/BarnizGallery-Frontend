@@ -14,6 +14,7 @@ import { Kiosk } from "./Kiosk";
 import { Lighting } from "./Lighting";
 import { MaterialLibrary } from "./MaterialLibrary";
 import { PerimeterWall } from "./PerimeterWall";
+import { PhotoPass } from "./PhotoPass";
 import { PlayerController } from "./PlayerController";
 import { Plaza } from "./Plaza";
 import { PlazaLayout } from "./PlazaLayout";
@@ -54,6 +55,7 @@ export class World {
   private readonly pieces = new Map<number, WorldPiece>();
   private readonly quality: QualityManager;
   private readonly avatars: AvatarFactory;
+  private readonly photoPass: PhotoPass;
   private readonly onResize = () => this.engine.resize();
   private time = 0;
 
@@ -74,7 +76,8 @@ export class World {
     const shadows = new ShadowRig(lighting.sun, this.quality.settings);
     const materials = new MaterialLibrary(this.scene);
     const interior = new InteriorLighting(this.scene, lighting);
-    const context: SceneContext = { scene: this.scene, materials, shadows, quality: this.quality, interior };
+    this.photoPass = new PhotoPass(this.scene, this.camera);
+    const context: SceneContext = { scene: this.scene, materials, shadows, quality: this.quality, interior, photos: this.photoPass };
 
     this.buildComponents(context, rooms);
 
@@ -117,6 +120,7 @@ export class World {
     window.removeEventListener("resize", this.onResize);
     this.input.dispose();
     this.engine.stopRenderLoop();
+    this.photoPass.dispose();
     this.scene.dispose();
     this.engine.dispose();
   }
@@ -183,6 +187,7 @@ export class World {
     this.player.update(delta);
     this.components.forEach((component) => component.update(delta, this.time));
     this.interactions.update(this.player.position);
+    this.photoPass.update(this.player.position, this.player.mode === "THIRD_PERSON");
     this.scene.render();
   }
 

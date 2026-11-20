@@ -1,45 +1,93 @@
-import { DynamicTexture, type Scene } from "@babylonjs/core";
+import { DynamicTexture, Texture, type Scene } from "@babylonjs/core";
+import { Signal } from "../../core/Signal";
+
+/** Texture sizes by distance: none far away, 1024 px in the sala, 2048 px up close. */
+type Detail = 0 | 1024 | 2048;
 
 /**
- * Loads a piece's photo into a texture. Drawing through an <img> works for real URLs and for the
- * demo SVG pictures alike; while it loads the texture shows a neutral backdrop.
+ * The photo of a piece as a texture whose resolution follows the visitor's distance (LOD): no texture
+ * beyond 30 m (the photo is not drawn there), 1024 px in the room and 2048 px within a few metres.
+ * Each texture has mipmaps and the GPU's maximum anisotropic filtering, so it stays sharp at an angle.
+ * The image is downloaded once; a new texture is drawn from it when the detail changes.
  */
 export class PhotoTexture {
-  private static readonly SIZE = 512;
   /** Margin around the photo, so the piece never touches the frame. */
-  private static readonly MARGIN = 0.04;
-  /**
-   * The photo is self-lit and the scene's tone mapping and bloom brighten it; slightly below 1 keeps
-   * white backgrounds from washing out the piece.
-   */
-  private static readonly LEVEL = 0.9;
+  private static readonly MARGIN = 0.03;
+  private static readonly LOAD_DISTANCE = 30;
+  private static readonly DROP_DISTANCE = 40;
+  private static readonly SHARP_DISTANCE = 4.5;
+  private static readonly SOFT_DISTANCE = 6;
 
-  static create(scene: Scene, name: string, url: string): DynamicTexture {
-    const size = PhotoTexture.SIZE;
-    const texture = new DynamicTexture(name, { width: size, height: size }, scene, true);
-    texture.level = PhotoTexture.LEVEL;
-    const ctx = texture.getContext() as CanvasRenderingContext2D;
-    ctx.fillStyle = "#e7e1d6";
-    ctx.fillRect(0, 0, size, size);
-    texture.update();
-    texture.anisotropicFilteringLevel = 8;
+  /** The texture to show changed (null: none yet, the material shows its plain colour). */
+  readonly changed = new Signal<Texture | null>();
+  private readonly image = new Image();
+  private loaded = false;
+  private current: DynamicTexture | null = null;
+  private detail: Detail = 0;
+  private wanted: Detail = 0;
+  private backdrop = "#e7e1d6";
 
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => {
-      if (!texture.getScene()) return;
-      // Fit the whole photo in the square (tall vases and masks must not lose their top or base)
-      // and fill the rest with the colour of the photo's edges, so it reads as one backdrop.
-      ctx.fillStyle = PhotoTexture.edgeColor(image);
-      ctx.fillRect(0, 0, size, size);
-      const inner = size * (1 - PhotoTexture.MARGIN * 2);
-      const scale = Math.min(inner / image.naturalWidth, inner / image.naturalHeight);
-      const width = image.naturalWidth * scale;
-      const height = image.naturalHeight * scale;
-      ctx.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
-      texture.update();
+  constructor(
+    private readonly scene: Scene,
+    private readonly name: string,
+    url: string,
+  ) {
+    this.image.crossOrigin = "anonymous";
+    this.image.onload = () => {
+      this.loaded = true;
+      this.backdrop = PhotoTexture.edgeColor(this.image);
+      this.apply();
     };
-    image.src = url;
+    this.image.src = url;
+  }
+
+  get texture(): Texture | null {
+    return this.current;
+  }
+
+  /** Chooses the resolution for this distance (in metres) from the camera, with some hysteresis. */
+  update(distance: number): void {
+    let wanted = this.wanted;
+    if (distance > PhotoTexture.DROP_DISTANCE) wanted = 0;
+    else if (distance < PhotoTexture.SHARP_DISTANCE) wanted = 2048;
+    else if (distance < PhotoTexture.LOAD_DISTANCE) wanted = wanted === 2048 && distance < PhotoTexture.SOFT_DISTANCE ? 2048 : 1024;
+    if (wanted === this.wanted) return;
+    this.wanted = wanted;
+    this.apply();
+  }
+
+  dispose(): void {
+    this.image.onload = null;
+    this.current?.dispose();
+    this.current = null;
+  }
+
+  private apply(): void {
+    if (this.wanted === this.detail || (this.wanted !== 0 && !this.loaded)) return;
+    const previous = this.current;
+    this.detail = this.wanted;
+    this.current = this.detail ? this.draw(this.detail) : null;
+    this.changed.emit(this.current);
+    previous?.dispose();
+  }
+
+  private draw(size: number): DynamicTexture {
+    const texture = new DynamicTexture(`${this.name}-${size}`, { width: size, height: size }, this.scene, true, Texture.TRILINEAR_SAMPLINGMODE);
+    texture.anisotropicFilteringLevel = this.scene.getEngine().getCaps().maxAnisotropy || 16;
+    texture.wrapU = texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+    const ctx = texture.getContext() as CanvasRenderingContext2D;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    // Fit the whole photo (tall vases and masks keep their top and base) and fill the rest with the
+    // colour of the photo's edges, so it reads as one backdrop.
+    ctx.fillStyle = this.backdrop;
+    ctx.fillRect(0, 0, size, size);
+    const inner = size * (1 - PhotoTexture.MARGIN * 2);
+    const scale = Math.min(inner / this.image.naturalWidth, inner / this.image.naturalHeight);
+    const width = this.image.naturalWidth * scale;
+    const height = this.image.naturalHeight * scale;
+    ctx.drawImage(this.image, (size - width) / 2, (size - height) / 2, width, height);
+    texture.update();
     return texture;
   }
 
