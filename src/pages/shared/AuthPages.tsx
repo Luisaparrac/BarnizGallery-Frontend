@@ -3,20 +3,13 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AvatarPicker } from "../../components/AvatarPicker";
 import { ErrorNote, Note } from "../../components/Feedback";
 import { Field } from "../../components/Field";
-import { AppConfig } from "../../config/AppConfig";
+import { DemoAccounts } from "../../config/DemoAccounts";
 import type { Id } from "../../domain/common";
 import type { User } from "../../domain/user";
 import { services } from "../../services/ServiceRegistry";
 import { useLocale } from "../../state/LocaleContext";
 import { useSession } from "../../state/SessionContext";
 import { COUNTRIES } from "../../utils/countries";
-
-/** Demo accounts of the panel (the customer account is used in the 3D museum). */
-const DEMO_ACCOUNTS = [
-  { email: "valderrama@museo.co", role: "ARTISAN" },
-  { email: "nueva@museo.co", role: "ARTISAN_PENDING" },
-  { email: "admin@museo.co", role: "ADMIN" },
-];
 
 function homeFor(user: User): string {
   if (user.role === "ADMIN") return "/admin";
@@ -66,18 +59,19 @@ export function LoginPage() {
       <p className="auth-links">
         <Link to="/forgot-password">{i18n.t("auth.forgot")}</Link> · <Link to="/register">{i18n.t("panel.registerTitle")}</Link>
       </p>
-      {AppConfig.anyMock && (
+      {/* Only while developing with simulated data: never in the production build. */}
+      {DemoAccounts.shown && (
         <Note>
-          <strong>{i18n.t("demo.accountsTitle")}</strong> {i18n.t("demo.accountsText")}
+          <strong>{i18n.t("demo.accountsTitle")}</strong> {i18n.t("demo.accountsText", { password: DemoAccounts.password })}
           <ul className="demo-accounts">
-            {DEMO_ACCOUNTS.map((account) => (
+            {DemoAccounts.panel.map((account) => (
               <li key={account.email}>
                 <button
                   type="button"
                   className="btn btn-link"
                   onClick={() => {
                     setEmail(account.email);
-                    setPassword("museo123");
+                    setPassword(DemoAccounts.password);
                   }}
                 >
                   {account.email}

@@ -7,7 +7,7 @@ import type { Master, Photo, Store, StoreSection, VerificationStep } from "../..
 import type { ArtworkRow, MockTables, OrderRow, UserRow } from "./MockTables";
 import { RealInventory, type RealMaster } from "./RealInventory";
 
-/** SHA-256 of "museo:museo123": every demo account uses the password museo123. */
+/** SHA-256 of "museo:" + the demo password (see DemoAccounts): every demo account uses it. */
 const DEMO_PASSWORD_HASH = "e44382dafd6b4c136f69cdddd082e972a5f63caeebdf641390c269ba09a23f42";
 
 const DAY = 86_400_000;

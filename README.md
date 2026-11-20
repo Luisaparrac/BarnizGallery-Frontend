@@ -37,15 +37,9 @@ El enlace **«Restablecer datos de demo»** del pie de página borra los datos s
 
 ## Cuentas de prueba (modo simulado)
 
-Contraseña de todas: `museo123`
-
-| Correo | Rol |
-|---|---|
-| `ana@example.com` | Cliente (idioma preferido inglés) |
-| `valderrama@museo.co` | Artesano aprobado (Taller Valderrama) |
-| `granja@`, `cabrera@`, `lasso@`, `caguasongo@`, `castrillon@museo.co` | Los demás maestros reales (artesanos aprobados) |
-| `nueva@museo.co` | Artesana en verificación |
-| `admin@museo.co` | Administrador |
+Los datos simulados traen cuentas de cliente, de los maestros, de una artesana en verificación y de administración.
+Las cuentas y su contraseña solo aparecen en las pantallas de inicio de sesión **en desarrollo** (`npm run dev`) con `VITE_USE_MOCKS=true`: están en `src/config/DemoAccounts.ts`.
+El build de producción (`npm run build`) no las incluye ni en el HTML ni en el JS.
 
 ## Qué incluye
 

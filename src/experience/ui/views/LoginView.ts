@@ -1,17 +1,9 @@
-import { AppConfig } from "../../../config/AppConfig";
-import type { LoginRequest, UserRole } from "../../../domain/user";
+import { DemoAccounts } from "../../../config/DemoAccounts";
+import type { LoginRequest } from "../../../domain/user";
 import type { Localizer } from "../../../i18n/Localizer";
 import { BoardFormView } from "../board/BoardFormView";
 import type { BoardContext } from "../board/BoardView";
 import type { UiField, UiNode } from "../kit/UiKit";
-
-/** Demo accounts shown only with simulated data (same as the panel login). */
-const DEMO_ACCOUNTS: { email: string; role: UserRole }[] = [
-  { email: "ana@example.com", role: "CUSTOMER" },
-  { email: "valderrama@museo.co", role: "ARTISAN" },
-  { email: "admin@museo.co", role: "ADMIN" },
-];
-const DEMO_PASSWORD = "museo123";
 
 /** Sign in with email and password (at the ticket office or from a board in the plaza). */
 export class LoginView extends BoardFormView {
@@ -36,10 +28,11 @@ export class LoginView extends BoardFormView {
     column.add(this.password);
     this.submitOnEnter(this.email, this.password);
 
-    if (AppConfig.anyMock) {
+    // Only while developing with simulated data: never in the production build.
+    if (DemoAccounts.shown) {
       const demo = kit.column("small");
-      demo.add(kit.note(`${this.i18n.t("demo.accountsTitle")} ${this.i18n.t("demo.accountsText")}`));
-      demo.add(kit.choice(DEMO_ACCOUNTS, null, (account) => [account.email, this.i18n.t(`role.${account.role}`)], (account) => this.fill(account.email)));
+      demo.add(kit.note(`${this.i18n.t("demo.accountsTitle")} ${this.i18n.t("demo.accountsText", { password: DemoAccounts.password })}`));
+      demo.add(kit.choice([...DemoAccounts.museum], null, (account) => [account.email, this.i18n.tx(`demo.role.${account.role}`)], (account) => this.fill(account.email)));
       column.add(demo);
     }
     return column;
@@ -59,6 +52,6 @@ export class LoginView extends BoardFormView {
 
   private fill(email: string): void {
     this.email?.setValue(email);
-    this.password?.setValue(DEMO_PASSWORD);
+    this.password?.setValue(DemoAccounts.password);
   }
 }
