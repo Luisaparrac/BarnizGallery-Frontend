@@ -234,6 +234,29 @@ export class PurchaseFlow {
   }
 
   /** The sign-in board; after signing in (or going back) the visitor returns to `then`. */
+  /** Asks to sign in and comes back to `then` (used by the other flows too). */
+  requireSignIn(then: () => void): void {
+    this.signIn(then);
+  }
+
+  /**
+   * Pays an order that already exists (the deposit of a custom order) with the same gateway:
+   * its summary is built from the order itself.
+   */
+  async payOrder(orderId: Id): Promise<void> {
+    await this.load(async () => {
+      const order = await services.commerce.getOrder(orderId);
+      const money = (amount: number) => this.format.money(amount, order.currency);
+      this.summary = {
+        items: order.items.map((item) => ({ image: "", title: item.description, detail: item.storeName, price: money(item.lineTotal) })),
+        subtotal: money(order.subtotal),
+        shipping: money(order.shippingCost),
+        total: money(order.total),
+      };
+      await this.startPayment(order);
+    });
+  }
+
   private signIn(then: () => void): void {
     this.host.show(
       new LoginView(this.i18n, then, async (request) => {

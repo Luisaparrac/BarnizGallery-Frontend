@@ -867,6 +867,8 @@
 
 .mu-picture {
   margin: 0;
+  width: 200px;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -885,4 +887,9 @@
 
 .mu-sheet:focus {
   outline: none;
+}
+
+.mu-thumb.is-empty {
+  display: block;
+  background: var(--mu-card);
 }

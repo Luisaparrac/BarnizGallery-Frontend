@@ -1,7 +1,7 @@
 import type { Localizer } from "../../../i18n/Localizer";
 import { ErrorText } from "../ErrorText";
 import type { UiButton, UiField, UiNode, UiText } from "../kit/UiKit";
-import type { BoardContext } from "./BoardView";
+import type { BoardContext, BoardSize } from "./BoardView";
 import { BoardView } from "./BoardView";
 
 /**
@@ -11,7 +11,7 @@ import { BoardView } from "./BoardView";
  */
 export abstract class BoardFormView extends BoardView {
   override readonly closable = false;
-  readonly size = "form" as const;
+  readonly size: BoardSize = "form";
 
   private error: UiText | null = null;
   private submitButton: UiButton | null = null;

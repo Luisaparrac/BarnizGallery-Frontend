@@ -6,6 +6,7 @@ import { DoorInteractable, PieceInteractable, StallInteractable, type Interactab
 import type { World } from "../world/World";
 import { Hud } from "./Hud";
 import { PanelSurface, type SurfaceView } from "./PanelSurface";
+import { CommissionFlow } from "./CommissionFlow";
 import { PurchaseFlow } from "./PurchaseFlow";
 import { TasteFlow } from "./TasteFlow";
 import { UiLayer } from "./UiLayer";
@@ -30,6 +31,7 @@ export class ExperienceUi {
   private readonly session: VisitorSession;
   private readonly purchase: PurchaseFlow;
   private readonly tastes: TasteFlow;
+  private readonly commissions: CommissionFlow;
   private stopWatchingCart: (() => void) | null = null;
 
   constructor(
@@ -51,6 +53,7 @@ export class ExperienceUi {
     const host = { show: (view: SurfaceView) => this.open(view), close: () => this.surface.close() };
     this.purchase = new PurchaseFlow(i18n, this.session, host);
     this.tastes = new TasteFlow(i18n, this.session, world, host);
+    this.commissions = new CommissionFlow(i18n, this.session, host, this.purchase);
     this.hud.setFirstPerson(world.cameraMode === "FIRST_PERSON");
     world.pointerBlocked = () => this.layer.pointerOverHud;
 
@@ -64,6 +67,7 @@ export class ExperienceUi {
       world.stallUsed.subscribe((kind) => {
         if (kind === "cashier") void this.purchase.showCart();
         if (kind === "welcome") void this.tastes.open();
+        if (kind === "commissions") void this.commissions.showList();
       }),
       this.session.changed.subscribe(() => this.watchCart()),
       this.surface.closed.subscribe(() => this.onPanelClosed()),

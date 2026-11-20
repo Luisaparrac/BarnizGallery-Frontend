@@ -409,10 +409,13 @@ export class DomUiKit implements UiKit {
 
   summaryItem(item: SummaryItem): UiNode {
     const row = this.tag("div", "mu-item");
-    const image = document.createElement("img");
-    image.className = "mu-thumb";
-    image.src = ArtworkImageFactory.resolve(item.image);
-    image.alt = "";
+    // Without a photo (a deposit) the thumbnail is an empty frame, never a broken image.
+    const image = item.image ? document.createElement("img") : this.tag("span", "mu-thumb is-empty");
+    if (image instanceof HTMLImageElement) {
+      image.className = "mu-thumb";
+      image.src = ArtworkImageFactory.resolve(item.image);
+      image.alt = "";
+    }
     const texts = this.tag("div", "mu-item-texts");
     texts.append(this.tag("strong", "mu-item-title", item.title), this.tag("span", "mu-item-detail", item.detail));
     row.append(image, texts, this.tag("span", "mu-item-price", item.price));
