@@ -3,6 +3,7 @@ import type { CustomOffer, CustomRequest } from "../../../domain/customOrder";
 import type { Localizer } from "../../../i18n/Localizer";
 import type { Formatter } from "../../../utils/Formatter";
 import { BoardView, type BoardContext } from "../board/BoardView";
+import { DesignFailureText } from "../DesignFailureText";
 import { ErrorText } from "../ErrorText";
 import type { UiBox, UiButton, UiKit, UiNode, UiText } from "../kit/UiKit";
 
@@ -84,12 +85,18 @@ export class CommissionView extends BoardView {
     const block = kit.column("medium");
     block.add(kit.section(this.i18n.t("custom.designs")));
     block.add(kit.note(this.i18n.t("custom.designsLead", { max: this.maxDesigns })));
-    const ready = this.request.designs.filter((design) => design.imageUrl);
-    if (!ready.length) return block;
+    // A finished design is a picture (an URL or a data: URI); a failed one says why instead of a broken image.
+    const shown = this.request.designs.filter((design) => design.status === "FAILED" || design.imageUrl);
+    if (!shown.length) return block;
     const row: UiBox = kit.row("medium");
-    for (const design of ready) {
+    for (const design of shown) {
       const frame = kit.column("small");
-      frame.add(kit.picture(design.imageUrl!));
+      if (design.status === "FAILED" || !design.imageUrl) {
+        frame.add(kit.note(DesignFailureText.of(this.i18n, design), "error"));
+        row.add(frame);
+        continue;
+      }
+      frame.add(kit.picture(design.imageUrl));
       if (design.isSelected) frame.add(kit.note(`✓ ${this.i18n.t("custom.chosen")}`, "success"));
       else frame.add(kit.link(this.i18n.t("custom.choose"), () => void this.run(() => this.act.selectDesign(design.id))));
       row.add(frame);
