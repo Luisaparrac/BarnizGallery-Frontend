@@ -208,6 +208,7 @@ export class DomUiKit implements UiKit {
       input.className = "mu-input";
       input.type = options.password ? "password" : (options.type ?? "text");
       input.spellcheck = false;
+      if (options.min) input.min = options.min;
     }
     input.id = id;
     input.value = options.value ?? "";

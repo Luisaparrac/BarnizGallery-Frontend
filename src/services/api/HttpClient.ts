@@ -41,7 +41,8 @@ export class HttpClient {
   }
 
   private async request<T>(method: Method, path: string, body?: unknown): Promise<T> {
-    const headers: Record<string, string> = { Accept: "application/json" };
+    // The backend writes its error messages in this language when the visitor has no saved one.
+    const headers: Record<string, string> = { Accept: "application/json", "Accept-Language": HttpClient.language() };
     const token = TokenStore.token;
     if (token) headers.Authorization = `Bearer ${token}`;
     const isForm = body instanceof FormData;
@@ -62,9 +63,19 @@ export class HttpClient {
     if (!response.ok) {
       const body = data as { code?: string; message?: string; params?: Record<string, string | number> } | null;
       const message = body?.message ?? response.statusText;
-      throw new AppError(body?.code ?? HttpClient.codeFor(response.status), message, response.status, body?.params ?? {});
+      const code = body?.code ? HttpClient.camelCase(body.code) : HttpClient.codeFor(response.status);
+      throw new AppError(code, message, response.status, body?.params ?? {});
     }
     return data as T;
+  }
+
+  /** The backend's codes are snake_case (custom_request_incomplete); the texts use camelCase (error.customRequestIncomplete). */
+  private static camelCase(code: string): string {
+    return code.replace(/_([a-z0-9])/g, (_, letter: string) => letter.toUpperCase());
+  }
+
+  private static language(): string {
+    return typeof document !== "undefined" && document.documentElement.lang === "en" ? "en" : "es";
   }
 
   private static codeFor(status: number): string {

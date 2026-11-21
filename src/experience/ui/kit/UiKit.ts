@@ -39,7 +39,9 @@ export interface FieldOptions {
   placeholder?: string;
   /** The browser's autocomplete hint: email, current-password, new-password, address-line1… */
   autocomplete?: string;
-  type?: "text" | "email" | "tel" | "number";
+  type?: "text" | "email" | "tel" | "number" | "date";
+  /** The earliest value of a date field (ISO YYYY-MM-DD); the Babylon kit only shows the placeholder. */
+  min?: string;
   /** A text area of several lines (descriptions). */
   multiline?: boolean;
 }
