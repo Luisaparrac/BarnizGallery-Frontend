@@ -5,7 +5,7 @@ import type { Formatter } from "../../../utils/Formatter";
 import { BoardView, type BoardContext } from "../board/BoardView";
 import { DesignFailureText } from "../DesignFailureText";
 import { ErrorText } from "../ErrorText";
-import type { UiBox, UiButton, UiKit, UiNode, UiText } from "../kit/UiKit";
+import type { UiBox, UiButton, UiKit, UiNode, UiShowable, UiText } from "../kit/UiKit";
 
 export interface CommissionActions {
   back(): void;
@@ -28,6 +28,12 @@ export class CommissionView extends BoardView {
   private status: UiText | null = null;
   private offerId: Id | null = null;
   private busy = false;
+  // What changes while the AI generates a design (it can take a minute and each one spends a real image).
+  private generateButton: UiButton | null = null;
+  private publishButton: UiButton | null = null;
+  private readonly chooseButtons: UiButton[] = [];
+  private generatingNotice: UiText | null = null;
+  private loadingCard: UiShowable | null = null;
 
   constructor(
     private readonly i18n: Localizer,
@@ -66,10 +72,10 @@ export class CommissionView extends BoardView {
   override actions({ kit }: BoardContext): UiButton[] {
     const status = this.request.status;
     if (status === "DRAFT") {
-      const done = this.request.designs.length;
-      const generate = kit.button(this.i18n.t("custom.generate", { count: done + 1, max: this.maxDesigns }), () => void this.run(() => this.act.generate()), "secondary");
-      generate.setEnabled(done < this.maxDesigns);
-      return [generate, kit.button(this.i18n.t("custom.publish"), () => void this.run(() => this.act.publish()))];
+      this.generateButton = kit.button(this.generateLabel(), () => void this.generate(), "secondary");
+      this.generateButton.setEnabled(this.canGenerate());
+      this.publishButton = kit.button(this.i18n.t("custom.publish"), () => void this.run(() => this.act.publish()));
+      return [this.generateButton, this.publishButton];
     }
     if (status === "PUBLISHED" || status === "WITH_OFFERS") {
       const accept = kit.button(this.i18n.t("custom.accept"), () => void this.run(() => this.act.accept(this.offerId!)));
@@ -87,7 +93,9 @@ export class CommissionView extends BoardView {
     block.add(kit.note(this.i18n.t("custom.designsLead", { max: this.maxDesigns })));
     // A finished design is a picture (an URL or a data: URI); a failed one says why instead of a broken image.
     const shown = this.request.designs.filter((design) => design.status === "FAILED" || design.imageUrl);
-    if (!shown.length) return block;
+    this.generatingNotice = kit.note(this.i18n.t("custom.generatingNotice"));
+    this.generatingNotice.setVisible(false);
+    block.add(this.generatingNotice);
     const row: UiBox = kit.row("medium");
     for (const design of shown) {
       const frame = kit.column("small");
@@ -98,9 +106,15 @@ export class CommissionView extends BoardView {
       }
       frame.add(kit.picture(design.imageUrl));
       if (design.isSelected) frame.add(kit.note(`✓ ${this.i18n.t("custom.chosen")}`, "success"));
-      else frame.add(kit.link(this.i18n.t("custom.choose"), () => void this.run(() => this.act.selectDesign(design.id))));
+      else {
+        const choose = kit.button(this.i18n.t("custom.choose"), () => void this.run(() => this.act.selectDesign(design.id)), "secondary");
+        this.chooseButtons.push(choose);
+        frame.add(choose);
+      }
       row.add(frame);
     }
+    this.loadingCard = kit.loadingPicture(this.i18n.t("custom.generatingCard"));
+    row.add(this.loadingCard);
     block.add(row);
     return block;
   }
@@ -126,6 +140,31 @@ export class CommissionView extends BoardView {
 
   private selectedDesign(): string | null {
     return this.request.designs.find((design) => design.isSelected)?.imageUrl ?? null;
+  }
+
+  /** One design at a time: the board says it is working until the request ends (a failure shows its reason). */
+  private async generate(): Promise<void> {
+    if (this.busy || !this.canGenerate()) return;
+    this.setGenerating(true);
+    await this.run(() => this.act.generate());
+    this.setGenerating(false);
+  }
+
+  private setGenerating(on: boolean): void {
+    this.generateButton?.setLabel(on ? this.i18n.t("custom.generating") : this.generateLabel());
+    this.generateButton?.setEnabled(!on && this.canGenerate());
+    this.publishButton?.setEnabled(!on);
+    this.chooseButtons.forEach((button) => button.setEnabled(!on));
+    this.generatingNotice?.setVisible(on);
+    this.loadingCard?.setVisible(on);
+  }
+
+  private canGenerate(): boolean {
+    return this.request.designs.length < this.maxDesigns;
+  }
+
+  private generateLabel(): string {
+    return this.i18n.t("custom.generate", { count: this.request.designs.length + 1, max: this.maxDesigns });
   }
 
   private async run(step: () => Promise<void>): Promise<void> {

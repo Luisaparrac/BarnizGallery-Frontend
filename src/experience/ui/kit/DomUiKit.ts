@@ -16,6 +16,7 @@ import type {
   UiKit,
   UiNode,
   UiOption,
+  UiShowable,
   UiText,
 } from "./UiKit";
 import "./dom-ui.css";
@@ -41,6 +42,12 @@ class DomText extends DomNode implements UiText {
     this.element.dataset.tone = tone;
   }
 
+  setVisible(visible: boolean): void {
+    this.element.hidden = !visible;
+  }
+}
+
+class DomVisibility extends DomNode implements UiShowable {
   setVisible(visible: boolean): void {
     this.element.hidden = !visible;
   }
@@ -300,6 +307,16 @@ export class DomUiKit implements UiKit {
     figure.append(image);
     if (caption) figure.append(this.tag("figcaption", "", caption));
     return new DomNode(figure);
+  }
+
+  loadingPicture(caption: string): UiShowable {
+    const figure = this.tag("figure", "mu-picture is-loading");
+    figure.setAttribute("role", "status");
+    const box = this.tag("div", "mu-loading-box");
+    box.append(this.tag("span", "mu-spinner"));
+    figure.append(box, this.tag("figcaption", "", caption));
+    figure.hidden = true;
+    return new DomVisibility(figure);
   }
 
   button(label: string, onClick: () => void, variant: ButtonVariant = "primary", fullWidth = false): UiButton {

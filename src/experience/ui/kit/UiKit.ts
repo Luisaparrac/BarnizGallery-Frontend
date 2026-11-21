@@ -26,6 +26,12 @@ export interface UiText extends UiNode {
   setVisible(visible: boolean): void;
 }
 
+/** Something a view shows or hides later (a placeholder while work runs). */
+export interface UiShowable extends UiNode {
+  /** A hidden node takes no room. */
+  setVisible(visible: boolean): void;
+}
+
 export interface UiButton extends UiNode {
   setEnabled(enabled: boolean): void;
   setLabel(label: string): void;
@@ -118,6 +124,8 @@ export interface UiKit {
   gallery(urls: string[], description: string): UiNode;
   /** A framed picture with an optional caption (a design proposal). */
   picture(url: string, caption?: string): UiNode;
+  /** A picture-sized placeholder with a moving loader and a caption; it starts hidden. */
+  loadingPicture(caption: string): UiShowable;
 
   /** Steps of a process, the current one in green. */
   steps(labels: string[], current: number): UiNode;

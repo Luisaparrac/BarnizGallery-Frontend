@@ -951,6 +951,38 @@
   color: var(--mu-ink-soft);
 }
 
+.mu-loading-box {
+  width: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: var(--mu-card);
+  border: 6px solid #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(36, 22, 18, 0.18);
+}
+
+.mu-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 4px solid var(--mu-line);
+  border-top-color: var(--mu-red);
+  animation: mu-spin 0.9s linear infinite;
+}
+
+@keyframes mu-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mu-spinner {
+    animation-duration: 3s;
+  }
+}
+
 .mu-picture img {
   width: 100%;
   aspect-ratio: 1;

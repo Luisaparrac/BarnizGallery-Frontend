@@ -19,6 +19,7 @@ import type {
   UiKit,
   UiNode,
   UiOption,
+  UiShowable,
   UiText,
 } from "./UiKit";
 
@@ -90,6 +91,43 @@ class BabylonText extends BabylonNode implements UiText {
 
   setVisible(visible: boolean): void {
     this.block.isVisible = visible;
+  }
+}
+
+/** The loading placeholder: three dots that grow while it is shown (Babylon GUI has no CSS animations). */
+class BabylonLoading extends BabylonNode implements UiShowable {
+  private static readonly FRAMES = ["•", "• •", "• • •"];
+  private static readonly STEP_MS = 400;
+  private timer: number | null = null;
+  private frame = 0;
+
+  constructor(
+    column: Container,
+    private readonly dots: TextBlock,
+  ) {
+    super(column);
+    column.isVisible = false;
+    column.onDisposeObservable.add(() => this.stop());
+  }
+
+  setVisible(visible: boolean): void {
+    this.control.isVisible = visible;
+    if (visible) this.start();
+    else this.stop();
+  }
+
+  private start(): void {
+    if (this.timer !== null) return;
+    this.timer = window.setInterval(() => {
+      this.frame = (this.frame + 1) % BabylonLoading.FRAMES.length;
+      this.dots.text = BabylonLoading.FRAMES[this.frame];
+    }, BabylonLoading.STEP_MS);
+  }
+
+  private stop(): void {
+    if (this.timer === null) return;
+    window.clearInterval(this.timer);
+    this.timer = null;
   }
 }
 
@@ -526,6 +564,24 @@ export class BabylonUiKit implements UiKit {
     column.addControl(frame);
     if (caption) column.addControl(this.block(caption, T.font.body, T.type.note, "400", T.color.inkSoft));
     return new BabylonNode(column);
+  }
+
+  loadingPicture(caption: string): UiShowable {
+    const column = this.stack(true, T.size.gapSmall);
+    column.widthInPixels = T.px(180);
+    const frame = new Rectangle(this.name("loadingFrame"));
+    frame.widthInPixels = frame.heightInPixels = T.px(180);
+    frame.cornerRadius = T.px(8);
+    frame.thickness = T.px(6);
+    frame.color = T.color.white;
+    frame.background = T.color.card;
+    const dots = this.block("•", T.font.display, T.type.title, "700", T.color.red);
+    dots.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    dots.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+    frame.addControl(dots);
+    column.addControl(frame);
+    column.addControl(this.block(caption, T.font.body, T.type.note, "400", T.color.inkSoft));
+    return new BabylonLoading(column, dots);
   }
 
   /** On the 3D board the border is solid (Babylon GUI has no dashed borders). */
